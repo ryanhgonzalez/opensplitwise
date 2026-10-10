@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser } from '../store';
+import { firstGrapheme } from '../lib/emoji';
 import type { Group, GroupType } from '../types';
 import Avatar from './Avatar';
 import '../styles/sheet.css';
@@ -15,10 +16,6 @@ const GROUP_TYPES: { value: GroupType; label: string }[] = [
   { value: 'event',   label: 'Event' },
   { value: 'other',   label: 'Other' },
 ];
-
-function extractFirstGrapheme(str: string): string {
-  return [...str][0] ?? '';
-}
 
 interface EditGroupSheetProps {
   open: boolean;
@@ -152,7 +149,7 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
                           className="cgs-emoji-input"
                           placeholder="Type any emoji…"
                           onChange={(e) => {
-                            const first = extractFirstGrapheme(e.target.value);
+                            const first = firstGrapheme(e.target.value);
                             if (first) { setEmoji(first); setShowEmojiInput(false); }
                           }}
                           onKeyDown={(e) => e.key === 'Escape' && setShowEmojiInput(false)}
