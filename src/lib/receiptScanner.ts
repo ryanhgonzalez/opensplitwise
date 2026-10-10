@@ -32,8 +32,18 @@ export async function scanReceipt(file: File, onProgress?: ScanProgress): Promis
   const canvas = await preprocessImage(file);
 
   // Lazy-load Tesseract so it never bloats the main bundle — only fetched on first scan.
-  const { createWorker } = await import('tesseract.js');
+  const [{ createWorker }, { simd }] = await Promise.all([import('tesseract.js'), import('wasm-feature-detect')]);
+
+  // Tesseract's own defaults fetch these from a CDN. Copies are served from
+  // /tesseract (see vite.config.ts) and precached, so scanning works offline.
+  // Absolute URLs: the worker runs from a blob URL, which has no base to
+  // resolve a path against.
+  const base = new URL('/tesseract/', location.href).href;
+  const core = (await simd()) ? 'tesseract-core-simd-lstm.wasm.js' : 'tesseract-core-lstm.wasm.js';
   const worker = await createWorker('eng', 1, {
+    workerPath: base + 'worker.min.js',
+    corePath: base + core,
+    langPath: base,
     logger: (m: { status: string; progress: number }) => {
       if (m.status === 'recognizing text') onProgress?.(m.progress);
     },
