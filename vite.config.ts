@@ -12,9 +12,22 @@ const benchPlugins: PluginOption[] = [
   process.env.BENCH_CLAUDE === '1' && benchClaudeProxy(),
 ]
 
+// Better scan's Transformers.js loads the ONNX Runtime wasm from jsDelivr at
+// runtime, but Vite still emits onnxruntime-web's own 27 MB copy, which nothing
+// fetches and which is over Cloudflare Pages' 25 MiB per-file limit.
+const dropUnusedOrtWasm: PluginOption = {
+  name: 'drop-unused-ort-wasm',
+  apply: 'build',
+  generateBundle(_, bundle) {
+    for (const name of Object.keys(bundle)) {
+      if (/ort-wasm[^/]*\.wasm$/.test(name)) delete bundle[name]
+    }
+  },
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), ...benchPlugins],
+  plugins: [react(), dropUnusedOrtWasm, ...benchPlugins],
   test: {
     // Node, not jsdom: everything under test is pure calculation or store logic.
     // The only browser API the store touches is localStorage, which the setup

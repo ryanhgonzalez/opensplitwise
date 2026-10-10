@@ -1,7 +1,9 @@
 import type { ExpenseCategory } from '../types';
+import type { BetterScanProgress } from './betterScan';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Client-side receipt scanner: image → OCR (Tesseract.js) → best-effort fields.
+// Client-side receipt scanner: image → OCR (Tesseract.js, or Florence-2 for
+// Better scan; see betterScan.ts) → best-effort fields.
 //
 // Accuracy note: generic OCR on real-world receipts is imperfect, so everything
 // here is best-effort and MUST land in an editable draft the user reviews before
@@ -44,6 +46,17 @@ export async function scanReceipt(file: File, onProgress?: ScanProgress): Promis
   } finally {
     await worker.terminate();
   }
+}
+
+/**
+ * Better scan: the same fields, read by the on-device Florence-2 model instead
+ * of Tesseract (see betterScan.ts). Throws if the model can't load or run, so
+ * the caller can fall back to `scanReceipt`.
+ */
+export async function scanReceiptBetter(file: File, onProgress?: BetterScanProgress): Promise<ParsedReceipt> {
+  const { readReceiptText } = await import('./betterScan');
+  const text = await readReceiptText(file, onProgress);
+  return { ...parseReceiptText(text, { dayFirst: localePrefersDayFirst() }), rawText: text };
 }
 
 /** Most of the world writes 05/09 as 5 September; the US and a few others mean May 9. */

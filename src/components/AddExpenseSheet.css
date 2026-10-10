@@ -62,6 +62,40 @@
   to { transform: rotate(360deg); }
 }
 
+/* Better scan opt-in (on-device model), under the scan buttons */
+.aes-better-scan {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 2px 2px 0;
+  cursor: pointer;
+}
+
+.aes-better-scan input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--ink);
+}
+
+.aes-better-scan > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aes-better-scan-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.aes-better-scan-note {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .aes-scan-msg {
   padding: 10px 12px;
   border-radius: var(--radius-md);

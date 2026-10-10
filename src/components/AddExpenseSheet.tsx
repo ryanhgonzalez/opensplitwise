@@ -4,6 +4,7 @@ import { useStore, selectCurrentUser } from '../store';
 import { buildSplit, round, splitByItems } from '../lib/calculations';
 import { CATEGORY_ICONS, CATEGORY_LABELS } from '../types';
 import type { Expense, ExpenseCategory, SplitType, ExpenseSplit } from '../types';
+import { isBetterScanEnabled, isBetterScanSupported, isModelDownloaded, setBetterScanEnabled, type BetterScanPhase } from '../lib/betterScan';
 import Avatar from './Avatar';
 import '../styles/sheet.css';
 import './AddExpenseSheet.css';
@@ -80,9 +81,26 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const cameraInputRef = useRef<HTMLInputElement>(null); // capture=camera (touch devices)
   const fileInputRef = useRef<HTMLInputElement>(null);   // library / file picker (all devices)
   const [scanning, setScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
+  const [scanStatus, setScanStatus] = useState('');
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanned, setScanned] = useState(false);
+  // Better scan (opt-in on-device model). Offered only where WebGPU exists.
+  const [betterSupported, setBetterSupported] = useState(false);
+  const [betterOn, setBetterOn] = useState(isBetterScanEnabled);
+  const [modelDownloaded, setModelDownloaded] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    isBetterScanSupported().then(ok => { if (live) setBetterSupported(ok); });
+    isModelDownloaded().then(ok => { if (live) setModelDownloaded(ok); });
+    return () => { live = false; };
+  }, [open]);
+
+  const toggleBetterScan = (on: boolean) => {
+    setBetterOn(on);
+    setBetterScanEnabled(on);
+  };
 
   const selectedGroup = useMemo(() => groups.find(g => g.id === groupId), [groups, groupId]);
   const groupMemberIds = useMemo(() => selectedGroup?.members.map(m => m.userId) ?? [], [selectedGroup]);
@@ -220,11 +238,34 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
     setScanning(true);
     setScanError(null);
-    setScanProgress(0);
+    setScanStatus('Reading receipt…');
     setScanned(false);
+    const readingStatus = (fraction: number) => setScanStatus(`Reading receipt… ${Math.round(fraction * 100)}%`);
+    let fallbackNote: string | null = null;
     try {
-      const { scanReceipt } = await import('../lib/receiptScanner');
-      const result = await scanReceipt(file, setScanProgress);
+      const { scanReceipt, scanReceiptBetter } = await import('../lib/receiptScanner');
+      let result;
+      if (betterOn && betterSupported) {
+        try {
+          result = await scanReceiptBetter(file, (phase: BetterScanPhase, p) => {
+            if (phase === 'download') {
+              setScanStatus(`Downloading scan model… ${Math.round((p.loaded ?? 0) / 1e6)} MB`);
+            } else if (phase === 'prepare') {
+              setScanStatus('Loading scan model…');
+            } else {
+              readingStatus(p.fraction ?? 0);
+            }
+          });
+          setModelDownloaded(true);
+        } catch {
+          // Out of memory, lost connection mid-download, GPU trouble: use the standard scan.
+          fallbackNote = "Better scan couldn't run, so the standard scan was used.";
+          readingStatus(0);
+          result = await scanReceipt(file, readingStatus);
+        }
+      } else {
+        result = await scanReceipt(file, readingStatus);
+      }
 
       let filledAny = false;
       if (result.amount && result.amount > 0) { setAmountStr(String(result.amount)); filledAny = true; }
@@ -248,6 +289,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
       } else {
         setScanned(true);
         if (!result.amount) setScanError("Couldn't find the total — please enter the amount manually.");
+        else if (fallbackNote) setScanError(fallbackNote);
       }
     } catch {
       setScanError('Something went wrong scanning the receipt. Please enter the details manually.');
@@ -314,7 +356,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     setParticipants([]);
     setLineItems([]);
     setScanning(false);
-    setScanProgress(0);
+    setScanStatus('');
     setScanError(null);
     setScanned(false);
     onClose();
@@ -373,7 +415,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                   {scanning ? (
                     <button type="button" className="aes-scan-btn" disabled>
                       <span className="aes-scan-spinner" aria-hidden />
-                      Reading receipt… {Math.round(scanProgress * 100)}%
+                      {scanStatus}
                     </button>
                   ) : (
                     <div className="aes-scan-actions">
@@ -402,6 +444,24 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                         Upload photo
                       </button>
                     </div>
+                  )}
+                  {betterSupported && (
+                    <label className="aes-better-scan">
+                      <input
+                        type="checkbox"
+                        checked={betterOn}
+                        disabled={scanning}
+                        onChange={e => toggleBetterScan(e.target.checked)}
+                      />
+                      <span>
+                        <span className="aes-better-scan-title">Better scan</span>
+                        <span className="aes-better-scan-note">
+                          {modelDownloaded
+                            ? 'On-device AI model. More accurate, about 10 s per receipt.'
+                            : 'On-device AI model. More accurate, about 10 s per receipt. One-time ~390 MB download.'}
+                        </span>
+                      </span>
+                    </label>
                   )}
                   {scanError && <div className="aes-scan-msg error">{scanError}</div>}
                   {scanned && !scanError && (

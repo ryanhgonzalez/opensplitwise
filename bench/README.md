@@ -9,7 +9,7 @@ Engines compared:
 | Engine | Runs | One-time download | How it extracts |
 |---|---|---|---|
 | Tesseract (current) | On device | ~15 MB from a CDN | OCR text → the app's `parseReceiptText` |
-| Florence-2 base | On device (WebGPU, else WASM) | ~150–200 MB, cached | OCR with line positions, tiled for long receipts → `parseReceiptText` |
+| Florence-2 base | On device (WebGPU, else WASM) | ~390 MB, cached | OCR with line positions, tiled for long receipts → `parseReceiptText`. Ships in the app as Better scan (`src/lib/betterScan.ts`) |
 | Granite-Docling 258M | On device | ~205 MB, cached | Document structure (tables) → `parseReceiptText` |
 | SmolVLM 500M | On device | ~310 MB, cached | Asked for the fields as JSON |
 | Claude Opus 5.5 / Haiku 5.5 | Cloud, via a local proxy | none | Structured output (JSON schema) |

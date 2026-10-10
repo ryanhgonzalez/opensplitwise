@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- dev-only bench: Transformers.js returns loosely typed model/processor objects whose shape varies per architecture. */
-import { parseReceiptText, scanReceipt } from '../lib/receiptScanner';
-import { boxesToLines, dedupeOverlap, docTagsToLines, extractJson, quadToBox, type Box } from './lines';
+import { loadBetterScan, runtimeFor } from '../lib/betterScan';
+import { parseReceiptText, scanReceipt, scanReceiptBetter } from '../lib/receiptScanner';
+import { docTagsToLines, extractJson } from './lines';
 import type { Engine, Extraction, ReceiptItem } from './types';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -66,41 +67,8 @@ type Transformers = typeof import('@huggingface/transformers');
 let tf: Promise<Transformers> | null = null;
 const transformers = () => (tf ??= import('@huggingface/transformers'));
 
-export interface DeviceInfo {
-  webgpu: boolean;
-  /** WebGPU adapter supports 16-bit floats, which the fp16 model files need. */
-  f16: boolean;
-}
-
-let deviceInfo: Promise<DeviceInfo> | null = null;
-export function getDeviceInfo(): Promise<DeviceInfo> {
-  deviceInfo ??= (async () => {
-    const gpu = (navigator as Navigator & { gpu?: { requestAdapter: () => Promise<{ features: Set<string> } | null> } }).gpu;
-    if (!gpu) return { webgpu: false, f16: false };
-    try {
-      const adapter = await gpu.requestAdapter();
-      return { webgpu: !!adapter, f16: !!adapter?.features.has('shader-f16') };
-    } catch {
-      return { webgpu: false, f16: false };
-    }
-  })();
-  return deviceInfo;
-}
-
-/**
- * Smallest sensible weights per component. WebGPU: 4-bit decoders, fp16 vision
- * where the GPU supports it. WASM fallback: 8-bit everything (slow, but runs).
- */
-async function runtimeFor(components: string[], decoder: 'q4' | 'fp16' = 'q4') {
-  const { webgpu, f16 } = await getDeviceInfo();
-  if (!webgpu) return { device: 'wasm' as const, dtype: 'q8' as const };
-  const dtype: Record<string, 'fp16' | 'q4' | 'fp32'> = {};
-  for (const c of components) {
-    const isDecoder = c.startsWith('decoder') || c === 'encoder_model';
-    dtype[c] = isDecoder ? (decoder === 'fp16' && !f16 ? 'fp32' : decoder) : f16 ? 'fp16' : 'q4';
-  }
-  return { device: 'webgpu' as const, dtype };
-}
+// Device checks and weight choices are shared with the app's Better scan.
+export { getDeviceInfo, type DeviceInfo } from '../lib/betterScan';
 
 const progressText = (p: { status?: string; file?: string; progress?: number }) =>
   p.status === 'progress' && p.file
@@ -129,70 +97,23 @@ const tesseract: Engine = {
   },
 };
 
-// ─── 2. Florence-2: better OCR, same parser ──────────────────────────────────
+// ─── 2. Florence-2: better OCR, same parser (ships as the app's Better scan) ──
 
-const FLORENCE_ID = 'onnx-community/Florence-2-base-ft';
-let florence: Promise<{ model: any; processor: any }> | null = null;
+const mb = (n = 0) => Math.round(n / 1e6);
 
 const florence2: Engine = {
   id: 'florence2',
   label: 'Florence-2 base + app parser',
-  downloadNote: '~150–200 MB, cached after the first run',
+  downloadNote: '~390 MB, cached after the first run',
   async load(onProgress) {
-    florence ??= (async () => {
-      const t = await transformers();
-      const rt = await runtimeFor(['embed_tokens', 'vision_encoder', 'encoder_model', 'decoder_model_merged']);
-      const opts = { ...rt, progress_callback: (p: any) => onProgress(progressText(p)) };
-      const [model, processor] = await Promise.all([
-        t.Florence2ForConditionalGeneration.from_pretrained(FLORENCE_ID, opts as any),
-        t.AutoProcessor.from_pretrained(FLORENCE_ID, { progress_callback: opts.progress_callback } as any),
-      ]);
-      return { model, processor };
-    })();
-    await florence;
+    await loadBetterScan((phase, p) =>
+      onProgress(phase === 'download' ? `Downloading ${mb(p.loaded)} MB` : 'Loading model'),
+    );
   },
   async run(image) {
-    const { model, processor } = await florence!;
-    const t = await transformers();
     const t0 = now();
-
-    // Florence squashes every input to 768×768, which makes a long receipt
-    // illegible. Cut it into roughly square, overlapping tiles instead.
-    const bmp = await loadBitmap(image);
-    const page = scaledCanvas(bmp, 1600);
-    const tileH = Math.max(page.width, 400);
-    const overlap = Math.round(tileH * 0.12);
-    const task = '<OCR_WITH_REGION>';
-    const prompts = processor.construct_prompts(task);
-    let boxes: Box[] = [];
-    const rawParts: string[] = [];
-
-    for (let top = 0; top < page.height; top += tileH - overlap) {
-      const h = Math.min(tileH, page.height - top);
-      const tile = document.createElement('canvas');
-      tile.width = page.width;
-      tile.height = h;
-      tile.getContext('2d')!.drawImage(page, 0, top, page.width, h, 0, 0, page.width, h);
-      const img = t.RawImage.fromCanvas(tile);
-      const inputs = await processor(img, prompts);
-      const ids = await model.generate({ ...inputs, max_new_tokens: 1024 });
-      const text = processor.batch_decode(ids, { skip_special_tokens: false })[0];
-      const result = processor.post_process_generation(text, task, img.size)[task] as {
-        quad_boxes: number[][];
-        labels: string[];
-      };
-      rawParts.push(result.labels.join('\n'));
-      boxes = boxes.concat(
-        result.labels.map((label, i) => {
-          const b = quadToBox(label.replace(/<\/?s>/g, ''), result.quad_boxes[i]);
-          return { ...b, y0: b.y0 + top, y1: b.y1 + top };
-        }),
-      );
-      if (top + h >= page.height) break;
-    }
-
-    const lines = boxesToLines(dedupeOverlap(boxes, overlap));
-    return { ms: now() - t0, raw: lines.join('\n') || rawParts.join('\n---\n'), extraction: fromText(lines.join('\n')) };
+    const r = await scanReceiptBetter(image);
+    return { ms: now() - t0, raw: r.rawText, extraction: fromText(r.rawText) };
   },
 };
 
