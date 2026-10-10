@@ -62,14 +62,12 @@ function StatusBanner({ type, children }: { type: 'success' | 'warning' | 'error
 }
 
 function ImportModeCard({
-  value: _value,
   selected,
   onSelect,
   title,
   description,
   danger,
 }: {
-  value: ImportMode;
   selected: boolean;
   onSelect: () => void;
   title: string;
@@ -492,7 +490,6 @@ export default function ExportImportSheet({
 
                             {isGroupExport && (
                               <ImportModeCard
-                                value="new-group"
                                 selected={importMode === 'new-group'}
                                 onSelect={() => setImportMode('new-group')}
                                 title="Import as new group"
@@ -531,7 +528,6 @@ export default function ExportImportSheet({
                             )}
 
                             <ImportModeCard
-                              value="merge"
                               selected={importMode === 'merge'}
                               onSelect={() => setImportMode('merge')}
                               title="Merge with existing data"
@@ -541,7 +537,6 @@ export default function ExportImportSheet({
                             {isFullExport && (
                               <>
                                 <ImportModeCard
-                                  value="replace"
                                   selected={importMode === 'replace'}
                                   onSelect={() => { setImportMode('replace'); setReplaceAck(false); }}
                                   title="Replace all data"
