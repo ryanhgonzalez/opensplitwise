@@ -54,10 +54,16 @@ input[type='date'] {
   box-sizing: border-box;
 }
 
-/* With the native appearance gone, keep the value vertically centred and left-aligned. */
+/*
+ * With the native appearance gone, iOS draws the value as one line at the top
+ * of the field instead of centring it. Making that line as tall as the field's
+ * inside (44px fields, 1px borders, no vertical padding: Add Expense and the
+ * expense filter) centres the text. Only WebKit has this pseudo-element.
+ */
 input[type='date']::-webkit-date-and-time-value {
   text-align: left;
   min-height: 1.4em;
+  line-height: calc(44px - 2px);
 }
 
 #root {
