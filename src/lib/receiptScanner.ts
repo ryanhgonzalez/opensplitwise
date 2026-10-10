@@ -40,10 +40,16 @@ export async function scanReceipt(file: File, onProgress?: ScanProgress): Promis
   try {
     const { data } = await worker.recognize(canvas);
     const text = data.text ?? '';
-    return { ...parseReceiptText(text), rawText: text };
+    return { ...parseReceiptText(text, { dayFirst: localePrefersDayFirst() }), rawText: text };
   } finally {
     await worker.terminate();
   }
+}
+
+/** Most of the world writes 05/09 as 5 September; the US and a few others mean May 9. */
+function localePrefersDayFirst(): boolean {
+  const lang = typeof navigator === 'undefined' ? '' : navigator.language;
+  return !!lang && !/^(en-US|es-US|en-PH|fil)\b/i.test(lang);
 }
 
 // ─── Image preprocessing (downscale + grayscale + mild contrast) ──────────────
@@ -95,24 +101,48 @@ const clamp = (n: number, lo: number, hi: number) => (n < lo ? lo : n > hi ? hi 
 
 // ─── Text parsing (pure — unit-testable) ──────────────────────────────────────
 
-export function parseReceiptText(text: string): Omit<ParsedReceipt, 'rawText'> {
+export interface ParseOptions {
+  /**
+   * How to read an ambiguous numeric date like 05/09/2026 when nothing on the
+   * receipt settles it: true = 5 September, false (default) = May 9.
+   */
+  dayFirst?: boolean;
+}
+
+export function parseReceiptText(text: string, options: ParseOptions = {}): Omit<ParsedReceipt, 'rawText'> {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   return {
     amount: extractTotal(lines),
     description: extractMerchant(lines),
     category: guessCategory(text),
-    date: extractDate(text),
+    date: extractDate(text, options.dayFirst ?? false),
     lineItems: extractLineItems(lines),
   };
 }
 
-/** Pull currency-looking numbers ($1,234.56 / 12.00) from a single line. */
+/**
+ * Turns one matched amount into a number, working out which separator is the
+ * decimal point: "1,234.56", "1.234,56", "196,93" and "12.00" all parse.
+ */
+function parseAmount(raw: string): number {
+  const lastDot = raw.lastIndexOf('.');
+  const lastComma = raw.lastIndexOf(',');
+  const decimalAt = Math.max(lastDot, lastComma);
+  // A separator followed by exactly two digits at the end is the decimal point.
+  const hasDecimal = decimalAt >= 0 && raw.length - decimalAt - 1 === 2;
+  const whole = (hasDecimal ? raw.slice(0, decimalAt) : raw).replace(/[.,]/g, '');
+  const cents = hasDecimal ? raw.slice(decimalAt + 1) : '';
+  return parseFloat(cents ? `${whole}.${cents}` : whole);
+}
+
+/** Pull currency-looking numbers ($1,234.56 / 1.234,56 / 196,93 / 12.00) from a single line. */
 function moneyOnLine(line: string): number[] {
-  const re = /(\d{1,3}(?:,\d{3})+(?:\.\d{2})?|\d+\.\d{2})/g;
+  // With thousands groups and cents, plain cents (either separator), or comma thousands alone.
+  const re = /(\d{1,3}(?:[.,]\d{3})+[.,]\d{2}|\d+[.,]\d{2}|\d{1,3}(?:,\d{3})+)(?!\d)/g;
   const out: number[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(line))) {
-    const n = parseFloat(m[1].replace(/,/g, ''));
+    const n = parseAmount(m[1]);
     if (!Number.isNaN(n)) out.push(n);
   }
   return out;
@@ -121,33 +151,44 @@ function moneyOnLine(line: string): number[] {
 /**
  * Find the receipt total. Priority:
  *   1) strong keywords (grand total / balance due / amount due), scanned bottom-up
- *   2) a plain "total" line (excluding "subtotal")
- *   3) fallback: the largest currency value on the receipt
+ *   2) a line that is just "Total" plus an amount, scanned bottom-up
+ *   3) any other "total" line that isn't a subtotal, savings, tender or payment line
+ *   4) fallback: the largest currency value on the receipt
  * Label and value are sometimes on separate lines, so we also peek at the next line.
+ *
+ * Taking the last "total" line, as this used to, picks up the payment block
+ * that often follows ("Total savings", "Tendered total", "Total purchase").
  */
 function extractTotal(lines: string[]): number | undefined {
   const strong = /(grand\s*total|total\s*due|balance\s*due|amount\s*due)/i;
   const total = /\btotals?\b/i;
-  const excludeFromTotal = /(sub\s*-?\s*total|subtotal)/i;
+  const notTheTotal =
+    /(sub\s*-?\s*total|savings?|saved|tender(?:ed)?|purchase|discount|\bitems?\b|change|payment|paid|before\s*tax|\btip\b|gratuity|points|\bqty\b)/i;
+  // "TOTAL USD $43.84", "Total: £4.50", or OCR's "E4.50" for "£4.50" still count as a bare total.
+  const strip = (line: string) =>
+    line.replace(/\b(usd|eur|gbp|cad|aud|nzd|chf|mxn)\b/gi, '').replace(/[$£€¥]|(?<=\s)E(?=\d)/g, '');
+  const bareTotal = /^\W*totals?\b[^a-z]*$/i;
 
   const numbersFor = (i: number): number[] => {
     const here = moneyOnLine(lines[i]);
     if (here.length) return here;
     return i + 1 < lines.length ? moneyOnLine(lines[i + 1]) : [];
   };
+  const lastNumberFor = (match: (line: string) => boolean): number | undefined => {
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (match(lines[i])) {
+        const nums = numbersFor(i);
+        if (nums.length) return nums[nums.length - 1];
+      }
+    }
+    return undefined;
+  };
 
-  for (let i = lines.length - 1; i >= 0; i--) {
-    if (strong.test(lines[i])) {
-      const nums = numbersFor(i);
-      if (nums.length) return nums[nums.length - 1];
-    }
-  }
-  for (let i = lines.length - 1; i >= 0; i--) {
-    if (total.test(lines[i]) && !excludeFromTotal.test(lines[i])) {
-      const nums = numbersFor(i);
-      if (nums.length) return nums[nums.length - 1];
-    }
-  }
+  const found =
+    lastNumberFor((l) => strong.test(l)) ??
+    lastNumberFor((l) => bareTotal.test(strip(l))) ??
+    lastNumberFor((l) => total.test(l) && !notTheTotal.test(l));
+  if (found !== undefined) return found;
 
   let max: number | undefined;
   for (const line of lines) {
@@ -162,7 +203,7 @@ function extractTotal(lines: string[]): number | undefined {
 function extractMerchant(lines: string[]): string | undefined {
   // Note: \btel[.:] (not bare "tel") so merchant names like "HOTEL"/"MOTEL" aren't
   // mistaken for a "Tel:" phone line.
-  const noise = /(receipt|invoice|order\s*#|\btel[.:]|phone|fax|www\.|https?:|\.com|street|\bst\b|\bave\b|\brd\b|suite|\bste\b|survey|thank you|welcome|cashier|register|\d{2,}[\/\-]\d{2,})/i;
+  const noise = /(receipt|invoice|order\s*#|\btel[.:]|phone|fax|www\.|https?:|\.com|street|\bst\b|\bave\b|\brd\b|suite|\bste\b|survey|thank you|welcome|cashier|register|\d{2,}[/-]\d{2,})/i;
   for (const line of lines.slice(0, 6)) {
     const letters = (line.match(/[a-z]/gi) ?? []).length;
     const digits = (line.match(/\d/g) ?? []).length;
@@ -190,17 +231,37 @@ function makeDate(year: number, month: number, day: number): Date | undefined {
   return new Date(year, month - 1, day); // local midnight (no timezone shift)
 }
 
-/** Best-effort receipt date. Assumes US MM/DD ordering for ambiguous numeric dates. */
-function extractDate(text: string): Date | undefined {
+/**
+ * Whether an ambiguous numeric date (both parts 12 or under) puts the day first.
+ * Dots are the European style; £ or € without $ means a day-first country, $
+ * without them a month-first one; otherwise the caller's preference decides.
+ */
+function ambiguousIsDayFirst(text: string, separator: string, fallback: boolean): boolean {
+  if (separator === '.') return true;
+  const euro = /[£€]|\b(eur|gbp)\b/i.test(text);
+  const dollar = /\$/.test(text);
+  if (euro && !dollar) return true;
+  if (dollar && !euro) return false;
+  return fallback;
+}
+
+/**
+ * Best-effort receipt date. Numeric dates are read day-first when the first
+ * part can't be a month (30/09/2025), month-first when the second can't
+ * (01/26/2018), and otherwise by ambiguousIsDayFirst.
+ */
+function extractDate(text: string, dayFirst: boolean): Date | undefined {
   // ISO: 2026-08-01
   let m = text.match(/\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/);
   if (m) { const d = makeDate(+m[1], +m[2], +m[3]); if (d) return d; }
 
-  // US numeric: MM/DD/YYYY or MM/DD/YY
-  m = text.match(/\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\b/);
-  if (m) {
-    const year = +m[3] < 100 ? 2000 + +m[3] : +m[3];
-    const d = makeDate(year, +m[1], +m[2]);
+  // Numeric: DD/MM/YYYY or MM/DD/YYYY (2- or 4-digit year), same separator twice.
+  for (const n of text.matchAll(/\b(\d{1,2})([-/.])(\d{1,2})\2(\d{2,4})\b/g)) {
+    const a = +n[1];
+    const b = +n[3];
+    const year = +n[4] < 100 ? 2000 + +n[4] : +n[4];
+    const dayFirstHere = a > 12 ? true : b > 12 ? false : ambiguousIsDayFirst(text, n[2], dayFirst);
+    const d = dayFirstHere ? makeDate(year, b, a) : makeDate(year, a, b);
     if (d) return d;
   }
 
@@ -227,21 +288,47 @@ function extractDate(text: string): Date | undefined {
 // Lines whose "name" is really a summary/payment row — never a purchasable item.
 const NON_ITEM = /(sub\s*-?\s*total|subtotal|\btotals?\b|\btax\b|\btip\b|gratuity|balance|amount due|\bdue\b|change|\bcash\b|credit|debit|visa|master|amex|discover|\bcard\b|tender|payment|rounding|service charge|savings|\bqty\b)/i;
 
-/** Extract "name … price" rows as line items (best-effort). */
+// The line where items end: everything below is totals, tax and payment. It
+// must carry an amount, so a header like "Total BusinessWare Inc." doesn't count.
+const ITEMS_END = /^\W*(sub\s*-?\s*total|totals?\b)/i;
+const endsItems = (line: string) => ITEMS_END.test(line) && moneyOnLine(line).length > 0;
+
+// "name … price", where the price may carry a currency sign (or OCR's "E" for
+// "£"), use either decimal separator, and be followed by a one- or two-character
+// tax flag ("2.88 N", "1.98 X").
+const ITEM_LINE =
+  /^(.*?\S)\s+(-?)\s*(?:[$£€]|E(?=\d))?\s*(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})(?:\s+[A-Z0-9]{1,2})?\s*$/;
+
+/** Removes what isn't the product name: barcodes, PLU and quantity columns, tax flags. */
+function cleanItemName(raw: string): string {
+  return raw
+    .replace(/\b\d{6,}\b/g, ' ')           // barcodes / SKUs
+    .replace(/^\s*\d+\s*[xX]?\s+/, '')    // leading quantity or PLU code ("2X", "3115")
+    .replace(/(\s+\d{1,3})+\s*$/, '')     // trailing quantity column ("Peaches  3")
+    .replace(/\s+[A-Z]\s*$/, '')          // trailing tax flag ("BREAD  F")
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/**
+ * Extract "name … price" rows as line items (best-effort).
+ *
+ * Collection stops at the first subtotal/total line: what follows is tax,
+ * tenders, savings and card slips, which would otherwise read as items.
+ */
 function extractLineItems(lines: string[]): LineItem[] {
   const items: LineItem[] = [];
   for (const line of lines) {
-    const m = line.match(/^(.*?\S)\s+\$?(\d{1,3}(?:,\d{3})*\.\d{2})\s*$/);
-    if (!m) continue;
-    const price = parseFloat(m[2].replace(/,/g, ''));
+    if (endsItems(line)) break;
+
+    const m = line.match(ITEM_LINE);
+    if (!m || m[2] === '-') continue;          // no price, or a discount line
+    const price = parseAmount(m[3]);
     if (!(price > 0)) continue;
 
-    let name = m[1].trim();
-    if (NON_ITEM.test(name)) continue;                 // skip totals/tax/payment rows
+    if (NON_ITEM.test(m[1])) continue;         // tax/payment rows above the totals
+    const name = cleanItemName(m[1]);
     if ((name.match(/[a-z]/gi) ?? []).length < 2) continue; // needs real letters
-
-    name = name.replace(/^\d+\s*[xX]?\s+/, '').replace(/\s{2,}/g, ' ').trim(); // drop leading qty
-    if (!name) continue;
 
     items.push({ description: toTitleCase(name).slice(0, 40), amount: price });
   }
