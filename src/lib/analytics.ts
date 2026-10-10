@@ -1,5 +1,5 @@
 import type { Expense, ExpenseCategory, Group, User } from '../types';
-import { CATEGORY_ICONS, CATEGORY_LABELS } from '../types';
+import { categoryInfo, isCustomCategory } from './categories';
 import { getShareForUser } from '../utils/expense';
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -27,8 +27,12 @@ export const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+/** Custom categories have no colour of their own. */
+const CUSTOM_CATEGORY_COLOR = '#94a3b8';
+
 export interface CategoryBreakdown {
-  category: ExpenseCategory;
+  /** A built-in category id, or `name:<lowercased name>` for custom ones. */
+  category: string;
   label: string;
   icon: string;
   amount: number;
@@ -70,30 +74,48 @@ export function filterByPeriod(expenses: Expense[], period: Period): Expense[] {
   return expenses.filter(e => e.date >= cutoff);
 }
 
+/**
+ * Spending per category. Custom categories are per group, so two groups that
+ * each made "Gas" would otherwise show twice; they're combined by name.
+ */
 export function getCategoryBreakdown(
   expenses: Expense[],
   userId: string,
   mode: ViewMode,
+  groups: Group[] = [],
 ): CategoryBreakdown[] {
-  const totals: Partial<Record<ExpenseCategory, number>> = {};
+  const groupById = new Map(groups.map((g) => [g.id, g]));
+  const totals = new Map<string, { label: string; icon: string; color: string; amount: number }>();
 
   for (const expense of expenses) {
     const amount = mode === 'personal' ? getShareForUser(expense, userId) : expense.amount;
-    if (amount > 0) {
-      totals[expense.category] = (totals[expense.category] ?? 0) + amount;
-    }
+    if (amount <= 0) continue;
+
+    const group = expense.groupId ? groupById.get(expense.groupId) : undefined;
+    const custom = isCustomCategory(expense.category)
+      ? group?.categories?.find((c) => c.id === expense.category)
+      : undefined;
+    // A custom id that no longer resolves reads as Other, so it's counted there.
+    const builtIn: ExpenseCategory = isCustomCategory(expense.category) ? 'other' : expense.category;
+    const key = custom ? `name:${custom.name.toLowerCase()}` : builtIn;
+    const { label, icon } = categoryInfo(custom ? custom.id : builtIn, group);
+    const color = custom ? CUSTOM_CATEGORY_COLOR : CATEGORY_COLORS[builtIn];
+
+    const entry = totals.get(key) ?? { label, icon, color, amount: 0 };
+    entry.amount += amount;
+    totals.set(key, entry);
   }
 
-  const grandTotal = Object.values(totals).reduce((s, v) => s + (v ?? 0), 0);
+  const grandTotal = [...totals.values()].reduce((s, v) => s + v.amount, 0);
 
-  return (Object.entries(totals) as [ExpenseCategory, number][])
-    .map(([category, amount]) => ({
+  return [...totals.entries()]
+    .map(([category, t]) => ({
       category,
-      label: CATEGORY_LABELS[category],
-      icon: CATEGORY_ICONS[category],
-      amount,
-      percentage: grandTotal > 0 ? (amount / grandTotal) * 100 : 0,
-      color: CATEGORY_COLORS[category],
+      label: t.label,
+      icon: t.icon,
+      amount: t.amount,
+      percentage: grandTotal > 0 ? (t.amount / grandTotal) * 100 : 0,
+      color: t.color,
     }))
     .sort((a, b) => b.amount - a.amount);
 }

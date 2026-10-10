@@ -12,8 +12,12 @@ import type {
   ExpenseDeletedActivity,
   PaymentActivity,
   SettledActivity,
+  CategoryId,
+  CustomCategory,
+  CustomCategoryId,
 } from '../types';
 import type { ExportPayload, ImportStats } from '../lib/dataExport';
+import { cleanCategoryName, findCategoryByName } from '../lib/categories';
 import { round, outstandingByGroup, allocatePayment } from '../lib/calculations';
 
 // ─── Action input types ───────────────────────────────────────────────────────
@@ -88,6 +92,14 @@ export interface AppStore {
   deleteGroup: (id: string) => void;
   addGroupMember: (groupId: string, userId: string) => void;
   removeGroupMember: (groupId: string, userId: string) => void;
+  /**
+   * Adds a custom category to the group and returns its id. A name that
+   * matches an existing category (ignoring case) returns that one instead.
+   * Null when the name is blank or the group doesn't exist.
+   */
+  addGroupCategory: (groupId: string, name: string) => CategoryId | null;
+  /** Removes a custom category; the group's expenses that used it move to Other. */
+  removeGroupCategory: (groupId: string, categoryId: CustomCategoryId) => void;
 
   // ── Settlement actions ──
   /** Records a payment against one specific group. */
@@ -385,6 +397,43 @@ export const useStore = create<AppStore>()(
           );
         },
 
+        addGroupCategory: (groupId, rawName) => {
+          const group = get().groups.find((g) => g.id === groupId);
+          const name = cleanCategoryName(rawName);
+          if (!group || !name) return null;
+
+          const existing = findCategoryByName(name, group);
+          if (existing) return existing;
+
+          const category: CustomCategory = { id: `custom:${uid()}`, name };
+          set(
+            {
+              groups: get().groups.map((g) =>
+                g.id === groupId ? { ...g, categories: [...(g.categories ?? []), category] } : g,
+              ),
+            },
+            false,
+            'addGroupCategory',
+          );
+          return category.id;
+        },
+
+        removeGroupCategory: (groupId, categoryId) => {
+          const now = new Date();
+          set(
+            {
+              groups: get().groups.map((g) =>
+                g.id === groupId ? { ...g, categories: (g.categories ?? []).filter((c) => c.id !== categoryId) } : g,
+              ),
+              expenses: get().expenses.map((e) =>
+                e.groupId === groupId && e.category === categoryId ? { ...e, category: 'other', updatedAt: now } : e,
+              ),
+            },
+            false,
+            'removeGroupCategory',
+          );
+        },
+
         addGroupMember: (groupId, userId) =>
           set(
             {
@@ -627,6 +676,15 @@ export const useStore = create<AppStore>()(
 
           const newUsers       = payload.users.filter((u) => !existingUserIds.has(u.id));
           const newGroups      = payload.groups.filter((g) => !existingGroupIds.has(g.id));
+          // A group already here keeps its own fields, but gains any custom
+          // categories the file has that it doesn't, so imported expenses
+          // that use them still show their name.
+          const incomingCategories = new Map(payload.groups.map((g) => [g.id, g.categories ?? []]));
+          const mergedGroups = state.groups.map((g) => {
+            const have = new Set((g.categories ?? []).map((c) => c.id));
+            const extra = (incomingCategories.get(g.id) ?? []).filter((c) => !have.has(c.id));
+            return extra.length ? { ...g, categories: [...(g.categories ?? []), ...extra] } : g;
+          });
           const newExpenses    = payload.expenses.filter((e) => !existingExpIds.has(e.id));
           const newSettlements = payload.settlements.filter((s) => !existingSetIds.has(s.id));
           const newActivities  = payload.activities.filter((a) => !existingActIds.has(a.id));
@@ -634,7 +692,7 @@ export const useStore = create<AppStore>()(
           set(
             {
               users:       [...state.users, ...newUsers],
-              groups:      [...state.groups, ...newGroups],
+              groups:      [...mergedGroups, ...newGroups],
               expenses:    [...state.expenses, ...newExpenses],
               settlements: [...state.settlements, ...newSettlements],
               activities:  [...state.activities, ...newActivities],

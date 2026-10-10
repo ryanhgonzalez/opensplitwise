@@ -51,6 +51,12 @@ export const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
   other:         'Other',
 };
 
+/** A category the people in one group made themselves; see Group.categories. */
+export type CustomCategoryId = `custom:${string}`;
+
+/** What an expense stores: a built-in category, or one of its group's custom ones. */
+export type CategoryId = ExpenseCategory | CustomCategoryId;
+
 export type SplitType = 'equal' | 'exact' | 'percentage' | 'shares';
 
 export interface SplitEntry {
@@ -72,7 +78,7 @@ export interface Expense {
   groupId?: string;
   date: Date;
   split: ExpenseSplit;
-  category: ExpenseCategory;
+  category: CategoryId;
   notes?: string;
   receiptUrl?: string;
   createdAt: Date;

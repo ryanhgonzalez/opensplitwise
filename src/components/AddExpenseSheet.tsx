@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser } from '../store';
 import { buildSplit, round, splitByItems } from '../lib/calculations';
-import { CATEGORY_ICONS, CATEGORY_LABELS } from '../types';
-import type { Expense, ExpenseCategory, SplitType, ExpenseSplit } from '../types';
+import { CATEGORY_LABELS } from '../types';
+import type { CategoryId, Expense, SplitType, ExpenseSplit } from '../types';
+import { BUILT_IN_CATEGORIES, MAX_CATEGORY_NAME, isCustomCategory } from '../lib/categories';
 import { isBetterScanEnabled, isBetterScanSupported, isModelDownloaded, setBetterScanEnabled, type BetterScanPhase } from '../lib/betterScan';
 import Avatar from './Avatar';
 import '../styles/sheet.css';
@@ -13,7 +14,6 @@ import './AddExpenseSheet.css';
 // Itemized entry produces an `exact` split on save, so it's never persisted as a type.
 type SplitMode = 'equal' | 'exact' | 'percentage' | 'items';
 
-const CATEGORIES = Object.keys(CATEGORY_ICONS) as ExpenseCategory[];
 const SPLIT_TYPES: { value: SplitMode; label: string }[] = [
   { value: 'equal',      label: 'Equal' },
   { value: 'exact',      label: 'Exact' },
@@ -63,13 +63,17 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const groups = useStore(s => s.groups);
   const addExpense = useStore(s => s.addExpense);
   const updateExpense = useStore(s => s.updateExpense);
+  const addGroupCategory = useStore(s => s.addGroupCategory);
 
   const initSplitType = (e?: Expense): SplitMode =>
     e?.split.type === 'percentage' ? 'exact' : (e?.split.type === 'shares' ? 'exact' : (e?.split.type ?? 'equal'));
 
   const [description, setDescription] = useState(editExpense?.description ?? '');
   const [amountStr, setAmountStr] = useState(editExpense ? String(editExpense.amount) : '');
-  const [category, setCategory] = useState<ExpenseCategory>(editExpense?.category ?? 'food');
+  const [category, setCategory] = useState<CategoryId>(editExpense?.category ?? 'food');
+  // Inline "+ New" category entry; null while closed.
+  const [newCategory, setNewCategory] = useState<string | null>(null);
+  const [newCategoryHint, setNewCategoryHint] = useState<string | null>(null);
   const [dateStr, setDateStr] = useState(editExpense ? toDateInputValue(editExpense.date) : '');
   const [groupId, setGroupId] = useState(editExpense?.groupId ?? defaultGroupId ?? '');
   const [paidBy, setPaidBy] = useState(editExpense?.paidBy ?? currentUser.id);
@@ -105,6 +109,30 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const selectedGroup = useMemo(() => groups.find(g => g.id === groupId), [groups, groupId]);
   const groupMemberIds = useMemo(() => selectedGroup?.members.map(m => m.userId) ?? [], [selectedGroup]);
   const getUserById = (id: string) => users.find(u => u.id === id);
+
+  // A custom category belongs to one group; moving the expense elsewhere drops it to Other.
+  useEffect(() => {
+    setCategory(c =>
+      isCustomCategory(c) && !selectedGroup?.categories?.some(x => x.id === c) ? 'other' : c,
+    );
+    setNewCategoryHint(null);
+  }, [selectedGroup]);
+
+  const openNewCategory = () => {
+    if (!selectedGroup) {
+      setNewCategoryHint('Choose a group below first. Custom categories are saved to the group.');
+      return;
+    }
+    setNewCategoryHint(null);
+    setNewCategory('');
+  };
+
+  const saveNewCategory = () => {
+    if (!selectedGroup || newCategory === null) return;
+    const id = addGroupCategory(selectedGroup.id, newCategory);
+    if (id) setCategory(id);
+    setNewCategory(null);
+  };
 
   // Rebuild participants when selected group changes (or when editing a different expense).
   useEffect(() => {
@@ -349,6 +377,8 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     setDescription(editExpense?.description ?? '');
     setAmountStr(editExpense ? String(editExpense.amount) : '');
     setCategory(editExpense?.category ?? 'food');
+    setNewCategory(null);
+    setNewCategoryHint(null);
     setDateStr(editExpense ? toDateInputValue(editExpense.date) : '');
     setGroupId(editExpense?.groupId ?? defaultGroupId ?? '');
     setPaidBy(editExpense?.paidBy ?? currentUser.id);
@@ -500,7 +530,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
               <div className="field-group">
                 <div className="field-label">Category</div>
                 <div className="aes-category-row">
-                  {CATEGORIES.map(c => (
+                  {BUILT_IN_CATEGORIES.map(c => (
                     <button
                       key={c}
                       className={`aes-category-btn ${category === c ? 'active' : ''}`}
@@ -510,7 +540,45 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                       {CATEGORY_LABELS[c]}
                     </button>
                   ))}
+                  {selectedGroup?.categories?.map(c => (
+                    <button
+                      key={c.id}
+                      className={`aes-category-btn ${category === c.id ? 'active' : ''}`}
+                      aria-pressed={category === c.id}
+                      onClick={() => setCategory(c.id)}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                  {newCategory === null ? (
+                    <button type="button" className="aes-category-btn aes-category-new" onClick={openNewCategory}>
+                      + New
+                    </button>
+                  ) : (
+                    <form
+                      className="aes-category-form"
+                      onSubmit={e => { e.preventDefault(); saveNewCategory(); }}
+                    >
+                      <input
+                        className="aes-category-input"
+                        autoFocus
+                        maxLength={MAX_CATEGORY_NAME}
+                        placeholder="Category name"
+                        aria-label="New category name"
+                        value={newCategory}
+                        onChange={e => setNewCategory(e.target.value)}
+                        onKeyDown={e => e.key === 'Escape' && setNewCategory(null)}
+                      />
+                      <button type="submit" className="aes-category-btn active" disabled={!newCategory.trim()}>
+                        Add
+                      </button>
+                      <button type="button" className="aes-category-btn" onClick={() => setNewCategory(null)}>
+                        Cancel
+                      </button>
+                    </form>
+                  )}
                 </div>
+                {newCategoryHint && <p className="aes-category-hint">{newCategoryHint}</p>}
               </div>
 
               {/* Date */}

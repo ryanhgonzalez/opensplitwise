@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser } from '../store';
 import { firstGrapheme } from '../lib/emoji';
-import type { Group, GroupType } from '../types';
+import { MAX_CATEGORY_NAME, cleanCategoryName, findCategoryByName } from '../lib/categories';
+import type { CustomCategoryId, Group, GroupType } from '../types';
 import Avatar from './Avatar';
 import '../styles/sheet.css';
 import './CreateGroupSheet.css';
@@ -32,6 +33,9 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
   const addUser = useStore(s => s.addUser);
   const addGroupMember = useStore(s => s.addGroupMember);
   const removeGroupMember = useStore(s => s.removeGroupMember);
+  const addGroupCategory = useStore(s => s.addGroupCategory);
+  const removeGroupCategory = useStore(s => s.removeGroupCategory);
+  const expenses = useStore(s => s.expenses);
 
   const [name, setName] = useState(group.name);
   const [emoji, setEmoji] = useState(group.emoji);
@@ -44,6 +48,10 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
   const [showNewPerson, setShowNewPerson] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showEmojiInput, setShowEmojiInput] = useState(false);
+  // Category changes, like member changes, apply on Save.
+  const [removedCategories, setRemovedCategories] = useState<Set<CustomCategoryId>>(new Set());
+  const [addedCategories, setAddedCategories] = useState<string[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
   const newPersonRef = useRef<HTMLInputElement>(null);
   const emojiInputRef = useRef<HTMLInputElement>(null);
   const emojiBtnWrapRef = useRef<HTMLDivElement>(null);
@@ -59,6 +67,26 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
   }, [showEmojiInput]);
 
   const friends = users.filter(u => u.id !== currentUser.id);
+
+  const categoryUse = (id: CustomCategoryId) =>
+    expenses.filter(e => e.groupId === group.id && e.category === id).length;
+
+  const toggleRemoveCategory = (id: CustomCategoryId) =>
+    setRemovedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const handleAddCategory = () => {
+    const name = cleanCategoryName(newCategoryName);
+    const taken =
+      findCategoryByName(name, group) !== undefined ||
+      addedCategories.some(n => n.toLowerCase() === name.toLowerCase());
+    if (name && !taken) setAddedCategories(prev => [...prev, name]);
+    setNewCategoryName('');
+  };
 
   const toggleMember = (id: string) => {
     setMemberIds(prev => {
@@ -90,6 +118,9 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
     for (const id of origIds) {
       if (!memberIds.has(id) && id !== currentUser.id) removeGroupMember(group.id, id);
     }
+
+    for (const id of removedCategories) removeGroupCategory(group.id, id);
+    for (const categoryName of addedCategories) addGroupCategory(group.id, categoryName);
 
     onClose();
   };
@@ -268,6 +299,73 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
                   </svg>
                   Add new person
                 </button>
+              </div>
+
+              {/* Custom categories */}
+              <div className="field-group">
+                <div className="field-label">Categories</div>
+                <p className="egs-cat-intro">
+                  Made for this group, offered next to the built-in ones when adding an expense.
+                </p>
+                {(group.categories ?? []).map(c => {
+                  const removed = removedCategories.has(c.id);
+                  const used = categoryUse(c.id);
+                  return (
+                    <div key={c.id} className={`egs-cat-row ${removed ? 'removed' : ''}`}>
+                      <div className="egs-cat-text">
+                        <span className="egs-cat-name">{c.name}</span>
+                        <span className="egs-cat-meta">
+                          {removed
+                            ? used > 0
+                              ? `${used} ${used === 1 ? 'expense moves' : 'expenses move'} to Other when you save`
+                              : 'Removed when you save'
+                            : `${used} ${used === 1 ? 'expense' : 'expenses'}`}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="egs-cat-action"
+                        onClick={() => toggleRemoveCategory(c.id)}
+                        aria-label={removed ? `Keep ${c.name}` : `Remove ${c.name}`}
+                      >
+                        {removed ? 'Undo' : 'Remove'}
+                      </button>
+                    </div>
+                  );
+                })}
+                {addedCategories.map(n => (
+                  <div key={n} className="egs-cat-row">
+                    <div className="egs-cat-text">
+                      <span className="egs-cat-name">{n}</span>
+                      <span className="egs-cat-meta">Added when you save</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="egs-cat-action"
+                      onClick={() => setAddedCategories(prev => prev.filter(x => x !== n))}
+                      aria-label={`Don't add ${n}`}
+                    >
+                      Undo
+                    </button>
+                  </div>
+                ))}
+                <form
+                  className="cgs-new-person-row"
+                  onSubmit={e => { e.preventDefault(); handleAddCategory(); }}
+                >
+                  <input
+                    className="field-input"
+                    style={{ flex: 1 }}
+                    placeholder="New category…"
+                    aria-label="New category name"
+                    maxLength={MAX_CATEGORY_NAME}
+                    value={newCategoryName}
+                    onChange={e => setNewCategoryName(e.target.value)}
+                  />
+                  <button type="submit" className="cgs-add-confirm" disabled={!newCategoryName.trim()}>
+                    Add
+                  </button>
+                </form>
               </div>
 
               {/* Danger zone */}

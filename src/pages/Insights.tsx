@@ -175,8 +175,8 @@ export default function Insights() {
   const filtered = useMemo(() => filterByPeriod(allExpenses, period), [allExpenses, period]);
 
   const categoryData = useMemo(
-    () => getCategoryBreakdown(filtered, currentUser.id, viewMode),
-    [filtered, currentUser.id, viewMode],
+    () => getCategoryBreakdown(filtered, currentUser.id, viewMode, groups),
+    [filtered, currentUser.id, viewMode, groups],
   );
 
   const monthlyData = useMemo(

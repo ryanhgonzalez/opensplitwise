@@ -192,6 +192,42 @@
   color: var(--on-ink);
 }
 
+/* "+ New" category: a dashed chip, then an inline name field */
+.aes-category-new {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.aes-category-form {
+  display: flex;
+  gap: 6px;
+  flex: 1 1 100%;
+}
+
+.aes-category-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px; /* below 16px, iOS zooms the page on focus */
+}
+
+.aes-category-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.aes-category-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .aes-date-input {
   color-scheme: inherit;
 }

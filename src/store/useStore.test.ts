@@ -317,6 +317,65 @@ describe('deleteGroup', () => {
 
 // ─── Persistence migration ────────────────────────────────────────────────────
 
+describe('custom categories', () => {
+  const groupOf = (id: string) => state().groups.find((g) => g.id === id)!;
+
+  it('adds a category to the group and keeps it for later expenses', () => {
+    const { group } = setup(['Me']);
+    const id = state().addGroupCategory(group.id, '  Ski   passes ');
+    expect(id).toMatch(/^custom:/);
+    expect(groupOf(group.id).categories).toEqual([{ id, name: 'Ski passes' }]);
+  });
+
+  it('reuses an existing category instead of making a duplicate', () => {
+    const { group } = setup(['Me']);
+    const id = state().addGroupCategory(group.id, 'Gas');
+    expect(state().addGroupCategory(group.id, 'gas')).toBe(id);
+    expect(state().addGroupCategory(group.id, 'groceries')).toBe('groceries');
+    expect(groupOf(group.id).categories).toHaveLength(1);
+  });
+
+  it('refuses a blank name or an unknown group', () => {
+    const { group } = setup(['Me']);
+    expect(state().addGroupCategory(group.id, '   ')).toBeNull();
+    expect(state().addGroupCategory('nope', 'Gas')).toBeNull();
+  });
+
+  it('moves the group’s expenses to Other when a category is removed', () => {
+    const { me, group } = setup(['Me']);
+    const other = state().createGroup({ name: 'Home', emoji: '🏠', color: '#000', type: 'home', members: [] });
+    const gas = state().addGroupCategory(group.id, 'Gas')!;
+    const inGroup = addEvenExpense(me.id, [me.id], 40, group.id);
+    const elsewhere = addEvenExpense(me.id, [me.id], 10, other.id);
+    state().updateExpense(inGroup.id, { category: gas });
+    // Same id in another group's expense must be left alone (it can't resolve there anyway).
+    state().updateExpense(elsewhere.id, { category: gas });
+
+    state().removeGroupCategory(group.id, gas as `custom:${string}`);
+
+    expect(groupOf(group.id).categories).toEqual([]);
+    expect(state().expenses.find((e) => e.id === inGroup.id)!.category).toBe('other');
+    expect(state().expenses.find((e) => e.id === elsewhere.id)!.category).toBe(gas);
+  });
+
+  it('brings in categories a merged file has for a group already here', () => {
+    const { group } = setup(['Me']);
+    const mine = state().addGroupCategory(group.id, 'Gas')!;
+    const theirs = { id: 'custom:theirs' as const, name: 'Ferry' };
+    const file = {
+      currentUserId: state().currentUserId,
+      friendBalances: {},
+      users: state().users,
+      groups: [{ ...groupOf(group.id), categories: [{ id: mine as `custom:${string}`, name: 'Gas' }, theirs] }],
+      expenses: [],
+      settlements: [],
+      activities: [],
+    };
+    state().mergeImportData(file);
+    expect(groupOf(group.id).categories).toEqual([{ id: mine, name: 'Gas' }, theirs]);
+  });
+});
+
 describe('v1 → v2 migration', () => {
   const ME = 'user-me';
   const ALICE = 'user-alice';

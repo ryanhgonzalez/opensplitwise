@@ -5,7 +5,7 @@ import { useStore, selectCurrentUser, selectTotalsForGroup } from '../store';
 import { calculateBalances, calculateSettlements, round } from '../lib/calculations';
 import { EMPTY_FILTER, filterExpenses, isFilterActive, type ExpenseFilter } from '../lib/expenseFilter';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned, getNetAmountForUser } from '../utils';
-import { CATEGORY_LABELS } from '../types';
+import { categoryLabel } from '../lib/categories';
 import type { Expense, PaymentMethod } from '../types';
 import Avatar from '../components/Avatar';
 import GroupTile from '../components/GroupTile';
@@ -66,8 +66,14 @@ export default function GroupDetail() {
   // are group truth and keep using the full `expenses` set — narrowing the view
   // must never look like money moved.
   const visibleExpenses = useMemo(
-    () => filterExpenses(sortedExpenses, expenseFilter, (uid) => users.find(u => u.id === uid)?.name ?? ''),
-    [sortedExpenses, expenseFilter, users],
+    () => filterExpenses(
+      sortedExpenses,
+      expenseFilter,
+      (uid) => users.find(u => u.id === uid)?.name ?? '',
+      undefined,
+      (category) => categoryLabel(category, group),
+    ),
+    [sortedExpenses, expenseFilter, users, group],
   );
   const filtering = isFilterActive(expenseFilter);
   const sortedPayments = useMemo(
@@ -334,7 +340,7 @@ export default function GroupDetail() {
                           </span>
                           <span role="cell" className="gd-desc-cell">
                             <span className="gd-desc">{expense.description}</span>
-                            <span className="num gd-cat gd-col-wide-inline">{CATEGORY_LABELS[expense.category]}</span>
+                            <span className="num gd-cat gd-col-wide-inline">{categoryLabel(expense.category, group)}</span>
                             <span className="text-xs text-secondary gd-meta-mobile">
                               {nameOf(expense.paidBy)} paid {formatCurrency(expense.amount)}
                             </span>

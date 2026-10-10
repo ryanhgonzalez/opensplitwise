@@ -5,8 +5,8 @@
  * reused by any list that shows expenses.
  */
 
-import type { Expense } from '../types';
-import { CATEGORY_LABELS } from '../types';
+import type { CategoryId, Expense } from '../types';
+import { categoryLabel } from './categories';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -35,6 +35,7 @@ export const DATE_PRESET_LABELS: Record<DatePreset, string> = {
 
 /** How many people paid for the expenses on screen — used to name the payer in search. */
 export type PayerName = (userId: string) => string;
+export type CategoryName = (category: CategoryId) => string;
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -114,11 +115,11 @@ export function resolveDateRange(
  * The amount goes in twice — as typed (`42.5`) and cent-padded (`42.50`) — so
  * both "42.5" and "42.50" find the same expense.
  */
-function haystack(expense: Expense, payerName: PayerName): string {
+function haystack(expense: Expense, payerName: PayerName, categoryName: CategoryName): string {
   return [
     expense.description,
     payerName(expense.paidBy),
-    CATEGORY_LABELS[expense.category] ?? expense.category,
+    categoryName(expense.category),
     expense.notes ?? '',
     String(expense.amount),
     expense.amount.toFixed(2),
@@ -128,10 +129,15 @@ function haystack(expense: Expense, payerName: PayerName): string {
 }
 
 /** True when every whitespace-separated term appears somewhere in the expense. */
-export function matchesQuery(expense: Expense, query: string, payerName: PayerName): boolean {
+export function matchesQuery(
+  expense: Expense,
+  query: string,
+  payerName: PayerName,
+  categoryName: CategoryName = categoryLabel,
+): boolean {
   const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (terms.length === 0) return true;
-  const target = haystack(expense, payerName);
+  const target = haystack(expense, payerName, categoryName);
   return terms.every((term) => target.includes(term));
 }
 
@@ -151,6 +157,8 @@ export function filterExpenses(
   filter: ExpenseFilter,
   payerName: PayerName,
   now: Date = new Date(),
+  /** Custom categories need the group to be named; built-in ones don't. */
+  categoryName: CategoryName = categoryLabel,
 ): Expense[] {
   if (!isFilterActive(filter)) return expenses;
 
@@ -160,6 +168,6 @@ export function filterExpenses(
     const when = expense.date.getTime();
     if (start && when < start.getTime()) return false;
     if (end && when > end.getTime()) return false;
-    return matchesQuery(expense, filter.query, payerName);
+    return matchesQuery(expense, filter.query, payerName, categoryName);
   });
 }

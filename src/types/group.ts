@@ -1,9 +1,16 @@
+import type { CustomCategoryId } from './expense';
+
 export type GroupType = 'trip' | 'home' | 'couple' | 'family' | 'friends' | 'work' | 'event' | 'other';
 
 export interface GroupMember {
   userId: string;
   role: 'owner' | 'member';
   joinedAt: Date;
+}
+
+export interface CustomCategory {
+  id: CustomCategoryId;
+  name: string;
 }
 
 export interface Group {
@@ -13,6 +20,8 @@ export interface Group {
   color: string;
   type: GroupType;
   members: GroupMember[];
+  /** Categories made for this group, offered next to the built-in ones. Absent on older data. */
+  categories?: CustomCategory[];
   lastActivity: Date;
   createdAt: Date;
 }

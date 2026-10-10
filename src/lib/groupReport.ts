@@ -3,7 +3,7 @@ import { autoTable, type CellDef, type RowInput, type UserOptions } from 'jspdf-
 
 type ColumnStyles = NonNullable<UserOptions['columnStyles']>;
 import type { Group, Expense, User, Settlement, PaymentMethod } from '../types';
-import { CATEGORY_LABELS } from '../types';
+import { categoryLabel } from './categories';
 import { calculateBalances, calculateSettlements } from './calculations';
 import plexSansRegularUrl from '../assets/fonts/IBMPlexSans-Regular.ttf?url';
 import plexSansSemiBoldUrl from '../assets/fonts/IBMPlexSans-SemiBold.ttf?url';
@@ -438,7 +438,7 @@ export async function generateGroupReport(
       sortedExpenses.map((e) => [
         { content: ledgerDate(e.date), styles: { font: f.mono, textColor: C.muted, fontSize: 7.5 } },
         { content: stripEmoji(e.description) || 'Expense', styles: { fontStyle: 'bold' } },
-        { content: CATEGORY_LABELS[e.category], styles: { textColor: C.soft, fontSize: 7.5 } },
+        { content: stripEmoji(categoryLabel(e.category, group)) || 'Other', styles: { textColor: C.soft, fontSize: 7.5 } },
         nameOf(e.paidBy),
         { content: splitLabel(e), styles: { textColor: C.soft, fontSize: 7.5 } },
         money(e.amount),
