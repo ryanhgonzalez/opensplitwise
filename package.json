@@ -22,9 +22,12 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@eslint/js": "^9.13.0",
+    "@huggingface/transformers": "^4.3.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-react": "^4.7.0",
     "eslint": "^9.13.0",
     "eslint-plugin-react-hooks": "^5.0.0",

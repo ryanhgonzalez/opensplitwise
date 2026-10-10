@@ -44,3 +44,6 @@ vite.config.ts.timestamp-*
 # Cloudflare
 .wrangler/
 .dev.vars
+
+# Receipt bench: real receipt photos and labels stay local (card digits, locations)
+bench/data/
