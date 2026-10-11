@@ -26,3 +26,19 @@ export function startServiceWorker(): void {
     },
   });
 }
+
+/**
+ * Better scan (Florence-2) was retired for PaddleOCR. Anyone who tried it
+ * still has ~390 MB of model files in Transformers.js's cache, which nothing
+ * reads any more, plus its settings. Remove them; does nothing when absent.
+ */
+export function forgetRetiredBetterScan(): void {
+  try {
+    for (const key of ['opensplitwise-better-scan', 'opensplitwise-better-scan-running', 'opensplitwise-better-scan-blocked']) {
+      localStorage.removeItem(key);
+    }
+  } catch {
+    // Storage blocked: nothing was saved either.
+  }
+  if (typeof caches !== 'undefined') void caches.delete('transformers-cache').catch(() => {});
+}

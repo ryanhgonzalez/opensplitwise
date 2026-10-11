@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { benchClaudeProxy } from './bench/claudeProxy'
+import { ocrModels } from './scripts/ocrModels'
 
 // Receipt bench switches (dev server only; see bench/README.md):
 //   BENCH_HTTPS=1  self-signed HTTPS, so a phone on the LAN gets WebGPU
@@ -16,17 +17,13 @@ const benchPlugins: PluginOption[] = [
   process.env.BENCH_CLAUDE === '1' && benchClaudeProxy(),
 ]
 
-// Better scan's Transformers.js loads the ONNX Runtime wasm from jsDelivr at
-// runtime, but Vite still emits onnxruntime-web's own 27 MB copy, which nothing
-// fetches and which is over Cloudflare Pages' 25 MiB per-file limit.
-const dropUnusedOrtWasm: PluginOption = {
-  name: 'drop-unused-ort-wasm',
-  apply: 'build',
-  generateBundle(_, bundle) {
-    for (const name of Object.keys(bundle)) {
-      if (/ort-wasm[^/]*\.wasm$/.test(name)) delete bundle[name]
-    }
-  },
+// Cross-origin isolation lets the receipt OCR run ONNX Runtime on several
+// threads (about 3× faster in Chrome, 20× in Safari). It requires every
+// resource to be same-origin, which the app is. Cloudflare Pages sends the
+// same headers from public/_headers.
+const isolationHeaders = {
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Embedder-Policy': 'require-corp',
 }
 
 // Tesseract fetches its worker, WASM core and English data from jsDelivr by
@@ -61,9 +58,11 @@ const tesseractAssets: PluginOption = {
 }
 
 // Offline support: the service worker precaches everything the app can load
-// (the shell, lazy PDF/OCR/Better scan chunks, fonts, Tesseract files), so once
-// the app has been opened online it works with no connection. Better scan's
-// ~390 MB model isn't precached; the browser keeps it after its first use.
+// (the shell, lazy PDF/OCR chunks, fonts, Tesseract files), so once the app has
+// been opened online it works with no connection. The receipt OCR's ~45 MB
+// (models and ONNX Runtime's wasm) isn't precached: it downloads on the first
+// scan and the page keeps it in Cache Storage (src/lib/receiptOcr.ts). Until
+// then, Tesseract reads receipts.
 const pwa = VitePWA({
   // 'prompt': a new version waits instead of reloading the page mid-use;
   // src/lib/serviceWorker.ts decides when to switch over.
@@ -83,7 +82,9 @@ const pwa = VitePWA({
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), dropUnusedOrtWasm, tesseractAssets, pwa, ...benchPlugins],
+  plugins: [react(), tesseractAssets, ocrModels(), pwa, ...benchPlugins],
+  server: { headers: isolationHeaders },
+  preview: { headers: isolationHeaders },
   test: {
     // Node, not jsdom: everything under test is pure calculation or store logic.
     // The only browser API the store touches is localStorage, which the setup

@@ -5,16 +5,6 @@ import { buildSplit, round, splitByItems } from '../lib/calculations';
 import { CATEGORY_LABELS } from '../types';
 import type { CategoryId, Expense, SplitType, ExpenseSplit } from '../types';
 import { BUILT_IN_CATEGORIES, MAX_CATEGORY_NAME, isCustomCategory } from '../lib/categories';
-import {
-  isBetterScanEnabled,
-  isBetterScanSupported,
-  isModelDownloaded,
-  markBetterScanRunning,
-  recoverFromBetterScanCrash,
-  setBetterScanEnabled,
-  takeCrashNotice,
-  type BetterScanPhase,
-} from '../lib/betterScan';
 import Avatar from './Avatar';
 import '../styles/sheet.css';
 import './AddExpenseSheet.css';
@@ -97,31 +87,6 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const [scanStatus, setScanStatus] = useState('');
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanned, setScanned] = useState(false);
-  // Better scan (opt-in on-device model). Offered only where WebGPU exists.
-  const [betterSupported, setBetterSupported] = useState(false);
-  const [betterOn, setBetterOn] = useState(isBetterScanEnabled);
-  const [modelDownloaded, setModelDownloaded] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    let live = true;
-    recoverFromBetterScanCrash().then(crashed => {
-      if (!live || !crashed) return;
-      setBetterOn(false);
-      if (takeCrashNotice()) setScanError(
-        "Better scan needs more memory than this device's browser allows, so the app closed during the last scan. " +
-        'Better scan is now off on this device and its downloaded files were removed. The standard scan still works.',
-      );
-    });
-    isBetterScanSupported().then(ok => { if (live) setBetterSupported(ok); });
-    isModelDownloaded().then(ok => { if (live) setModelDownloaded(ok); });
-    return () => { live = false; };
-  }, [open]);
-
-  const toggleBetterScan = (on: boolean) => {
-    setBetterOn(on);
-    setBetterScanEnabled(on);
-  };
 
   const selectedGroup = useMemo(() => groups.find(g => g.id === groupId), [groups, groupId]);
   const groupMemberIds = useMemo(() => selectedGroup?.members.map(m => m.userId) ?? [], [selectedGroup]);
@@ -285,39 +250,18 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     setScanError(null);
     setScanStatus('Reading receipt…');
     setScanned(false);
-    const readingStatus = (fraction: number) => setScanStatus(`Reading receipt… ${Math.round(fraction * 100)}%`);
-    let fallbackNote: string | null = null;
     try {
-      const { scanReceipt, scanReceiptBetter } = await import('../lib/receiptScanner');
-      let result;
-      if (betterOn && betterSupported) {
-        markBetterScanRunning(true);
-        try {
-          result = await scanReceiptBetter(file, (phase: BetterScanPhase, p) => {
-            if (phase === 'download') {
-              setScanStatus(`Downloading scan model… ${Math.round((p.loaded ?? 0) / 1e6)} MB`);
-            } else if (phase === 'prepare') {
-              setScanStatus('Loading scan model…');
-            } else {
-              readingStatus(p.fraction ?? 0);
-            }
-          });
-          setModelDownloaded(true);
-        } catch (err) {
-          markBetterScanRunning(false);
-          // Out of memory, lost connection mid-download, GPU trouble: use the standard scan.
-          console.error('Better scan failed; using the standard scan.', err);
-          // A short reason in the note, so a failure on someone's device can be reported.
-          const reason = (err instanceof Error ? err.message : String(err)).split('\n')[0].slice(0, 140);
-          fallbackNote = `Better scan couldn't run, so the standard scan was used. (${reason})`;
-          readingStatus(0);
-          result = await scanReceipt(file, readingStatus);
-        } finally {
-          markBetterScanRunning(false);
+      const { scanReceipt } = await import('../lib/receiptScanner');
+      const result = await scanReceipt(file, p => {
+        if (p.phase === 'download') {
+          // First scan only: the reader is stored for offline use afterwards.
+          setScanStatus(`Downloading receipt reader… ${Math.round(p.loaded / 1e6)} / ${Math.round(p.total / 1e6)} MB`);
+        } else if (p.phase === 'prepare') {
+          setScanStatus('Preparing receipt reader…');
+        } else {
+          setScanStatus(`Reading receipt… ${Math.round(p.fraction * 100)}%`);
         }
-      } else {
-        result = await scanReceipt(file, readingStatus);
-      }
+      });
 
       let filledAny = false;
       if (result.amount && result.amount > 0) { setAmountStr(String(result.amount)); filledAny = true; }
@@ -341,7 +285,10 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
       } else {
         setScanned(true);
         if (!result.amount) setScanError("Couldn't find the total — please enter the amount manually.");
-        else if (fallbackNote) setScanError(fallbackNote);
+        else if (result.fallbackReason) {
+          // Usually: offline before the reader's first download.
+          setScanError(`Used the basic reader, since the receipt reader couldn't load (${result.fallbackReason}). Check the details carefully.`);
+        }
       }
     } catch {
       setScanError('Something went wrong scanning the receipt. Please enter the details manually.');
@@ -498,24 +445,6 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                         Upload photo
                       </button>
                     </div>
-                  )}
-                  {betterSupported && (
-                    <label className="aes-better-scan">
-                      <input
-                        type="checkbox"
-                        checked={betterOn}
-                        disabled={scanning}
-                        onChange={e => toggleBetterScan(e.target.checked)}
-                      />
-                      <span>
-                        <span className="aes-better-scan-title">Better scan</span>
-                        <span className="aes-better-scan-note">
-                          {modelDownloaded
-                            ? 'On-device AI model. More accurate, about 10 s per receipt.'
-                            : 'On-device AI model. More accurate, about 10 s per receipt. One-time ~390 MB download.'}
-                        </span>
-                      </span>
-                    </label>
                   )}
                   {scanError && <div className="aes-scan-msg error">{scanError}</div>}
                   {scanned && !scanError && (

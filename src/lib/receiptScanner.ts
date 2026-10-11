@@ -1,9 +1,12 @@
 import type { ExpenseCategory } from '../types';
-import type { BetterScanProgress } from './betterScan';
+import type { OcrProgress } from './receiptOcr';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Client-side receipt scanner: image → OCR (Tesseract.js, or Florence-2 for
-// Better scan; see betterScan.ts) → best-effort fields.
+// Client-side receipt scanner: image → OCR → best-effort fields.
+//
+// OCR is PaddleOCR (receiptOcr.ts), downloaded on the first scan. Tesseract
+// (precached, so it works offline from the first visit) reads the receipt
+// when PaddleOCR can't load, e.g. offline before that first download.
 //
 // Accuracy note: generic OCR on real-world receipts is imperfect, so everything
 // here is best-effort and MUST land in an editable draft the user reviews before
@@ -25,10 +28,30 @@ export interface ParsedReceipt {
   rawText: string;
 }
 
-export type ScanProgress = (progress: number) => void;
+export type ScanProgress = OcrProgress;
+
+export interface ScanResult extends ParsedReceipt {
+  /** Set when PaddleOCR couldn't run and Tesseract read the receipt instead: the first line of the error. */
+  fallbackReason?: string;
+}
 
 /** Scan a receipt image file and return best-effort expense fields. */
-export async function scanReceipt(file: File, onProgress?: ScanProgress): Promise<ParsedReceipt> {
+export async function scanReceipt(file: File, onProgress?: ScanProgress): Promise<ScanResult> {
+  let text: string;
+  try {
+    const { readReceiptText } = await import('./receiptOcr');
+    text = await readReceiptText(file, undefined, onProgress);
+  } catch (err) {
+    console.error('Receipt OCR failed; using Tesseract.', err);
+    const reason = (err instanceof Error ? err.message : String(err)).split('\n')[0].slice(0, 140);
+    const result = await scanWithTesseract(file, (fraction) => onProgress?.({ phase: 'read', fraction }));
+    return { ...result, fallbackReason: reason };
+  }
+  return { ...parseReceiptText(text, { dayFirst: localePrefersDayFirst() }), rawText: text };
+}
+
+/** The fallback reader: Tesseract.js, served from /tesseract and precached. */
+export async function scanWithTesseract(file: File, onProgress?: (fraction: number) => void): Promise<ParsedReceipt> {
   const canvas = await preprocessImage(file);
 
   // Lazy-load Tesseract so it never bloats the main bundle — only fetched on first scan.
@@ -56,17 +79,6 @@ export async function scanReceipt(file: File, onProgress?: ScanProgress): Promis
   } finally {
     await worker.terminate();
   }
-}
-
-/**
- * Better scan: the same fields, read by the on-device Florence-2 model instead
- * of Tesseract (see betterScan.ts). Throws if the model can't load or run, so
- * the caller can fall back to `scanReceipt`.
- */
-export async function scanReceiptBetter(file: File, onProgress?: BetterScanProgress): Promise<ParsedReceipt> {
-  const { readReceiptText } = await import('./betterScan');
-  const text = await readReceiptText(file, onProgress);
-  return { ...parseReceiptText(text, { dayFirst: localePrefersDayFirst() }), rawText: text };
 }
 
 /** Most of the world writes 05/09 as 5 September; the US and a few others mean May 9. */

@@ -13,7 +13,7 @@ A mobile-first expense splitting PWA inspired by Splitwise, built with React and
 - **Group PDF Reports** — Export a full expense report for any group as a PDF
 - **Data Import / Export** — Back up and restore all app data as JSON
 - **Theme Toggle** — Light, Dark, and System default modes with no flash on load
-- **Receipt Scanning** — Fill an expense from a receipt photo, read on the device (Tesseract, or the opt-in Better scan model)
+- **Receipt Scanning** — Fill an expense, including line items, from a receipt photo, read on the device by PaddleOCR (Tesseract as the fallback)
 - **Works Offline** — After one online visit, everything above works with no connection (see below)
 
 ## Tech Stack
@@ -46,7 +46,9 @@ Output goes to `dist/`.
 
 A service worker (vite-plugin-pwa, configured in `vite.config.ts`) precaches the whole app on the first visit, about 10 MB: every JS chunk, the self-hosted IBM Plex fonts, and Tesseract's worker, core and English data (served from `/tesseract`, copied out of `node_modules` at build time). After that the app, the PDF report and the standard receipt scan need no network.
 
-Better scan's model (~390 MB) is not precached. The browser keeps it after its first use, and from then on Better scan works offline too.
+The receipt reader (PaddleOCR PP-OCRv6 small plus ONNX Runtime's WebAssembly, ~45 MB) is not precached. It downloads on the first scan and the page keeps it in Cache Storage (`src/lib/receiptOcr.ts`), so scanning works offline from then on. Before that first download, an offline scan uses Tesseract and says so.
+
+The model files aren't in git: `scripts/ocrModels.ts` downloads them from Hugging Face at build time, pinned to an exact revision and SHA-256, and serves them at `/ocr`. The site is cross-origin isolated (`public/_headers`, and the dev/preview server headers in `vite.config.ts`) so ONNX Runtime can use several threads; that keeps a scan around a second. It also means every resource must come from the app's own origin.
 
 New versions download in the background and take over when the app is next opened, or while it's in the background with no sheet open (`src/lib/serviceWorker.ts`), so an update never interrupts someone entering an expense.
 

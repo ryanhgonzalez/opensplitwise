@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- dev-only bench: Transformers.js returns loosely typed model/processor objects whose shape varies per architecture. */
-import { loadBetterScan, runtimeFor } from '../lib/betterScan';
-import { parseReceiptText, scanReceipt, scanReceiptBetter } from '../lib/receiptScanner';
+import { florenceReadText, loadFlorence, runtimeFor } from './florence';
+import { parseReceiptText, scanReceipt, scanWithTesseract } from '../lib/receiptScanner';
 import { docTagsToLines, extractJson } from './lines';
+import { PADDLE_MODELS, type BenchOcrModel } from './paddle';
+import { loadOcr, readReceiptText, RECEIPT_OCR } from '../lib/receiptOcr';
 import type { Engine, Extraction, ReceiptItem } from './types';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -67,37 +69,49 @@ type Transformers = typeof import('@huggingface/transformers');
 let tf: Promise<Transformers> | null = null;
 const transformers = () => (tf ??= import('@huggingface/transformers'));
 
-// Device checks and weight choices are shared with the app's Better scan.
-export { getDeviceInfo, type DeviceInfo } from '../lib/betterScan';
+export { getDeviceInfo, type DeviceInfo } from './florence';
 
 const progressText = (p: { status?: string; file?: string; progress?: number }) =>
   p.status === 'progress' && p.file
     ? `Downloading ${p.file.split('/').pop()} ${Math.round(p.progress ?? 0)}%`
     : p.status ?? '';
 
-// ─── 1. Tesseract (what the app ships today) ─────────────────────────────────
+// ─── 1. What the app ships: PaddleOCR v6 small, Tesseract as fallback ───────
 
-const tesseract: Engine = {
-  id: 'tesseract',
-  label: 'Tesseract (current)',
-  downloadNote: '~15 MB, fetched from a CDN on first scan',
+const fromParsed = (r: Awaited<ReturnType<typeof scanWithTesseract>>): Extraction => ({
+  merchant: r.description,
+  date: r.date ? isoDay(r.date) : undefined,
+  total: r.amount,
+  items: r.lineItems?.map((li) => ({ description: li.description, amount: li.amount })),
+});
+
+const appScanner: Engine = {
+  id: 'app',
+  label: 'App scanner (PaddleOCR v6 small)',
+  downloadNote: '~45 MB on first scan, then cached',
+  async load() {
+    await loadOcr(RECEIPT_OCR);
+  },
   async run(image) {
     const t0 = now();
     const r = await scanReceipt(image);
-    return {
-      ms: now() - t0,
-      raw: r.rawText,
-      extraction: {
-        merchant: r.description,
-        date: r.date ? isoDay(r.date) : undefined,
-        total: r.amount,
-        items: r.lineItems?.map((li) => ({ description: li.description, amount: li.amount })),
-      },
-    };
+    if (r.fallbackReason) throw new Error(`Fell back to Tesseract: ${r.fallbackReason}`);
+    return { ms: now() - t0, raw: r.rawText, extraction: fromParsed(r) };
   },
 };
 
-// ─── 2. Florence-2: better OCR, same parser (ships as the app's Better scan) ──
+const tesseract: Engine = {
+  id: 'tesseract',
+  label: 'Tesseract (fallback)',
+  downloadNote: '~7 MB, precached',
+  async run(image) {
+    const t0 = now();
+    const r = await scanWithTesseract(image);
+    return { ms: now() - t0, raw: r.rawText, extraction: fromParsed(r) };
+  },
+};
+
+// ─── 2. Florence-2: better OCR, same parser (was the app's Better scan) ──────
 
 const mb = (n = 0) => Math.round(n / 1e6);
 
@@ -106,14 +120,14 @@ const florence2: Engine = {
   label: 'Florence-2 base + app parser',
   downloadNote: '~390 MB, cached after the first run',
   async load(onProgress) {
-    await loadBetterScan((phase, p) =>
+    await loadFlorence((phase, p) =>
       onProgress(phase === 'download' ? `Downloading ${mb(p.loaded)} MB` : 'Loading model'),
     );
   },
   async run(image) {
     const t0 = now();
-    const r = await scanReceiptBetter(image);
-    return { ms: now() - t0, raw: r.rawText, extraction: fromText(r.rawText) };
+    const text = await florenceReadText(image);
+    return { ms: now() - t0, raw: text, extraction: fromText(text) };
   },
 };
 
@@ -246,8 +260,28 @@ function claudeEngine(model: ClaudeModel): Engine {
   };
 }
 
+// ─── PaddleOCR: small CPU-only OCR, same parser ──────────────────────────────
+
+function paddleEngine(m: BenchOcrModel): Engine {
+  return {
+    id: m.id,
+    label: m.label,
+    downloadNote: m.downloadNote,
+    async load() {
+      await loadOcr(m);
+    },
+    async run(image) {
+      const t0 = now();
+      const text = await readReceiptText(image, m);
+      return { ms: now() - t0, raw: text, extraction: fromText(text) };
+    },
+  };
+}
+
 export const ENGINES: Engine[] = [
+  appScanner,
   tesseract,
+  ...PADDLE_MODELS.map(paddleEngine),
   florence2,
   graniteDocling,
   smolvlm,

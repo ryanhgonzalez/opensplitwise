@@ -1,0 +1,5 @@
+# Cross-origin isolation, so the receipt OCR can use several threads.
+# Keep in sync with isolationHeaders in vite.config.ts.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp

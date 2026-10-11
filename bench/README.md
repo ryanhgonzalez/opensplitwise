@@ -8,14 +8,16 @@ Engines compared:
 
 | Engine | Runs | One-time download | How it extracts |
 |---|---|---|---|
-| Tesseract (current) | On device | ~15 MB from a CDN | OCR text → the app's `parseReceiptText` |
-| Florence-2 base | On device (WebGPU, else WASM) | ~390 MB, cached | OCR with line positions, tiled for long receipts → `parseReceiptText`. Ships in the app as Better scan (`src/lib/betterScan.ts`) |
+| App scanner: PaddleOCR v6 small | On device (CPU, threads) | ~45 MB, cached | What ships (`src/lib/receiptOcr.ts`): text detection + recognition with positions → `parseReceiptText` |
+| Tesseract (fallback) | On device | ~7 MB, precached | OCR text → `parseReceiptText`. The app's fallback when the reader can't load |
+| PaddleOCR v5 mobile (English), v6 tiny | On device (CPU, threads) | ~13 MB / ~6 MB + ONNX Runtime | The app's OCR code with other models, for comparison |
+| Florence-2 base | On device (WebGPU, else WASM) | ~390 MB, cached | OCR with line positions, tiled → `parseReceiptText`. Was the app's Better scan; retired (memory, WebGPU, Firefox) |
 | Granite-Docling 258M | On device | ~205 MB, cached | Document structure (tables) → `parseReceiptText` |
 | SmolVLM 500M | On device | ~310 MB, cached | Asked for the fields as JSON |
 | Claude Opus 5.5 / Haiku 5.5 | Cloud, via a local proxy | none | Structured output (JSON schema) |
 
-The first three share the app's parser, so differences come from how well the
-text was read. SmolVLM and Claude replace the parser entirely.
+The OCR-style engines share the app's parser, so differences come from how well
+the text was read. SmolVLM and Claude replace the parser entirely.
 
 ## 1. Collect and label receipts
 

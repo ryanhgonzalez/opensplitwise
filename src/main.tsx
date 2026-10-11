@@ -11,10 +11,11 @@ import '@fontsource/ibm-plex-mono/600.css'
 import './index.css'
 // Attaches the install-prompt listener before anything renders (see pwa.ts).
 import './lib/pwa'
-import { startServiceWorker } from './lib/serviceWorker'
+import { forgetRetiredBetterScan, startServiceWorker } from './lib/serviceWorker'
 import App from './App.tsx'
 
 startServiceWorker()
+forgetRetiredBetterScan()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
