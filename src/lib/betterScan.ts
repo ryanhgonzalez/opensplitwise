@@ -6,6 +6,7 @@ import { boxesToLines, dedupeOverlap, quadToBox, type Box } from './receiptLines
 //
 // Opt-in because it costs a one-time ~390 MB download and ~10 s per receipt.
 // Offered only where WebGPU exists: on the WASM fallback it takes minutes.
+// Not offered in Firefox (see isFirefox).
 // Transformers.js is lazy-loaded, so none of this touches the main bundle.
 // On the bench's sample receipts: totals 33% → 100%, items F1 0.25 → 0.69.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -48,8 +49,16 @@ export function getDeviceInfo(): Promise<DeviceInfo> {
   return deviceInfo;
 }
 
+/**
+ * Firefox has WebGPU, but its shader compiler rejects one of ONNX Runtime's
+ * shaders ("Pad", used by the vision encoder; seen in Firefox 157). The model
+ * downloads and loads, then the first scan fails, so don't offer it there.
+ * Firefox on iOS is WebKit underneath and says "FxiOS", not "Firefox/".
+ */
+const isFirefox = () => typeof navigator !== 'undefined' && /\bFirefox\//.test(navigator.userAgent);
+
 export async function isBetterScanSupported(): Promise<boolean> {
-  return !isBetterScanBlocked() && (await getDeviceInfo()).webgpu;
+  return !isBetterScanBlocked() && !isFirefox() && (await getDeviceInfo()).webgpu;
 }
 
 /**

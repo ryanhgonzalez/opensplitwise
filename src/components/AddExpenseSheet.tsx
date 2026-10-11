@@ -303,10 +303,13 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
             }
           });
           setModelDownloaded(true);
-        } catch {
+        } catch (err) {
           markBetterScanRunning(false);
           // Out of memory, lost connection mid-download, GPU trouble: use the standard scan.
-          fallbackNote = "Better scan couldn't run, so the standard scan was used.";
+          console.error('Better scan failed; using the standard scan.', err);
+          // A short reason in the note, so a failure on someone's device can be reported.
+          const reason = (err instanceof Error ? err.message : String(err)).split('\n')[0].slice(0, 140);
+          fallbackNote = `Better scan couldn't run, so the standard scan was used. (${reason})`;
           readingStatus(0);
           result = await scanReceipt(file, readingStatus);
         } finally {
