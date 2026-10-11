@@ -5,7 +5,16 @@ import { buildSplit, round, splitByItems } from '../lib/calculations';
 import { CATEGORY_LABELS } from '../types';
 import type { CategoryId, Expense, SplitType, ExpenseSplit } from '../types';
 import { BUILT_IN_CATEGORIES, MAX_CATEGORY_NAME, isCustomCategory } from '../lib/categories';
-import { isBetterScanEnabled, isBetterScanSupported, isModelDownloaded, setBetterScanEnabled, type BetterScanPhase } from '../lib/betterScan';
+import {
+  isBetterScanEnabled,
+  isBetterScanSupported,
+  isModelDownloaded,
+  markBetterScanRunning,
+  recoverFromBetterScanCrash,
+  setBetterScanEnabled,
+  takeCrashNotice,
+  type BetterScanPhase,
+} from '../lib/betterScan';
 import Avatar from './Avatar';
 import '../styles/sheet.css';
 import './AddExpenseSheet.css';
@@ -96,6 +105,14 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   useEffect(() => {
     if (!open) return;
     let live = true;
+    recoverFromBetterScanCrash().then(crashed => {
+      if (!live || !crashed) return;
+      setBetterOn(false);
+      if (takeCrashNotice()) setScanError(
+        "Better scan needs more memory than this device's browser allows, so the app closed during the last scan. " +
+        'Better scan is now off on this device and its downloaded files were removed. The standard scan still works.',
+      );
+    });
     isBetterScanSupported().then(ok => { if (live) setBetterSupported(ok); });
     isModelDownloaded().then(ok => { if (live) setModelDownloaded(ok); });
     return () => { live = false; };
@@ -274,6 +291,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
       const { scanReceipt, scanReceiptBetter } = await import('../lib/receiptScanner');
       let result;
       if (betterOn && betterSupported) {
+        markBetterScanRunning(true);
         try {
           result = await scanReceiptBetter(file, (phase: BetterScanPhase, p) => {
             if (phase === 'download') {
@@ -286,10 +304,13 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
           });
           setModelDownloaded(true);
         } catch {
+          markBetterScanRunning(false);
           // Out of memory, lost connection mid-download, GPU trouble: use the standard scan.
           fallbackNote = "Better scan couldn't run, so the standard scan was used.";
           readingStatus(0);
           result = await scanReceipt(file, readingStatus);
+        } finally {
+          markBetterScanRunning(false);
         }
       } else {
         result = await scanReceipt(file, readingStatus);

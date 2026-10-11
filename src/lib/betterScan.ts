@@ -49,7 +49,7 @@ export function getDeviceInfo(): Promise<DeviceInfo> {
 }
 
 export async function isBetterScanSupported(): Promise<boolean> {
-  return (await getDeviceInfo()).webgpu;
+  return !isBetterScanBlocked() && (await getDeviceInfo()).webgpu;
 }
 
 /**
@@ -97,6 +97,79 @@ export async function isModelDownloaded(): Promise<boolean> {
     return keys.some((k) => k.url.includes(MODEL_ID) && k.url.endsWith('.onnx'));
   } catch {
     return false;
+  }
+}
+
+// ─── Surviving a crash ───────────────────────────────────────────────────────
+//
+// A scan needs about 1.5 GB of memory in the page. A phone browser that can't
+// spare that kills the page outright, and it reloads with no error to catch,
+// so the next scan would do the same. A marker in storage while a scan runs
+// shows afterwards that the page died during one.
+
+const RUNNING_KEY = 'opensplitwise-better-scan-running';
+const BLOCKED_KEY = 'opensplitwise-better-scan-blocked';
+
+/** Call with true just before a Better scan and false once it ends, however it ends. */
+export function markBetterScanRunning(running: boolean): void {
+  try {
+    if (running) localStorage.setItem(RUNNING_KEY, '1');
+    else localStorage.removeItem(RUNNING_KEY);
+  } catch {
+    // Without storage there's no marker; a crash just won't be noticed.
+  }
+}
+
+function isBetterScanBlocked(): boolean {
+  try {
+    return localStorage.getItem(BLOCKED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True when the page died during a Better scan before this load. Then Better
+ * scan is switched off and hidden on this device, and its downloaded files are
+ * deleted, since they'd only take up space. Checked once per page load; every
+ * caller gets the same answer.
+ */
+let recovery: Promise<boolean> | null = null;
+export function recoverFromBetterScanCrash(): Promise<boolean> {
+  recovery ??= recover();
+  return recovery;
+}
+
+/** True the first time it's called after a crash was found, so the explanation shows once. */
+let noticeTaken = false;
+export function takeCrashNotice(): boolean {
+  if (noticeTaken) return false;
+  noticeTaken = true;
+  return true;
+}
+
+async function recover(): Promise<boolean> {
+  try {
+    if (localStorage.getItem(RUNNING_KEY) !== '1') return false;
+    localStorage.removeItem(RUNNING_KEY);
+    localStorage.setItem(BLOCKED_KEY, '1');
+  } catch {
+    return false;
+  }
+  setBetterScanEnabled(false);
+  await deleteModelFiles();
+  return true;
+}
+
+async function deleteModelFiles(): Promise<void> {
+  try {
+    if (typeof caches === 'undefined') return;
+    const cache = await caches.open('transformers-cache');
+    for (const req of await cache.keys()) {
+      if (req.url.includes(MODEL_ID) || req.url.includes('onnxruntime-web')) await cache.delete(req);
+    }
+  } catch {
+    // Storage unavailable: nothing to free.
   }
 }
 
