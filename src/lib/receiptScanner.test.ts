@@ -197,3 +197,37 @@ describe('parseReceiptText: dates', () => {
     expect(day(parseReceiptText('Data 05.09.2026').date)).toBe('2026-09-05');
   });
 });
+
+describe('parseReceiptText: total candidates', () => {
+  const picks = (text: string) => parseReceiptText(text).totalCandidates?.map((c) => [c.amount, c.label]);
+
+  it('puts the chosen total first, then subtotal, and leaves out payment lines', () => {
+    expect(picks(WALMART)).toEqual([
+      [46.3, 'Total'],
+      [46.04, 'Subtotal'],
+    ]);
+  });
+
+  it('skips savings and tendered lines but keeps the subtotal', () => {
+    expect(picks(CIDER)).toEqual([
+      [4.5, 'Total'],
+      [8, 'Subtotal'],
+    ]);
+    expect(picks(ACME)).toEqual([
+      [58.29, 'Total'],
+      [54.98, 'Subtotal'],
+    ]);
+  });
+
+  it('adds the largest amount when it is not already a candidate', () => {
+    expect(picks('Coffee 3.50\nCake 12.00\nSubtotal 15.50\nTax 1.24\nAmount due 16.74\nCash 20.00')).toEqual([
+      [16.74, 'Amount due'],
+      [15.5, 'Subtotal'],
+      [20, 'Largest amount'],
+    ]);
+  });
+
+  it('labels a receipt with no total line by its largest amount', () => {
+    expect(picks('Cold Beverage  2.80\nLunch Salmon  14.50')).toEqual([[14.5, 'Total']]);
+  });
+});

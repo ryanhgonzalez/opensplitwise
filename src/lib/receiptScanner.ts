@@ -19,8 +19,20 @@ export interface LineItem {
   amount: number;
 }
 
+/** An amount printed on the receipt that could be the total, and what the receipt calls it. */
+export interface TotalCandidate {
+  amount: number;
+  /** "Total", "Subtotal", "Amount due"…, or "Largest amount" when no label fits. */
+  label: string;
+}
+
 export interface ParsedReceipt {
   amount?: number;
+  /**
+   * The parser's total first, then other amounts it might be, for the person to
+   * pick from with one tap. At most four, no repeats.
+   */
+  totalCandidates?: TotalCandidate[];
   description?: string;
   category?: ExpenseCategory;
   date?: Date;
@@ -146,8 +158,10 @@ export interface ParseOptions {
 
 export function parseReceiptText(text: string, options: ParseOptions = {}): Omit<ParsedReceipt, 'rawText'> {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const amount = extractTotal(lines);
   return {
-    amount: extractTotal(lines),
+    amount,
+    totalCandidates: extractTotalCandidates(lines, amount),
     description: extractMerchant(lines),
     category: guessCategory(text),
     date: extractDate(text, options.dayFirst ?? false),
@@ -232,6 +246,41 @@ function extractTotal(lines: string[]): number | undefined {
     }
   }
   return max;
+}
+
+/**
+ * Amounts the total could be, for the person to choose between: the parser's
+ * pick, then each amount on a total-like line (subtotal included, payment and
+ * savings lines not), then the largest amount on the receipt.
+ */
+function extractTotalCandidates(lines: string[], chosen: number | undefined): TotalCandidate[] {
+  const keyword = /(grand\s*total|total\s*due|balance\s*due|amount\s*due|sub\s*-?\s*total|totals?)\b/i;
+  const notATotal =
+    /(savings?|saved|tender(?:ed)?|purchase|discount|\bitems?\b|change|payment|paid|\btip\b|gratuity|points|\bqty\b)/i;
+  const labelOf = (match: string) => {
+    const words = match.toLowerCase().replace(/\s*-\s*|\s+/g, ' ').replace(/^sub total$/, 'subtotal').replace(/^totals$/, 'total');
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  };
+
+  const out: TotalCandidate[] = [];
+  const add = (amount: number, label: string) => {
+    if (amount > 0 && !out.some((c) => Math.abs(c.amount - amount) < 0.005)) out.push({ amount, label });
+  };
+
+  const labelled: TotalCandidate[] = [];
+  lines.forEach((line, i) => {
+    const m = line.match(keyword);
+    if (!m || notATotal.test(line)) return;
+    const nums = moneyOnLine(line).length ? moneyOnLine(line) : i + 1 < lines.length ? moneyOnLine(lines[i + 1]) : [];
+    if (nums.length) labelled.push({ amount: nums[nums.length - 1], label: labelOf(m[1]) });
+  });
+
+  if (chosen !== undefined) add(chosen, labelled.find((c) => Math.abs(c.amount - chosen) < 0.005)?.label ?? 'Total');
+  // Bottom-up, like the totals themselves: the last "Total" on a receipt is usually the real one.
+  for (const c of [...labelled].reverse()) add(c.amount, c.label);
+  const largest = Math.max(0, ...lines.flatMap((l) => moneyOnLine(l)));
+  add(largest, 'Largest amount');
+  return out.slice(0, 4);
 }
 
 /** Merchant name is almost always at the very top of the receipt. */

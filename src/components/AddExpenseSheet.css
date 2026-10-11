@@ -88,6 +88,59 @@
   border-top: 2px solid var(--ink);
 }
 
+/* Scanned totals to pick from, under the amount */
+.aes-total-pick {
+  margin: -8px 0 18px;
+}
+
+.aes-total-pick-label {
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.aes-total-pick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.aes-total-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-height: 44px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.aes-total-chip:hover {
+  background: var(--panel);
+}
+
+.aes-total-chip-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.aes-total-chip.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
+}
+
+.aes-total-chip.active .aes-total-chip-label {
+  color: inherit;
+  opacity: 0.75;
+}
+
 .aes-currency-symbol {
   font-family: var(--font-mono);
   font-size: 28px;

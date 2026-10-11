@@ -5,6 +5,8 @@ import { buildSplit, round, splitByItems } from '../lib/calculations';
 import { CATEGORY_LABELS } from '../types';
 import type { CategoryId, Expense, SplitType, ExpenseSplit } from '../types';
 import { BUILT_IN_CATEGORIES, MAX_CATEGORY_NAME, isCustomCategory } from '../lib/categories';
+import type { TotalCandidate } from '../lib/receiptScanner';
+import { formatCurrency } from '../utils/format';
 import Avatar from './Avatar';
 import '../styles/sheet.css';
 import './AddExpenseSheet.css';
@@ -87,6 +89,8 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const [scanStatus, setScanStatus] = useState('');
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanned, setScanned] = useState(false);
+  // Amounts the scan found that could be the total: tap one to use it.
+  const [totalCandidates, setTotalCandidates] = useState<TotalCandidate[]>([]);
 
   const selectedGroup = useMemo(() => groups.find(g => g.id === groupId), [groups, groupId]);
   const groupMemberIds = useMemo(() => selectedGroup?.members.map(m => m.userId) ?? [], [selectedGroup]);
@@ -250,6 +254,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     setScanError(null);
     setScanStatus('Reading receipt…');
     setScanned(false);
+    setTotalCandidates([]);
     try {
       const { scanReceipt } = await import('../lib/receiptScanner');
       const result = await scanReceipt(file, p => {
@@ -264,7 +269,8 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
       });
 
       let filledAny = false;
-      if (result.amount && result.amount > 0) { setAmountStr(String(result.amount)); filledAny = true; }
+      if (result.amount && result.amount > 0) { setAmountStr(result.amount.toFixed(2)); filledAny = true; }
+      setTotalCandidates(result.totalCandidates ?? []);
       if (result.description) { setDescription(result.description); filledAny = true; }
       if (result.category) { setCategory(result.category); filledAny = true; }
       if (result.date) { setDateStr(toDateInputValue(result.date)); filledAny = true; }
@@ -359,6 +365,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     setScanning(false);
     setScanStatus('');
     setScanError(null);
+    setTotalCandidates([]);
     setScanned(false);
     onClose();
   };
@@ -467,6 +474,30 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                   onChange={e => setAmountStr(e.target.value)}
                 />
               </div>
+
+              {/* After a scan: the other amounts that could be the total, one tap to switch */}
+              {totalCandidates.length > 1 && (
+                <div className="aes-total-pick" role="group" aria-label="Amounts on the receipt">
+                  <div className="aes-total-pick-label">Not the total? Pick it from the receipt</div>
+                  <div className="aes-total-pick-row">
+                    {totalCandidates.map(c => {
+                      const active = Math.abs((parseFloat(amountStr) || 0) - c.amount) < 0.005;
+                      return (
+                        <button
+                          key={c.amount}
+                          type="button"
+                          className={`aes-total-chip ${active ? 'active' : ''}`}
+                          aria-pressed={active}
+                          onClick={() => setAmountStr(c.amount.toFixed(2))}
+                        >
+                          <span className="num">{formatCurrency(c.amount)}</span>
+                          <span className="aes-total-chip-label">{c.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Description */}
               <div className="field-group">
