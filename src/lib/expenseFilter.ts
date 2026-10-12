@@ -1,5 +1,5 @@
 /**
- * Search and date filtering for expense lists.
+ * Search, date and category filtering for expense lists.
  *
  * Pure — no React, no store — so the matching rules can be tested directly and
  * reused by any list that shows expenses.
@@ -21,6 +21,8 @@ export interface ExpenseFilter {
   from?: string;
   /** `YYYY-MM-DD`, inclusive. Only read when `preset` is `custom`. */
   to?: string;
+  /** Only expenses in one of these categories. Empty or absent: any category. */
+  categories?: CategoryId[];
 }
 
 export const EMPTY_FILTER: ExpenseFilter = { query: '', preset: 'all' };
@@ -144,6 +146,7 @@ export function matchesQuery(
 /** True when the filter would narrow the list at all. */
 export function isFilterActive(filter: ExpenseFilter): boolean {
   if (filter.query.trim() !== '') return true;
+  if (filter.categories?.length) return true;
   if (filter.preset === 'custom') return Boolean(filter.from || filter.to);
   return filter.preset !== 'all';
 }
@@ -168,6 +171,33 @@ export function filterExpenses(
     const when = expense.date.getTime();
     if (start && when < start.getTime()) return false;
     if (end && when > end.getTime()) return false;
+    if (filter.categories?.length && !filter.categories.includes(expense.category)) return false;
     return matchesQuery(expense, filter.query, payerName, categoryName);
   });
+}
+
+// ─── Category choices ─────────────────────────────────────────────────────────
+
+/** One category the list can be narrowed to, as offered in the filter bar. */
+export interface CategoryOption {
+  /**
+   * Usually one id. Several when they share a name: a custom category that
+   * can't be found reads as Other, so it's offered together with Other.
+   */
+  ids: CategoryId[];
+  label: string;
+  count: number;
+}
+
+/** The categories `expenses` actually use, most used first, then by name. */
+export function categoryOptions(expenses: Expense[], categoryName: CategoryName = categoryLabel): CategoryOption[] {
+  const byLabel = new Map<string, CategoryOption>();
+  for (const expense of expenses) {
+    const label = categoryName(expense.category);
+    const option = byLabel.get(label) ?? { ids: [], label, count: 0 };
+    if (!option.ids.includes(expense.category)) option.ids.push(expense.category);
+    option.count++;
+    byLabel.set(label, option);
+  }
+  return [...byLabel.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }

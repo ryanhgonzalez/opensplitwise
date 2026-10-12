@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser, selectTotalsForGroup } from '../store';
 import { calculateBalances, calculateSettlements, round } from '../lib/calculations';
-import { EMPTY_FILTER, filterExpenses, isFilterActive, type ExpenseFilter } from '../lib/expenseFilter';
+import { EMPTY_FILTER, categoryOptions, filterExpenses, isFilterActive, type ExpenseFilter } from '../lib/expenseFilter';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned, getNetAmountForUser } from '../utils';
 import { categoryLabel } from '../lib/categories';
 import type { Expense, PaymentMethod } from '../types';
@@ -76,6 +76,12 @@ export default function GroupDetail() {
     [sortedExpenses, expenseFilter, users, group],
   );
   const filtering = isFilterActive(expenseFilter);
+  // Offered from every expense in the group, not just the visible ones, so a
+  // chosen category doesn't vanish from the row as the other filters narrow.
+  const expenseCategories = useMemo(
+    () => categoryOptions(expenses, (category) => categoryLabel(category, group)),
+    [expenses, group],
+  );
   const sortedPayments = useMemo(
     () => [...groupSettlements].sort((a, b) => b.date.getTime() - a.date.getTime()),
     [groupSettlements],
@@ -302,6 +308,7 @@ export default function GroupDetail() {
                   onChange={setExpenseFilter}
                   matchCount={visibleExpenses.length}
                   totalCount={expenses.length}
+                  categories={expenseCategories}
                 />
               )}
 

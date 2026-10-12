@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   EMPTY_FILTER,
+  categoryOptions,
   filterExpenses,
   isFilterActive,
   matchesQuery,
@@ -212,6 +213,41 @@ describe('filterExpenses', () => {
     const reversed = [...ALL].reverse();
     expect(ids(filterExpenses(reversed, filter({ preset: '3m' }), payerName, NOW))).toEqual([
       'lastMonth', 'lastWeek', 'today',
+    ]);
+  });
+});
+
+describe('category filter', () => {
+  const at = (id: string, category: Expense['category']): Expense => ({
+    ...ALL[0],
+    id,
+    category,
+  });
+  const list = [at('a', 'food'), at('b', 'groceries'), at('c', 'food'), at('d', 'custom:ski')];
+
+  it('keeps only the chosen categories, and counts as an active filter', () => {
+    const f = filter({ categories: ['food', 'custom:ski'] });
+    expect(isFilterActive(f)).toBe(true);
+    expect(ids(filterExpenses(list, f, payerName, NOW))).toEqual(['a', 'c', 'd']);
+  });
+
+  it('treats an empty selection as no filter', () => {
+    expect(isFilterActive(filter({ categories: [] }))).toBe(false);
+    expect(filterExpenses(list, filter({ categories: [] }), payerName, NOW)).toBe(list);
+  });
+
+  it('combines with the text search', () => {
+    expect(ids(filterExpenses(list, filter({ categories: ['food'], query: 'nothing-matches' }), payerName, NOW))).toEqual([]);
+  });
+
+  it('offers the categories in use, most used first, merging ones that read the same', () => {
+    const name = (c: Expense['category']) => (c === 'custom:ski' ? 'Ski passes' : c === 'custom:gone' ? 'Other' : c === 'other' ? 'Other' : c);
+    const opts = categoryOptions([...list, at('e', 'other'), at('f', 'custom:gone')], name);
+    expect(opts).toEqual([
+      { ids: ['food'], label: 'food', count: 2 },
+      { ids: ['other', 'custom:gone'], label: 'Other', count: 2 },
+      { ids: ['groceries'], label: 'groceries', count: 1 },
+      { ids: ['custom:ski'], label: 'Ski passes', count: 1 },
     ]);
   });
 });

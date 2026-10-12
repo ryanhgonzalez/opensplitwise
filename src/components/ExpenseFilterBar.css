@@ -94,6 +94,54 @@
   color: var(--on-ink);
 }
 
+/* Categories: separate toggles (several can be on), one scrolling row */
+.exf-categories {
+  display: flex;
+  gap: 6px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.exf-categories::-webkit-scrollbar {
+  display: none;
+}
+
+.exf-cat {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.exf-cat:hover {
+  background: var(--panel);
+}
+
+.exf-cat-count {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.exf-cat.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
+}
+
+.exf-cat.active .exf-cat-count {
+  color: inherit;
+  opacity: 0.75;
+}
+
 /* Custom range */
 .exf-range {
   overflow: hidden;

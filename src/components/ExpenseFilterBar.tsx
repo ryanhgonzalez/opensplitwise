@@ -4,6 +4,7 @@ import {
   DATE_PRESET_LABELS,
   EMPTY_FILTER,
   isFilterActive,
+  type CategoryOption,
   type DatePreset,
   type ExpenseFilter,
 } from '../lib/expenseFilter';
@@ -17,6 +18,8 @@ interface ExpenseFilterBarProps {
   /** How many expenses survive the filter, and how many there are in total. */
   matchCount: number;
   totalCount: number;
+  /** Categories to offer, from `categoryOptions`. The row shows when there are two or more. */
+  categories?: CategoryOption[];
 }
 
 export default function ExpenseFilterBar({
@@ -24,6 +27,7 @@ export default function ExpenseFilterBar({
   onChange,
   matchCount,
   totalCount,
+  categories = [],
 }: ExpenseFilterBarProps) {
   const searchId = useId();
   const fromId = useId();
@@ -36,6 +40,15 @@ export default function ExpenseFilterBar({
     // Leaving a custom range drops its bounds, so returning to it later starts
     // blank rather than silently re-applying dates the user can no longer see.
     patch(preset === 'custom' ? { preset } : { preset, from: undefined, to: undefined });
+
+  const chosen = value.categories ?? [];
+  const isChosen = (option: CategoryOption) => option.ids.some((id) => chosen.includes(id));
+  const toggleCategory = (option: CategoryOption) =>
+    patch({
+      categories: isChosen(option)
+        ? chosen.filter((id) => !option.ids.includes(id))
+        : [...chosen, ...option.ids],
+    });
 
   return (
     <div className="exf">
@@ -83,6 +96,23 @@ export default function ExpenseFilterBar({
           </button>
         ))}
       </div>
+
+      {categories.length >= 2 && (
+        <div className="exf-categories" role="group" aria-label="Filter by category">
+          {categories.map((option) => (
+            <button
+              key={option.label}
+              type="button"
+              className={`exf-cat ${isChosen(option) ? 'active' : ''}`}
+              aria-pressed={isChosen(option)}
+              onClick={() => toggleCategory(option)}
+            >
+              {option.label}
+              <span className="exf-cat-count num">{option.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <AnimatePresence initial={false}>
         {value.preset === 'custom' && (
