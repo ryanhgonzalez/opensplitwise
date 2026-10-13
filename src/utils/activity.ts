@@ -19,6 +19,14 @@ export function getActivityDescription(
       : (getUser(activity.actorId)?.name ?? 'Someone');
 
   switch (activity.type) {
+    case 'group_synced': {
+      const parts = [
+        activity.added && `${activity.added} new`,
+        activity.updated && `${activity.updated} changed`,
+        activity.deleted && `${activity.deleted} deleted`,
+      ].filter(Boolean);
+      return `Received the group from ${activity.fromName}${parts.length ? `: ${parts.join(', ')}` : ', nothing new'}`;
+    }
     case 'expense_added': {
       const expense = getExpense(activity.expenseId);
       return `${actorName} added "${expense?.description ?? 'an expense'}"`;
@@ -66,6 +74,7 @@ export function isActivityPositive(
       return !expense || getNetAmountForUser(expense, currentUserId) >= 0;
     }
     case 'expense_deleted':
+    case 'group_synced':
       return false;
     case 'payment':
     case 'settled':
@@ -89,6 +98,7 @@ export function getActivityAmount(
       return Math.abs(getNetAmountForUser(expense, currentUserId));
     }
     case 'expense_deleted':
+    case 'group_synced':
       return 0;
     case 'payment':
     case 'settled':

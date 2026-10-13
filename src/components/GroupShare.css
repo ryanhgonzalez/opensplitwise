@@ -1,0 +1,181 @@
+/* Share / receive a group (ShareGroupSheet, ReceiveGroupSheet) */
+
+.gs-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.gs-tabs button {
+  min-height: 40px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.gs-tabs button + button {
+  border-left: 1px solid var(--border);
+}
+
+.gs-tabs button.active {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.gs-lead {
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.gs-sub,
+.gs-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.gs-hint {
+  margin: 10px 0 0;
+}
+
+.gs-meta {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.gs-error {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--owe-tint);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+/* Code: always black on white, whatever the theme, so cameras read it */
+.gs-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gs-qr-wrap {
+  padding: 8px;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  border: 1px solid var(--border);
+}
+
+.gs-qr {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.gs-send,
+.gs-big {
+  width: 100%;
+}
+
+.gs-choose {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gs-choose .gs-sub {
+  margin-bottom: 12px;
+}
+
+/* Camera */
+.gs-scan {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gs-video-wrap {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: #000;
+}
+
+.gs-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gs-frame-guide {
+  position: absolute;
+  inset: 14%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.25);
+}
+
+.gs-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--rule);
+  overflow: hidden;
+}
+
+.gs-progress span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  transition: width 0.15s ease;
+}
+
+/* Review */
+.gs-review {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.gs-people {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gs-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gs-person-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.gs-person-select {
+  flex: 0 1 60%;
+  min-width: 0;
+}
+
+.gs-summary p {
+  margin: 0;
+  font-size: 15px;
+}
+
+.gs-conflicts {
+  margin-top: 8px;
+}
+
+.gs-conflicts ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}

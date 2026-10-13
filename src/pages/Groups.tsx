@@ -7,6 +7,7 @@ import { useStore, selectGroupTotals } from '../store';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned } from '../utils';
 import { groupCurrency } from '../lib/currency';
 import type { GroupType } from '../types';
+import ReceiveGroupSheet from '../components/ReceiveGroupSheet';
 import './Groups.css';
 
 const TYPE_LABELS: Record<GroupType, string> = {
@@ -24,6 +25,7 @@ export default function Groups() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [showReceive, setShowReceive] = useState(false);
   const groups = useStore((s) => s.groups);
   const users = useStore((s) => s.users);
   const currentUserId = useStore((s) => s.currentUserId);
@@ -55,12 +57,17 @@ export default function Groups() {
       <div className="groups-page">
         <header className="groups-header">
           <h1 className="page-hero-title">Groups</h1>
-          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            New group
-          </button>
+          <span className="groups-header-actions">
+            <button className="btn btn-secondary" onClick={() => setShowReceive(true)}>
+              Receive
+            </button>
+            <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+              New group
+            </button>
+          </span>
         </header>
 
         <section className="statement" aria-label="Summary">
@@ -161,6 +168,8 @@ export default function Groups() {
           </div>
         )}
       </div>
+
+      <ReceiveGroupSheet open={showReceive} onClose={() => setShowReceive(false)} />
 
       <AnimatePresence>
         {showCreate && (

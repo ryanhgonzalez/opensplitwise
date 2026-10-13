@@ -11,6 +11,7 @@ import Avatar from '../components/Avatar';
 import GroupTile from '../components/GroupTile';
 import AddExpenseSheet from '../components/AddExpenseSheet';
 import EditGroupSheet from '../components/EditGroupSheet';
+import ShareGroupSheet from '../components/ShareGroupSheet';
 import PersonSheet from '../components/PersonSheet';
 import ExpenseFilterBar from '../components/ExpenseFilterBar';
 import SettleModal from '../components/SettleModal';
@@ -27,6 +28,13 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 
 const signClass = (n: number) => (Math.abs(n) < 0.005 ? 'zero' : n > 0 ? 'pos' : 'neg');
 
+const SHARE_ICON = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M12 3v12M7 8l5-5 5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
 export default function GroupDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -35,6 +43,7 @@ export default function GroupDetail() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [expenseMenuId, setExpenseMenuId] = useState<string | null>(null);
   const [showEditGroup, setShowEditGroup] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [settling, setSettling] = useState<{ from: string; to: string; amount: number } | null>(null);
   const [undoPaymentId, setUndoPaymentId] = useState<string | null>(null);
@@ -167,7 +176,10 @@ export default function GroupDetail() {
               <div className="gd-title-row">
                 <GroupTile group={group} size={40} />
                 <h1 className="gd-title">{group.name}</h1>
-                {/* Phones only: desktop has the labelled Group settings button */}
+                {/* Phones only: desktop has labelled buttons */}
+                <button className="gd-icon-btn gd-settings-mobile gd-share-mobile" onClick={() => setShowShare(true)} aria-label="Share group">
+                  {SHARE_ICON}
+                </button>
                 <button className="gd-icon-btn gd-settings-mobile" onClick={() => setShowEditGroup(true)} aria-label="Group settings">
                   {settingsIcon}
                 </button>
@@ -190,6 +202,7 @@ export default function GroupDetail() {
               </div>
             </div>
             <div className="gd-header-actions">
+              <button className="btn btn-secondary" onClick={() => setShowShare(true)}>Share</button>
               <button className="btn btn-secondary" onClick={() => setShowEditGroup(true)}>Group settings</button>
               <button className="btn btn-primary" onClick={openAddExpense}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -462,6 +475,7 @@ export default function GroupDetail() {
 
       {/* Edit group sheet */}
       <AnimatePresence>
+        {showShare && <ShareGroupSheet open={showShare} onClose={() => setShowShare(false)} groupId={group.id} />}
         {showEditGroup && (
           <EditGroupSheet
             open={showEditGroup}

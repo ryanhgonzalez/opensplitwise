@@ -42,6 +42,9 @@ export default function BackupReminder() {
         settlements: s.settlements,
         activities: s.activities,
         friendBalances: selectFriendBalances(s),
+        tombstones: s.tombstones,
+        userAliases: s.userAliases,
+        groupSyncedAt: s.groupSyncedAt,
       }),
     );
     markBackedUp();

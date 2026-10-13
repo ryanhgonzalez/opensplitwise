@@ -26,6 +26,12 @@ export interface Group {
   categories?: CustomCategory[];
   lastActivity: Date;
   createdAt: Date;
+  /**
+   * When the shared details last changed: name, look, currency, members,
+   * categories. When a group is shared, the newer version of these wins.
+   * Absent on older data; createdAt stands in.
+   */
+  updatedAt?: Date;
 }
 // `yourBalance` and `totalSpent` used to live here. They are derived from the
 // expenses and settlements now — see `deriveTotals` and the store's balance

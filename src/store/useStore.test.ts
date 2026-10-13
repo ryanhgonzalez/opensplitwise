@@ -428,6 +428,43 @@ describe('currencies', () => {
   });
 });
 
+describe('sharing state', () => {
+  it('leaves deletion markers for group expenses, payments and categories', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const [alice] = others;
+    const expense = addEvenExpense(me.id, [me.id, alice.id], 40, group.id);
+    const [payment] = state().settleWithUser({ fromUserId: alice.id, toUserId: me.id, amount: 10, currency: 'USD', date: new Date() });
+    const wine = state().addGroupCategory(group.id, 'Wine')!;
+
+    state().deleteExpense(expense.id);
+    state().deleteSettlement(payment.id);
+    state().removeGroupCategory(group.id, wine as `custom:${string}`);
+
+    expect(state().tombstones.map((t) => [t.kind, t.id, t.groupId])).toEqual([
+      ['expense', expense.id, group.id],
+      ['settlement', payment.id, group.id],
+      ['category', wine, group.id],
+    ]);
+  });
+
+  it('leaves a marker when a member is removed', () => {
+    const { others, group } = setup(['Me', 'Alice']);
+    state().removeGroupMember(group.id, others[0].id);
+    expect(state().tombstones.map((t) => [t.kind, t.id, t.groupId])).toEqual([['member', others[0].id, group.id]]);
+  });
+
+  it('stamps group edits, and forgets a deleted group’s markers', () => {
+    const { me, group } = setup(['Me']);
+    expect(state().groups[0].updatedAt).toBeUndefined();
+    state().updateGroup(group.id, { name: 'Renamed' });
+    expect(state().groups[0].updatedAt).toBeInstanceOf(Date);
+
+    state().deleteExpense(addEvenExpense(me.id, [me.id], 5, group.id).id);
+    state().deleteGroup(group.id);
+    expect(state().tombstones).toEqual([]);
+  });
+});
+
 describe('v1 → v2 migration', () => {
   const ME = 'user-me';
   const ALICE = 'user-alice';

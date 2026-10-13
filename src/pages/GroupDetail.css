@@ -65,6 +65,15 @@
   margin-right: -10px;
 }
 
+/* Share sits just before settings */
+.gd-share-mobile {
+  margin-right: 0;
+}
+
+.gd-share-mobile + .gd-settings-mobile {
+  margin-left: 0;
+}
+
 .gd-title {
   font-size: 28px;
   font-weight: 600;

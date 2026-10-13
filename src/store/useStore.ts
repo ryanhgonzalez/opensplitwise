@@ -15,7 +15,9 @@ import type {
   CategoryId,
   CustomCategory,
   CustomCategoryId,
+  Tombstone,
 } from '../types';
+import { mergeBundle, type GroupBundle, type MergeSummary, type PeopleChoice } from '../lib/groupSync';
 import type { ExportPayload, ImportStats } from '../lib/dataExport';
 import { cleanCategoryName, findCategoryByName } from '../lib/categories';
 import { round, outstandingByGroup, allocatePayment } from '../lib/calculations';
@@ -68,6 +70,12 @@ export interface AppStore {
   expenses: Expense[];
   settlements: Settlement[];
   activities: Activity[];
+  /** Deletion markers, so deletions travel when a group is shared (see groupSync.ts). */
+  tombstones: Tombstone[];
+  /** Another phone's id for a person → this phone's id for them, learned when receiving groups. */
+  userAliases: Record<string, string>;
+  /** groupId → when it was last received from someone. */
+  groupSyncedAt: Record<string, Date>;
 
   // ── Theme ──
   setTheme: (theme: ThemeMode) => void;
@@ -119,6 +127,10 @@ export interface AppStore {
   // ── Import actions ──
   restoreAllData: (payload: ExportPayload) => void;
   mergeImportData: (payload: ExportPayload) => ImportStats;
+
+  // ── Sharing ──
+  /** Merges a group received from another phone; returns what changed. */
+  applyGroupBundle: (bundle: GroupBundle, people: PeopleChoice) => MergeSummary;
 
   // ── Danger zone ──
   wipeAllData: () => void;
@@ -234,6 +246,9 @@ export const useStore = create<AppStore>()(
         expenses: [],
         settlements: [],
         activities: [],
+        tombstones: [],
+        userAliases: {},
+        groupSyncedAt: {},
 
         // ── Theme ────────────────────────────────────────────────────────────
 
@@ -332,7 +347,7 @@ export const useStore = create<AppStore>()(
         },
 
         deleteExpense: (id) => {
-          const { currentUserId, expenses, groups, activities } = get();
+          const { currentUserId, expenses, groups, activities, tombstones } = get();
           const expense = expenses.find((e) => e.id === id);
           if (!expense) return;
 
@@ -362,6 +377,9 @@ export const useStore = create<AppStore>()(
                 ),
               ],
               groups: expense.groupId ? touchGroups(groups, new Set([expense.groupId]), now) : groups,
+              tombstones: expense.groupId
+                ? [...tombstones, { id, kind: 'expense', groupId: expense.groupId, deletedAt: now }]
+                : tombstones,
             },
             false,
             'deleteExpense',
@@ -385,7 +403,7 @@ export const useStore = create<AppStore>()(
           const relabel = updates.currency && updates.currency !== (before?.currency || 'USD') ? updates.currency : undefined;
           set(
             {
-              groups: groups.map((g) => (g.id === id ? { ...g, ...updates } : g)),
+              groups: groups.map((g) => (g.id === id ? { ...g, ...updates, updatedAt: new Date() } : g)),
               ...(relabel && {
                 expenses: expenses.map((e) => (e.groupId === id ? { ...e, currency: relabel } : e)),
                 settlements: settlements.map((st) => (st.groupId === id ? { ...st, currency: relabel } : st)),
@@ -397,13 +415,17 @@ export const useStore = create<AppStore>()(
         },
 
         deleteGroup: (id) => {
-          const { groups, expenses, settlements, activities } = get();
+          const { groups, expenses, settlements, activities, tombstones, groupSyncedAt } = get();
+          const syncedAt = { ...groupSyncedAt };
+          delete syncedAt[id];
           set(
             {
               groups: groups.filter((g) => g.id !== id),
               expenses: expenses.filter((e) => e.groupId !== id),
               settlements: settlements.filter((s) => s.groupId !== id),
               activities: activities.filter((a) => a.groupId !== id),
+              tombstones: tombstones.filter((t) => t.groupId !== id),
+              groupSyncedAt: syncedAt,
             },
             false,
             'deleteGroup',
@@ -422,7 +444,7 @@ export const useStore = create<AppStore>()(
           set(
             {
               groups: get().groups.map((g) =>
-                g.id === groupId ? { ...g, categories: [...(g.categories ?? []), category] } : g,
+                g.id === groupId ? { ...g, categories: [...(g.categories ?? []), category], updatedAt: new Date() } : g,
               ),
             },
             false,
@@ -436,8 +458,11 @@ export const useStore = create<AppStore>()(
           set(
             {
               groups: get().groups.map((g) =>
-                g.id === groupId ? { ...g, categories: (g.categories ?? []).filter((c) => c.id !== categoryId) } : g,
+                g.id === groupId
+                  ? { ...g, categories: (g.categories ?? []).filter((c) => c.id !== categoryId), updatedAt: now }
+                  : g,
               ),
+              tombstones: [...get().tombstones, { id: categoryId, kind: 'category', groupId, deletedAt: now }],
               expenses: get().expenses.map((e) =>
                 e.groupId === groupId && e.category === categoryId ? { ...e, category: 'other', updatedAt: now } : e,
               ),
@@ -452,23 +477,32 @@ export const useStore = create<AppStore>()(
             {
               groups: get().groups.map((g) => {
                 if (g.id !== groupId || g.members.some((m) => m.userId === userId)) return g;
-                return { ...g, members: [...g.members, { userId, role: 'member', joinedAt: new Date() }] };
+                return {
+                  ...g,
+                  members: [...g.members, { userId, role: 'member', joinedAt: new Date() }],
+                  updatedAt: new Date(),
+                };
               }),
             },
             false,
             'addGroupMember',
           ),
 
-        removeGroupMember: (groupId, userId) =>
+        removeGroupMember: (groupId, userId) => {
+          const now = new Date();
           set(
             {
               groups: get().groups.map((g) =>
-                g.id === groupId ? { ...g, members: g.members.filter((m) => m.userId !== userId) } : g,
+                g.id === groupId
+                  ? { ...g, members: g.members.filter((m) => m.userId !== userId), updatedAt: now }
+                  : g,
               ),
+              tombstones: [...get().tombstones, { id: userId, kind: 'member', groupId, deletedAt: now }],
             },
             false,
             'removeGroupMember',
-          ),
+          );
+        },
 
         // ── Settlements ──────────────────────────────────────────────────────
 
@@ -586,8 +620,9 @@ export const useStore = create<AppStore>()(
 
         /** Undo a payment that was marked complete — balances rewind to before it. */
         deleteSettlement: (id) => {
-          const { settlements, activities } = get();
-          if (!settlements.some((s) => s.id === id)) return;
+          const { settlements, activities, tombstones } = get();
+          const settlement = settlements.find((s) => s.id === id);
+          if (!settlement) return;
 
           set(
             {
@@ -596,6 +631,9 @@ export const useStore = create<AppStore>()(
               activities: activities.filter(
                 (a) => !((a.type === 'payment' || a.type === 'settled') && a.settlementId === id),
               ),
+              tombstones: settlement.groupId
+                ? [...tombstones, { id, kind: 'settlement', groupId: settlement.groupId, deletedAt: new Date() }]
+                : tombstones,
             },
             false,
             'deleteSettlement',
@@ -662,6 +700,7 @@ export const useStore = create<AppStore>()(
 
         restoreAllData: (payload) => {
           const { currentUserId, users, groups, expenses, settlements, activities } = payload;
+          const { tombstones = [], userAliases = {}, groupSyncedAt = {} } = payload;
           set(
             {
               hasOnboarded: true,
@@ -676,6 +715,9 @@ export const useStore = create<AppStore>()(
               expenses,
               settlements,
               activities,
+              tombstones,
+              userAliases,
+              groupSyncedAt,
             },
             false,
             'restoreAllData',
@@ -725,6 +767,42 @@ export const useStore = create<AppStore>()(
           };
         },
 
+        // ── Sharing ────────────────────────────────────────────────────────────
+
+        applyGroupBundle: (bundle, people) => {
+          const s = get();
+          const { state, summary } = mergeBundle(
+            {
+              currentUserId: s.currentUserId,
+              users: s.users,
+              groups: s.groups,
+              expenses: s.expenses,
+              settlements: s.settlements,
+              activities: s.activities,
+              tombstones: s.tombstones,
+              userAliases: s.userAliases,
+              groupSyncedAt: s.groupSyncedAt,
+            },
+            bundle,
+            people,
+          );
+          set(
+            {
+              users: state.users,
+              groups: state.groups,
+              expenses: state.expenses,
+              settlements: state.settlements,
+              activities: state.activities,
+              tombstones: state.tombstones,
+              userAliases: state.userAliases,
+              groupSyncedAt: state.groupSyncedAt,
+            },
+            false,
+            'applyGroupBundle',
+          );
+          return summary;
+        },
+
         // ── Danger zone ────────────────────────────────────────────────────────
 
         wipeAllData: () =>
@@ -739,6 +817,9 @@ export const useStore = create<AppStore>()(
               expenses: [],
               settlements: [],
               activities: [],
+              tombstones: [],
+              userAliases: {},
+              groupSyncedAt: {},
             },
             false,
             'wipeAllData',
@@ -792,6 +873,9 @@ export const useStore = create<AppStore>()(
           expenses:      state.expenses,
           settlements:   state.settlements,
           activities:    state.activities,
+          tombstones:    state.tombstones,
+          userAliases:   state.userAliases,
+          groupSyncedAt: state.groupSyncedAt,
         }),
       },
     ),

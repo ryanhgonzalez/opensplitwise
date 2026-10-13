@@ -36,7 +36,18 @@ export interface SettledActivity extends BaseActivity {
   amount: number;
 }
 
+/** One entry per group received from someone, instead of their whole feed. */
+export interface GroupSyncedActivity extends BaseActivity {
+  type: 'group_synced';
+  /** The sender, as named in the file. */
+  fromName: string;
+  added: number;
+  updated: number;
+  deleted: number;
+}
+
 export type Activity =
+  | GroupSyncedActivity
   | ExpenseAddedActivity
   | ExpenseUpdatedActivity
   | ExpenseDeletedActivity

@@ -4,3 +4,4 @@ export * from './group';
 export * from './settlement';
 export * from './activity';
 export * from './balance';
+export * from './sync';

@@ -27,6 +27,7 @@ const KIND: Record<Activity['type'], { tag: string; cls: string; label: string }
   expense_deleted: { tag: 'DEL', cls: 'k-del', label: 'Expense deleted' },
   payment: { tag: 'PAY', cls: 'k-pay', label: 'Payment' },
   settled: { tag: 'PAY', cls: 'k-pay', label: 'Settled up' },
+  group_synced: { tag: 'SYN', cls: 'k-exp', label: 'Group received' },
 };
 
 function groupByDate(items: Activity[]) {

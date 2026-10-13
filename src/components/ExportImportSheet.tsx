@@ -114,6 +114,9 @@ export default function ExportImportSheet({
   // versions can read these backups. On import it is ignored and recomputed.
   const friendBalances  = useStore(selectFriendBalances);
   const currentUserId   = useStore((s) => s.currentUserId);
+  const tombstones      = useStore((s) => s.tombstones);
+  const userAliases     = useStore((s) => s.userAliases);
+  const groupSyncedAt   = useStore((s) => s.groupSyncedAt);
   const restoreAllData  = useStore((s) => s.restoreAllData);
   const mergeImportData = useStore((s) => s.mergeImportData);
 
@@ -136,7 +139,10 @@ export default function ExportImportSheet({
   const [importStats,    setImportStats]    = useState<ImportStats | null>(null);
   const [importError,    setImportError]    = useState<string | null>(null);
 
-  const statePayload = { currentUserId, users, groups, expenses, settlements, activities, friendBalances };
+  const statePayload = {
+    currentUserId, users, groups, expenses, settlements, activities, friendBalances,
+    tombstones, userAliases, groupSyncedAt,
+  };
   // Re-read on every render; exporting re-renders (exportDone), so it stays current.
   const lastBackup = lastBackupAt();
 

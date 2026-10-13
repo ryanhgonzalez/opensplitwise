@@ -1,4 +1,4 @@
-import type { User, Group, Expense, Settlement, Activity } from '../types';
+import type { User, Group, Expense, Settlement, Activity, Tombstone } from '../types';
 
 // ─── Schema constants ─────────────────────────────────────────────────────────
 
@@ -28,6 +28,10 @@ export interface ExportPayload {
   settlements: Settlement[];
   activities: Activity[];
   friendBalances: Record<string, number>;
+  /** Sharing state (groupSync.ts). Absent in files from before sharing; full backups carry it. */
+  tombstones?: Tombstone[];
+  userAliases?: Record<string, string>;
+  groupSyncedAt?: Record<string, Date>;
 }
 
 export interface AppExport {
@@ -185,6 +189,15 @@ export function parseAndValidate(json: string): ParseResult {
   }
 
   if (!isObj(raw)) return { ok: false, errors: ['File does not contain a valid export object.'], warnings };
+
+  // A group someone shared (groupShare.ts), not a backup: it merges through a different screen.
+  if (raw.kind === 'opensplitwise-group') {
+    return {
+      ok: false,
+      errors: ['This is a group someone shared with you, not a backup. Open it from Groups → Receive → Open file.'],
+      warnings,
+    };
+  }
 
   if (raw.schema !== EXPORT_SCHEMA) {
     const got = raw.schema ? `"${String(raw.schema)}"` : 'missing';
