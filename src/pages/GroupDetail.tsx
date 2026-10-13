@@ -50,6 +50,7 @@ export default function GroupDetail() {
 
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [duplicating, setDuplicating] = useState<Expense | null>(null);
   const [expenseMenuId, setExpenseMenuId] = useState<string | null>(null);
   const [showEditGroup, setShowEditGroup] = useState(false);
   const [showShare, setShowShare] = useState(false);
@@ -137,9 +138,16 @@ export default function GroupDetail() {
     for (const en of e.split.entries) shareOf[en.userId] = (shareOf[en.userId] ?? 0) + en.amount;
   }
 
-  const openAddExpense = () => { setEditingExpense(null); setShowAddExpense(true); };
+  const openAddExpense = () => { setEditingExpense(null); setDuplicating(null); setShowAddExpense(true); };
+  const openDuplicate = (expense: Expense) => {
+    setEditingExpense(null);
+    setDuplicating(expense);
+    setExpenseMenuId(null);
+    setShowAddExpense(true);
+  };
 
   const openEditExpense = (expense: Expense) => {
+    setDuplicating(null);
     setEditingExpense(expense);
     setExpenseMenuId(null);
     setShowAddExpense(true);
@@ -434,6 +442,9 @@ export default function GroupDetail() {
                                 <button className="btn btn-secondary btn-sm" onClick={() => openEditExpense(expense)}>
                                   Edit
                                 </button>
+                                <button className="btn btn-secondary btn-sm" onClick={() => openDuplicate(expense)}>
+                                  Duplicate
+                                </button>
                                 {expense.receipt && (
                                   <button
                                     className="btn btn-secondary btn-sm"
@@ -501,11 +512,12 @@ export default function GroupDetail() {
       <AnimatePresence>
         {showAddExpense && (
           <AddExpenseSheet
-            key={editingExpense?.id ?? 'new-expense'}
+            key={editingExpense?.id ?? (duplicating ? `copy-${duplicating.id}` : 'new-expense')}
             open={showAddExpense}
-            onClose={() => { setShowAddExpense(false); setEditingExpense(null); }}
+            onClose={() => { setShowAddExpense(false); setEditingExpense(null); setDuplicating(null); }}
             defaultGroupId={id}
             editExpense={editingExpense ?? undefined}
+            template={duplicating ?? undefined}
           />
         )}
       </AnimatePresence>

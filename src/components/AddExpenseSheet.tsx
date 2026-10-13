@@ -44,6 +44,8 @@ interface AddExpenseSheetProps {
   onClose: () => void;
   defaultGroupId?: string;
   editExpense?: Expense;
+  /** Duplicate: start a new expense from this one's details (not its date or photo). */
+  template?: Expense;
 }
 
 // ─── Date-input helpers (local, timezone-safe) ────────────────────────────────
@@ -61,8 +63,10 @@ function fromDateInputValue(str: string): Date {
 let itemSeq = 0;
 const newItemId = () => `item-${Date.now()}-${itemSeq++}`;
 
-export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExpense }: AddExpenseSheetProps) {
+export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExpense, template }: AddExpenseSheetProps) {
   const isEditing = !!editExpense;
+  // Where the form's starting values come from: the expense being edited, or the one being duplicated.
+  const source = editExpense ?? template;
   const currentUser = useStore(selectCurrentUser)!;
   const users = useStore(s => s.users);
   const groups = useStore(s => s.groups);
@@ -76,25 +80,25 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
   // Paid in another currency than the group's: the form shows and edits what was
   // actually paid; balances get the converted figures on save.
-  const editForeign =
-    editExpense?.original && editExpense.original.currency !== recordCurrency(editExpense)
-      ? editExpense.original
+  const sourceForeign =
+    source?.original && source.original.currency !== recordCurrency(source)
+      ? source.original
       : undefined;
 
-  const [description, setDescription] = useState(editExpense?.description ?? '');
-  const [amountStr, setAmountStr] = useState(editExpense ? String(editForeign?.amount ?? editExpense.amount) : '');
+  const [description, setDescription] = useState(source?.description ?? '');
+  const [amountStr, setAmountStr] = useState(source ? String(sourceForeign?.amount ?? source.amount) : '');
   /** The currency the amount is entered in; null = the group's. */
-  const [entryCurrency, setEntryCurrency] = useState<string | null>(editForeign?.currency ?? null);
+  const [entryCurrency, setEntryCurrency] = useState<string | null>(sourceForeign?.currency ?? null);
   /** Group currency per 1 unit of the entry currency, as typed. */
-  const [rateStr, setRateStr] = useState(editForeign ? String(editForeign.rate) : '');
-  const [category, setCategory] = useState<CategoryId>(editExpense?.category ?? 'food');
+  const [rateStr, setRateStr] = useState(sourceForeign ? String(sourceForeign.rate) : '');
+  const [category, setCategory] = useState<CategoryId>(source?.category ?? 'food');
   // Inline "+ New" category entry; null while closed.
   const [newCategory, setNewCategory] = useState<string | null>(null);
   const [newCategoryHint, setNewCategoryHint] = useState<string | null>(null);
   const [dateStr, setDateStr] = useState(editExpense ? toDateInputValue(editExpense.date) : '');
-  const [groupId, setGroupId] = useState(editExpense?.groupId ?? defaultGroupId ?? '');
-  const [paidBy, setPaidBy] = useState(editExpense?.paidBy ?? currentUser.id);
-  const [splitType, setSplitType] = useState<SplitMode>(initSplitType(editExpense));
+  const [groupId, setGroupId] = useState(source?.groupId ?? defaultGroupId ?? '');
+  const [paidBy, setPaidBy] = useState(source?.paidBy ?? currentUser.id);
+  const [splitType, setSplitType] = useState<SplitMode>(initSplitType(source));
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [lineItems, setLineItems] = useState<ItemRow[]>([]);
 
@@ -188,13 +192,13 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   useEffect(() => {
     if (!selectedGroup) { setParticipants([]); return; }
 
-    if (editExpense && editExpense.groupId === selectedGroup.id) {
-      const eSplitType = initSplitType(editExpense);
+    if (source && source.groupId === selectedGroup.id) {
+      const eSplitType = initSplitType(source);
       setSplitType(eSplitType);
       // Split by item: bring the receipt's lines back, to adjust.
-      if (editExpense.items?.length) {
+      if (source.items?.length) {
         const memberIds = selectedGroup.members.map(m => m.userId);
-        setLineItems(editExpense.items.map(it => ({
+        setLineItems(source.items.map(it => ({
           id: newItemId(),
           description: it.description,
           price: it.amount.toFixed(2),
@@ -202,9 +206,9 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         })));
       }
       // Shares are stored converted; show them in the currency the amount is edited in.
-      const entries = editForeign
-        ? convertSplit(editExpense.split.entries, 1 / editForeign.rate, editForeign.amount)
-        : editExpense.split.entries;
+      const entries = sourceForeign
+        ? convertSplit(source.split.entries, 1 / sourceForeign.rate, sourceForeign.amount)
+        : source.split.entries;
       setParticipants(
         selectedGroup.members.map(m => {
           const entry = entries.find(e => e.userId === m.userId);
@@ -474,17 +478,17 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     setRemoveExisting(false);
     setViewingPhoto(false);
     setPhotoError(null);
-    setDescription(editExpense?.description ?? '');
-    setAmountStr(editExpense ? String(editForeign?.amount ?? editExpense.amount) : '');
-    setEntryCurrency(editForeign?.currency ?? null);
-    setRateStr(editForeign ? String(editForeign.rate) : '');
-    setCategory(editExpense?.category ?? 'food');
+    setDescription(source?.description ?? '');
+    setAmountStr(source ? String(sourceForeign?.amount ?? source.amount) : '');
+    setEntryCurrency(sourceForeign?.currency ?? null);
+    setRateStr(sourceForeign ? String(sourceForeign.rate) : '');
+    setCategory(source?.category ?? 'food');
     setNewCategory(null);
     setNewCategoryHint(null);
     setDateStr(editExpense ? toDateInputValue(editExpense.date) : '');
-    setGroupId(editExpense?.groupId ?? defaultGroupId ?? '');
-    setPaidBy(editExpense?.paidBy ?? currentUser.id);
-    setSplitType(initSplitType(editExpense));
+    setGroupId(source?.groupId ?? defaultGroupId ?? '');
+    setPaidBy(source?.paidBy ?? currentUser.id);
+    setSplitType(initSplitType(source));
     setParticipants([]);
     setLineItems([]);
     setScanning(false);
@@ -517,7 +521,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
           >
             <div className="sheet-handle" />
             <div className="sheet-header">
-              <span className="sheet-title">{isEditing ? 'Edit Expense' : 'Add Expense'}</span>
+              <span className="sheet-title">{isEditing ? 'Edit Expense' : template ? 'Duplicate Expense' : 'Add Expense'}</span>
               <button className="sheet-close" onClick={handleClose} aria-label="Close">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />

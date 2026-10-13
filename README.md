@@ -13,6 +13,7 @@ A mobile-first expense splitting PWA inspired by Splitwise, built with React and
 - **Group PDF Reports** — Export a full expense report for any group as a PDF
 - **Data Import / Export** — Back up and restore all app data as JSON
 - **Theme Toggle** — Light, Dark, and System default modes with no flash on load
+- **Undo & Duplicate** — Deleting an expense can be undone from the toast; any expense can be duplicated for a repeat purchase
 - **Group Sharing** — No server: show a group as a cycling QR code that another phone scans in the app, or send it as a file. Re-sharing merges changes both ways (newer edit wins, deletions carry over)
 - **Multiple Currencies** — Each group has a currency; a single expense can be paid in another one with a rate you enter. Totals across groups are shown per currency, never converted
 - **Receipt Scanning** — Fill an expense, including line items, from a receipt photo, read on the device by PaddleOCR (Tesseract as the fallback). The photo is kept with the expense (on the device, in IndexedDB) and goes into backups; split by item, the receipt's lines are kept too, so prices and who had what can be adjusted later
