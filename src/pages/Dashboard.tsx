@@ -5,6 +5,7 @@ import Avatar from '../components/Avatar';
 import GroupTile from '../components/GroupTile';
 import AddExpenseSheet from '../components/AddExpenseSheet';
 import AccountMenuSheet from '../components/AccountMenuSheet';
+import BackupReminder from '../components/BackupReminder';
 import { useStore, selectCurrentUser, selectOverallBalance, selectRecentExpenses, selectGroupTotals } from '../store';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned, getNetAmountForUser } from '../utils';
 import './Dashboard.css';
@@ -83,6 +84,8 @@ export default function Dashboard() {
             <span className="num neg dash-part-amount">{formatCurrency(balance.totalOwe)}</span>
           </div>
         </section>
+
+        <BackupReminder />
 
         <div className="dash-columns">
           <div className="dash-main">

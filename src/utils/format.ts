@@ -50,3 +50,13 @@ export function formatFullDate(date: Date): string {
     year: 'numeric',
   });
 }
+
+/** "today", "yesterday", "5 days ago", or "on Oct 12" beyond a month, by calendar day. */
+export function formatRelativeDay(date: Date, now: Date = new Date()): string {
+  const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((day(now) - day(date)) / 86_400_000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days} days ago`;
+  return `on ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric' })}`;
+}

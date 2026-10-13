@@ -1,0 +1,30 @@
+.backup-reminder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ink);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+}
+
+.backup-reminder-text {
+  flex: 1 1 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.backup-reminder-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.backup-reminder-actions {
+  display: flex;
+  gap: 8px;
+}

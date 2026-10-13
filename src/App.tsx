@@ -14,6 +14,7 @@ import People from './pages/People';
 import Onboarding from './pages/Onboarding';
 import IdentityPicker from './components/IdentityPicker';
 import InstallGuide from './components/InstallGuide';
+import { requestPersistentStorage } from './lib/dataSafety';
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -52,6 +53,13 @@ export default function App() {
   const hasOnboarded = useStore((s) => s.hasOnboarded);
   const needsIdentity = useStore((s) => s.needsIdentity);
   const theme = useStore((s) => s.theme);
+  const hasExpenses = useStore((s) => s.expenses.length > 0);
+
+  // Once there's something worth keeping, ask the browser not to clear it.
+  // Waiting until then matters in Firefox, which asks the person.
+  useEffect(() => {
+    if (hasExpenses) void requestPersistentStorage();
+  }, [hasExpenses]);
 
   // Apply theme to <html data-theme="..."> and keep it in sync
   useEffect(() => {

@@ -9,6 +9,8 @@ import {
   remapForNewGroup,
 } from '../lib/dataExport';
 import type { AppExport, ParseResult, ImportStats, ImportMode } from '../lib/dataExport';
+import { lastBackupAt, markBackedUp } from '../lib/dataSafety';
+import { formatRelativeDay } from '../utils/format';
 import './ExportImportSheet.css';
 
 // ─── Animation variants ───────────────────────────────────────────────────────
@@ -135,6 +137,8 @@ export default function ExportImportSheet({
   const [importError,    setImportError]    = useState<string | null>(null);
 
   const statePayload = { currentUserId, users, groups, expenses, settlements, activities, friendBalances };
+  // Re-read on every render; exporting re-renders (exportDone), so it stays current.
+  const lastBackup = lastBackupAt();
 
   // ── Export handlers ──────────────────────────────────────────────────────────
 
@@ -145,6 +149,8 @@ export default function ExportImportSheet({
         : buildGroupExport(statePayload, exportGroupId);
     if (!data) return;
     downloadExport(data);
+    // Only a full export can restore everything; a single group's file can't.
+    if (data.exportType === 'full') markBackedUp();
     setExportDone(true);
     setTimeout(() => setExportDone(false), 3000);
   }
@@ -191,6 +197,8 @@ export default function ExportImportSheet({
     try {
       if (importMode === 'replace') {
         restoreAllData(exported.data);
+        // The data on hand is now exactly what's in that file.
+        markBackedUp();
         setImportStats({
           usersAdded:       exported.data.users.length,
           groupsAdded:      exported.data.groups.length,
@@ -296,6 +304,9 @@ export default function ExportImportSheet({
                 <div className="eis-section">
                   <p className="eis-section-desc">
                     Download a backup of your data as a JSON file. You can restore or transfer it at any time.
+                  </p>
+                  <p className="eis-last-backup text-xs text-secondary">
+                    {lastBackup ? `Last full backup: ${formatRelativeDay(lastBackup)}` : 'No full backup yet'}
                   </p>
 
                   {/* Option cards */}
