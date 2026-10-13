@@ -264,3 +264,20 @@ describe('removed members', () => {
     expect(summary.membersAdded).toEqual(['Carla']);
   });
 });
+
+describe('receipt items', () => {
+  it('travel with the expense, with who had each item translated to this phone', () => {
+    const withItems = {
+      ...anasPhone(),
+      expenses: [{ ...expense('dinner', 'a1', ['a1', 'b1'], 80), items: [
+        { description: 'Bacalhau', amount: 50, assigned: ['a1'] },
+        { description: 'Wine', amount: 30, assigned: ['a1', 'b1'] },
+      ] }],
+    };
+    const { state } = mergeBundle(phone(ben, [anaOnBen]), buildBundle(withItems, 'trip', T(10))!, { a1: 'a2', b1: 'b2' }, T(10));
+    expect(state.expenses[0].items?.map((it) => [it.description, it.assigned])).toEqual([
+      ['Bacalhau', ['a2']],
+      ['Wine', ['a2', 'b2']],
+    ]);
+  });
+});

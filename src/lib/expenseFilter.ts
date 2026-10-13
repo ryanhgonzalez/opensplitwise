@@ -112,7 +112,7 @@ export function resolveDateRange(
 
 /**
  * Everything a query can match on, lowercased: what it was, who paid, which
- * category, any note, and the amount.
+ * category, any note, the receipt's item names, and the amount.
  *
  * The amount goes in twice — as typed (`42.5`) and cent-padded (`42.50`) — so
  * both "42.5" and "42.50" find the same expense.
@@ -123,6 +123,7 @@ function haystack(expense: Expense, payerName: PayerName, categoryName: Category
     payerName(expense.paidBy),
     categoryName(expense.category),
     expense.notes ?? '',
+    ...(expense.items ?? []).map((it) => it.description),
     String(expense.amount),
     expense.amount.toFixed(2),
   ]

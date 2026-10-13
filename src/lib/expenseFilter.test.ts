@@ -251,3 +251,11 @@ describe('category filter', () => {
     ]);
   });
 });
+
+describe('search by receipt item', () => {
+  it('finds an expense by one of its items', () => {
+    const e = { ...ALL[0], items: [{ description: 'Pastéis de nata', amount: 6, assigned: [] }] };
+    expect(matchesQuery(e, 'nata', payerName)).toBe(true);
+    expect(matchesQuery(ALL[0], 'nata', payerName)).toBe(false);
+  });
+});

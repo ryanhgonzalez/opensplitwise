@@ -57,6 +57,15 @@ export type CustomCategoryId = `custom:${string}`;
 /** What an expense stores: a built-in category, or one of its group's custom ones. */
 export type CategoryId = ExpenseCategory | CustomCategoryId;
 
+/** One line of a receipt split by item: what it was, its price, and who had it. */
+export interface ExpenseItem {
+  description: string;
+  /** In the currency the expense was entered in: `original.currency` when set, else the group's. */
+  amount: number;
+  /** Who shares this item (equally). */
+  assigned: string[];
+}
+
 export type SplitType = 'equal' | 'exact' | 'percentage' | 'shares';
 
 export interface SplitEntry {
@@ -86,6 +95,12 @@ export interface Expense {
    */
   original?: { amount: number; currency: string; rate: number };
   notes?: string;
+  /**
+   * The receipt's lines, when split by item, so it can be reopened and
+   * adjusted later. The split holds each person's resulting share; tax, tip
+   * or a discount is the difference between the items and the total.
+   */
+  items?: ExpenseItem[];
   /**
    * Set when a photo of the receipt is kept with the expense. The photo
    * itself is on this device, in IndexedDB under the expense's id

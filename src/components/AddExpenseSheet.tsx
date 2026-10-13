@@ -71,7 +71,8 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const addGroupCategory = useStore(s => s.addGroupCategory);
 
   const initSplitType = (e?: Expense): SplitMode =>
-    e?.split.type === 'percentage' ? 'exact' : (e?.split.type === 'shares' ? 'exact' : (e?.split.type ?? 'equal'));
+    e?.items?.length ? 'items'
+    : e?.split.type === 'percentage' ? 'exact' : (e?.split.type === 'shares' ? 'exact' : (e?.split.type ?? 'equal'));
 
   // Paid in another currency than the group's: the form shows and edits what was
   // actually paid; balances get the converted figures on save.
@@ -190,6 +191,16 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     if (editExpense && editExpense.groupId === selectedGroup.id) {
       const eSplitType = initSplitType(editExpense);
       setSplitType(eSplitType);
+      // Split by item: bring the receipt's lines back, to adjust.
+      if (editExpense.items?.length) {
+        const memberIds = selectedGroup.members.map(m => m.userId);
+        setLineItems(editExpense.items.map(it => ({
+          id: newItemId(),
+          description: it.description,
+          price: it.amount.toFixed(2),
+          assigned: it.assigned.filter(id => memberIds.includes(id)),
+        })));
+      }
       // Shares are stored converted; show them in the currency the amount is edited in.
       const entries = editForeign
         ? convertSplit(editExpense.split.entries, 1 / editForeign.rate, editForeign.amount)
@@ -391,6 +402,12 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
     let amount: number;
     let split: ExpenseSplit;
+    // Kept so the receipt can be reopened and adjusted; dropped for any other split.
+    const items: Expense['items'] = splitType === 'items'
+      ? lineItems
+          .filter(it => (parseFloat(it.price) || 0) > 0)
+          .map(it => ({ description: it.description.trim() || 'Item', amount: round(parseFloat(it.price)), assigned: it.assigned }))
+      : undefined;
     if (splitType === 'items') {
       amount = effectiveTotal;
       split = { type: 'exact', entries: itemEntries };
@@ -427,6 +444,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         currency: groupCur,
         original,
         receipt,
+        items,
       });
       if (newPhoto) void savePhoto(editExpense.id, newPhoto.blob);
     } else {
@@ -441,6 +459,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         split,
         category,
         receipt,
+        items,
       });
       // Saved under the new expense's id, which exists only now.
       if (newPhoto) void savePhoto(added.id, newPhoto.blob);

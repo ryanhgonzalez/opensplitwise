@@ -205,6 +205,7 @@ export function mergeBundle(
     ...e,
     paidBy: map(e.paidBy),
     split: { ...e.split, entries: e.split.entries.map((en) => ({ ...en, userId: map(en.userId) })) },
+    ...(e.items && { items: e.items.map((it) => ({ ...it, assigned: it.assigned.map(map) })) }),
   });
   const mapSettlement = (s: Settlement): Settlement => ({ ...s, fromUserId: map(s.fromUserId), toUserId: map(s.toUserId) });
 
