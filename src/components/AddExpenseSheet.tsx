@@ -282,8 +282,8 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     pricedItems.length > 0 &&
     allPricedAssigned &&
     itemsSum > 0 &&
-    effectiveTotal > 0 &&
-    itemsSum <= effectiveTotal + 0.01;
+    // A total below the items is a discount, taken off everyone in proportion (splitByItems).
+    effectiveTotal > 0;
 
   const rateValid = !isForeign || rate > 0;
 
@@ -995,7 +995,10 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                         {itemsSum > 0 && Math.abs(effectiveTotal - itemsSum) > 0.005 && (
                           <div className="aes-items-row">
                             <span>{effectiveTotal >= itemsSum ? 'Tax & tip' : 'Discount'}</span>
-                            <span>{formatCurrency(effectiveTotal - itemsSum, cur)}</span>
+                            <span>
+                              {effectiveTotal < itemsSum ? '−' : ''}
+                              {formatCurrency(effectiveTotal - itemsSum, cur)}
+                            </span>
                           </div>
                         )}
                         <div className="aes-items-row total">
@@ -1020,8 +1023,10 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                         </div>
 
                         {itemsSum > effectiveTotal + 0.01 && (
-                          <div className="aes-remainder warn">
-                            Items exceed the total — raise the amount above or lower an item price.
+                          <div className="aes-remainder">
+                            The total is {formatCurrency(itemsSum - effectiveTotal, cur)} less than the items, so that
+                            comes off as a discount, in proportion to what each person had. If an item or the total
+                            was read wrong, fix it.
                           </div>
                         )}
                       </div>

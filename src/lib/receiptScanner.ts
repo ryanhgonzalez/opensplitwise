@@ -436,6 +436,38 @@ function extractLineItems(lines: string[]): LineItem[] {
 
     items.push({ description: toTitleCase(name).slice(0, 40), amount: price });
   }
+  return matchSubtotal(items, printedSubtotal(lines));
+}
+
+/** The amount on the receipt's "Subtotal" line, if it has one. */
+function printedSubtotal(lines: string[]): number | undefined {
+  for (const line of lines) {
+    if (!/sub\s*-?\s*total/i.test(line)) continue;
+    const nums = moneyOnLine(line);
+    if (nums.length) return nums[nums.length - 1];
+  }
+  return undefined;
+}
+
+/**
+ * Items should add up to the printed subtotal. When they come to more, a line
+ * that isn't an item was read as one (an OCR'd note like "Price override
+ * £3.00" turning into "£42.00"): drop the one or two lines whose removal makes
+ * them match exactly. With no exact match, nothing is dropped.
+ */
+function matchSubtotal(items: LineItem[], subtotal: number | undefined): LineItem[] {
+  if (subtotal === undefined || items.length < 2) return items;
+  const cents = (n: number) => Math.round(n * 100);
+  const excess = items.reduce((s, it) => s + cents(it.amount), 0) - cents(subtotal);
+  if (excess <= 0) return items;
+  for (let i = 0; i < items.length; i++) {
+    if (cents(items[i].amount) === excess) return items.filter((_, k) => k !== i);
+  }
+  for (let i = 0; i < items.length; i++) {
+    for (let j = i + 1; j < items.length; j++) {
+      if (cents(items[i].amount) + cents(items[j].amount) === excess) return items.filter((_, k) => k !== i && k !== j);
+    }
+  }
   return items;
 }
 

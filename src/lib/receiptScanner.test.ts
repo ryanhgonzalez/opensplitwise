@@ -171,6 +171,31 @@ Dessert Rosa  7.20`)).toEqual([
   });
 });
 
+describe('parseReceiptText: items against the subtotal', () => {
+  const items = (text: string) => parseReceiptText(text).lineItems?.map((i) => [i.description, i.amount]);
+
+  it('drops a misread line that makes the items exceed the printed subtotal', () => {
+    // PaddleOCR's read of a real receipt: an override note became "£42.00".
+    expect(items(`Bulmers Original Bottle  £4.00
+Price Override Manager Override  42.00
+Bulmers Pear Bottle  £4.00
+Sub Total:  £8.00
+Total:  £4.50`)).toEqual([
+      ['Bulmers Original Bottle', 4],
+      ['Bulmers Pear Bottle', 4],
+    ]);
+  });
+
+  it('keeps everything when no line explains the difference', () => {
+    expect(items(`Coffee  3.50
+Cake  12.00
+Subtotal  20.00`)).toEqual([
+      ['Coffee', 3.5],
+      ['Cake', 12],
+    ]);
+  });
+});
+
 describe('parseReceiptText: dates', () => {
   it('reads day-first dates when the day is over 12', () => {
     expect(day(parseReceiptText(DINEFINE).date)).toBe('2025-09-30');
