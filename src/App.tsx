@@ -14,6 +14,7 @@ import People from './pages/People';
 import Onboarding from './pages/Onboarding';
 import IdentityPicker from './components/IdentityPicker';
 import InstallGuide from './components/InstallGuide';
+import ToastHost from './components/ToastHost';
 import { requestPersistentStorage } from './lib/dataSafety';
 import { removeOrphanPhotos } from './lib/receiptPhotos';
 
@@ -64,12 +65,13 @@ export default function App() {
   }, [hasExpenses]);
 
   // Receipt photos whose expense is gone (deleted, merged away, restored over)
-  // are cleared out a moment after expenses change, and once at startup.
+  // are cleared out after expenses settle, and once at startup. The wait
+  // outlasts the Undo toast, so undoing a delete keeps the photo.
   useEffect(() => {
     const timer = setTimeout(() => {
       const keep = new Set(expenses.filter((e) => e.receipt).map((e) => e.id));
       removeOrphanPhotos(keep).catch(() => {});
-    }, 3000);
+    }, 20_000);
     return () => clearTimeout(timer);
   }, [expenses]);
 
@@ -126,6 +128,7 @@ export default function App() {
         </div>
       </div>
       <InstallGuide />
+      <ToastHost />
     </BrowserRouter>
   );
 }

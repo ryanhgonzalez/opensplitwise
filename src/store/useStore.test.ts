@@ -428,6 +428,25 @@ describe('currencies', () => {
   });
 });
 
+describe('undoing a delete', () => {
+  it('puts the expense, its feed entries and balances back, and withdraws the deletion marker', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const [alice] = others;
+    const expense = addEvenExpense(me.id, [me.id, alice.id], 40, group.id);
+    const before = { activities: state().activities.map((a) => a.id).sort(), balance: friendBalances()[alice.id] };
+
+    const deleted = state().deleteExpense(expense.id)!;
+    expect(state().expenses).toEqual([]);
+    expect(state().tombstones).toHaveLength(1);
+
+    state().undoExpenseDelete(deleted);
+    expect(state().expenses).toEqual([expense]);
+    expect(state().activities.map((a) => a.id).sort()).toEqual(before.activities);
+    expect(friendBalances()[alice.id]).toBe(before.balance);
+    expect(state().tombstones).toEqual([]);
+  });
+});
+
 describe('sharing state', () => {
   it('leaves deletion markers for group expenses, payments and categories', () => {
     const { me, others, group } = setup(['Me', 'Alice']);

@@ -13,6 +13,7 @@ import AddExpenseSheet from '../components/AddExpenseSheet';
 import EditGroupSheet from '../components/EditGroupSheet';
 import ShareGroupSheet from '../components/ShareGroupSheet';
 import ReceiptViewer from '../components/ReceiptViewer';
+import { showToast } from '../lib/toast';
 import PersonSheet from '../components/PersonSheet';
 import ExpenseFilterBar from '../components/ExpenseFilterBar';
 import SettleModal from '../components/SettleModal';
@@ -63,6 +64,7 @@ export default function GroupDetail() {
   const allExpenses = useStore(s => s.expenses);
   const allSettlements = useStore(s => s.settlements);
   const deleteExpense = useStore(s => s.deleteExpense);
+  const undoExpenseDelete = useStore(s => s.undoExpenseDelete);
   const addSettlement = useStore(s => s.addSettlement);
   const deleteSettlement = useStore(s => s.deleteSettlement);
   const currentUser = useStore(selectCurrentUser)!;
@@ -144,8 +146,14 @@ export default function GroupDetail() {
   };
 
   const handleDeleteExpense = (expenseId: string) => {
-    deleteExpense(expenseId);
+    const deleted = deleteExpense(expenseId);
     setExpenseMenuId(null);
+    if (deleted) {
+      showToast({
+        message: `Deleted “${deleted.expense.description}”`,
+        action: { label: 'Undo', run: () => undoExpenseDelete(deleted) },
+      });
+    }
   };
 
   const handleSettle = (amount: number, method: PaymentMethod) => {

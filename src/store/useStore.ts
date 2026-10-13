@@ -32,6 +32,16 @@ export type AddSettlementInput = Omit<Settlement, 'id' | 'createdAt'>;
 export type AddUserInput = { name: string; email?: string };
 export type UpdateUserInput = Partial<Pick<User, 'name' | 'email' | 'avatarColor' | 'initials'>>;
 
+/** Everything deleting an expense removed or added, so it can be undone exactly. */
+export interface DeletedExpense {
+  expense: Expense;
+  /** Its add/update feed entries, which deleting drops. */
+  activities: Activity[];
+  /** The "deleted" feed entry and deletion marker deleting added. */
+  deletedActivityId: string;
+  deletedAt: Date;
+}
+
 /** A payment that is not tied to one group — the app decides which groups it pays down. */
 export type SettleWithUserInput = {
   fromUserId: string;
@@ -92,7 +102,10 @@ export interface AppStore {
   // ── Expense actions ──
   addExpense: (input: AddExpenseInput) => Expense;
   updateExpense: (id: string, updates: UpdateExpenseInput) => void;
-  deleteExpense: (id: string) => void;
+  /** Returns what was removed, for undoExpenseDelete. */
+  deleteExpense: (id: string) => DeletedExpense | undefined;
+  /** Puts a just-deleted expense back exactly as it was, as if never deleted. */
+  undoExpenseDelete: (deleted: DeletedExpense) => void;
 
   // ── Group actions ──
   createGroup: (input: CreateGroupInput) => Group;
@@ -361,21 +374,15 @@ export const useStore = create<AppStore>()(
             date: now,
           };
 
+          const pointsAtIt = (a: Activity) =>
+            (a.type === 'expense_added' || a.type === 'expense_updated') && a.expenseId === id;
+
           set(
             {
               expenses: expenses.filter((e) => e.id !== id),
               // The add/update entries point at an expense that no longer exists;
               // the deletion entry it leaves behind is the record of what happened.
-              activities: [
-                activity,
-                ...activities.filter(
-                  (a) =>
-                    !(
-                      (a.type === 'expense_added' || a.type === 'expense_updated') &&
-                      a.expenseId === id
-                    ),
-                ),
-              ],
+              activities: [activity, ...activities.filter((a) => !pointsAtIt(a))],
               groups: expense.groupId ? touchGroups(groups, new Set([expense.groupId]), now) : groups,
               tombstones: expense.groupId
                 ? [...tombstones, { id, kind: 'expense', groupId: expense.groupId, deletedAt: now }]
@@ -383,6 +390,24 @@ export const useStore = create<AppStore>()(
             },
             false,
             'deleteExpense',
+          );
+          return { expense, activities: activities.filter(pointsAtIt), deletedActivityId: activity.id, deletedAt: now };
+        },
+
+        undoExpenseDelete: ({ expense, activities: removed, deletedActivityId, deletedAt }) => {
+          const { expenses, activities, tombstones } = get();
+          if (expenses.some((e) => e.id === expense.id)) return;
+          set(
+            {
+              expenses: [...expenses, expense],
+              activities: [...removed, ...activities.filter((a) => a.id !== deletedActivityId)],
+              // Withdraw the deletion marker, or sharing the group would still delete it elsewhere.
+              tombstones: tombstones.filter(
+                (t) => !(t.kind === 'expense' && t.id === expense.id && t.deletedAt.getTime() === deletedAt.getTime()),
+              ),
+            },
+            false,
+            'undoExpenseDelete',
           );
         },
 
