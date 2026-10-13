@@ -9,7 +9,8 @@ import AddExpenseSheet from './AddExpenseSheet';
  */
 export function useAddExpense() {
   const [open, setOpen] = useState(false);
-  const groupId = useMatch('/groups/:id')?.params.id;
+  // The group page and anything under it (an expense, sharing).
+  const groupId = useMatch('/groups/:id/*')?.params.id;
 
   const sheet = (
     <AnimatePresence>

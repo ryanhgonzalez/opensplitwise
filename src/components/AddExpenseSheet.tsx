@@ -2,9 +2,8 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser } from '../store';
 import { buildSplit, round, splitByItems } from '../lib/calculations';
-import { CATEGORY_LABELS } from '../types';
 import type { CategoryId, Expense, SplitType, ExpenseSplit } from '../types';
-import { BUILT_IN_CATEGORIES, MAX_CATEGORY_NAME, isCustomCategory } from '../lib/categories';
+import { BUILT_IN_CATEGORIES, MAX_CATEGORY_NAME, categoryLabel, isCustomCategory } from '../lib/categories';
 import { convertSplit, currencySymbol, groupCurrency, recordCurrency } from '../lib/currency';
 import CurrencySelect from './CurrencySelect';
 import ReceiptViewer from './ReceiptViewer';
@@ -63,6 +62,28 @@ function fromDateInputValue(str: string): Date {
   return new Date(y, (m || 1) - 1, d || 1); // local midnight
 }
 
+/** "Today", "Yesterday", or the date; an empty field means today. */
+function dateLabel(str: string): string {
+  if (!str) return 'Today';
+  const d = fromDateInputValue(str);
+  const today = new Date();
+  const days = Math.round(
+    (new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() - d.getTime()) / 86_400_000,
+  );
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric',
+  });
+}
+
+/** Categories shown before "More…". */
+const TOP_CATEGORIES = 4;
+/** Fills the row for a group with few expenses yet. */
+const DEFAULT_CATEGORIES: CategoryId[] = ['food', 'groceries', 'transport', 'accommodation', 'shopping'];
+
 let itemSeq = 0;
 const newItemId = () => `item-${Date.now()}-${itemSeq++}`;
 
@@ -107,6 +128,10 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const [splitType, setSplitType] = useState<SplitMode>(initSplitType(source));
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [lineItems, setLineItems] = useState<ItemRow[]>([]);
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  /** The date came from a scanned receipt (until changed by hand). */
+  const [scannedDate, setScannedDate] = useState(false);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   // Receipt scanning (client-side OCR — fills a draft the user reviews before saving)
   const cameraInputRef = useRef<HTMLInputElement>(null); // capture=camera (touch devices)
@@ -185,9 +210,26 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     setNewCategoryHint(null);
   }, [selectedGroup]);
 
+  // The group's most-used categories first (all groups when none is picked yet),
+  // topped up with common ones; the chosen one always shows.
+  const topCategories = useMemo(() => {
+    const counts = new Map<CategoryId, number>();
+    for (const e of allExpenses) {
+      if (groupId && e.groupId !== groupId) continue;
+      counts.set(e.category, (counts.get(e.category) ?? 0) + 1);
+    }
+    const valid = (c: CategoryId) => !isCustomCategory(c) || !!selectedGroup?.categories?.some(x => x.id === c);
+    const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c).filter(valid);
+    return [...new Set([...ranked, ...DEFAULT_CATEGORIES])].slice(0, TOP_CATEGORIES);
+  }, [allExpenses, groupId, selectedGroup]);
+  const allCategories: CategoryId[] = [...BUILT_IN_CATEGORIES, ...(selectedGroup?.categories?.map(c => c.id) ?? [])];
+  const shownCategories = showAllCategories
+    ? allCategories
+    : topCategories.includes(category) ? topCategories : [...topCategories, category];
+
   const openNewCategory = () => {
     if (!selectedGroup) {
-      setNewCategoryHint('Choose a group below first. Custom categories are saved to the group.');
+      setNewCategoryHint('Choose a group first. Custom categories are saved to the group.');
       return;
     }
     setNewCategoryHint(null);
@@ -380,7 +422,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
       setTotalCandidates(result.totalCandidates ?? []);
       if (result.description) { setDescription(result.description); filledAny = true; }
       if (result.category) { setCategory(result.category); filledAny = true; }
-      if (result.date) { setDateStr(toDateInputValue(result.date)); filledAny = true; }
+      if (result.date) { setDateStr(toDateInputValue(result.date)); setScannedDate(true); filledAny = true; }
       if (result.lineItems && result.lineItems.length > 0) {
         const assigned = groupMemberIds;
         setLineItems(result.lineItems.map(li => ({
@@ -520,6 +562,8 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     setSplitType(initSplitType(source));
     setParticipants([]);
     setLineItems([]);
+    setShowAllCategories(false);
+    setScannedDate(false);
     setScanning(false);
     setScanStatus('');
     setScanError(null);
@@ -541,7 +585,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
           onClick={handleClose}
         >
           <motion.div
-            className="sheet-panel"
+            className="sheet-panel aes-panel"
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
@@ -550,7 +594,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
           >
             <div className="sheet-handle" />
             <div className="sheet-header">
-              <span className="sheet-title">{isEditing ? 'Edit Expense' : template ? 'Duplicate Expense' : 'Add Expense'}</span>
+              <span className="sheet-title">{isEditing ? 'Edit expense' : template ? 'Duplicate expense' : 'Add expense'}</span>
               <button className="sheet-close" onClick={handleClose} aria-label="Close">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -559,6 +603,8 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
             </div>
 
             <div className="sheet-body">
+              <div className="aes-layout">
+              <div className="aes-col-details">
               {/* Receipt scan (client-side OCR) — pre-fills an editable draft */}
               {!isEditing && (
                 <div className="aes-scan">
@@ -579,41 +625,54 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                   />
 
                   {scanning ? (
-                    <button type="button" className="aes-scan-btn" disabled>
+                    <div className="aes-scan-strip busy" role="status">
                       <span className="aes-scan-spinner" aria-hidden />
-                      {scanStatus}
-                    </button>
+                      <span className="aes-scan-text">
+                        <span className="aes-scan-title">{scanStatus}</span>
+                      </span>
+                    </div>
+                  ) : scanned && newPhoto ? (
+                    <div className="aes-scan-strip done">
+                      <button type="button" className="aes-scan-thumb" onClick={() => setViewingPhoto(true)} aria-label="View receipt photo">
+                        <img src={newPhoto.url} alt="" />
+                      </button>
+                      <span className="aes-scan-text">
+                        <span className="aes-scan-title">Read from the receipt</span>
+                        <span className="aes-scan-sub">
+                          {lineItems.length > 0
+                            ? `Total, date and ${lineItems.length} items · check them`
+                            : 'Check what it filled in'}
+                        </span>
+                      </span>
+                      <button type="button" className="aes-scan-link" onClick={() => fileInputRef.current?.click()}>
+                        Rescan
+                      </button>
+                    </div>
                   ) : (
-                    <div className="aes-scan-actions">
+                    <div className="aes-scan-strip">
+                      <svg className="aes-scan-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                        <path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                      </svg>
+                      <span className="aes-scan-text">
+                        <span className="aes-scan-title">Scan a receipt</span>
+                        <span className="aes-scan-sub">Fills in the total, date and items</span>
+                      </span>
                       {/* Camera capture — only useful on touch devices (hidden on desktop via CSS) */}
-                      <button
-                        type="button"
-                        className="aes-scan-btn aes-scan-camera"
-                        onClick={() => cameraInputRef.current?.click()}
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                          <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="2" />
-                        </svg>
-                        Take photo
+                      <button type="button" className="aes-scan-btn aes-scan-camera" onClick={() => cameraInputRef.current?.click()}>
+                        Camera
                       </button>
                       {/* Library / file picker — on iOS/Android this sheet also offers the camera */}
-                      <button
-                        type="button"
-                        className="aes-scan-btn"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                          <path d="M12 16V4M8 8l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                        Upload photo
+                      <button type="button" className="aes-scan-btn" onClick={() => fileInputRef.current?.click()}>
+                        Photo
                       </button>
                     </div>
                   )}
                   {scanError && <div className="aes-scan-msg error">{scanError}</div>}
-                  {scanned && !scanError && (
-                    <div className="aes-scan-msg ok">Filled from receipt — double-check the details below.</div>
+                  {!scanning && !scanned && !newPhoto && (
+                    <button type="button" className="aes-scan-attach" onClick={() => photoInputRef.current?.click()}>
+                      Or attach a photo without reading it
+                    </button>
                   )}
                 </div>
               )}
@@ -631,7 +690,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                     if (f) void keepPhoto(f);
                   }}
                 />
-                {newPhoto || (hasExisting && existingPhotoUrl) ? (
+                {(newPhoto && !scanned) || (hasExisting && existingPhotoUrl) ? (
                   <div className="aes-photo-row">
                     <button
                       type="button"
@@ -654,11 +713,11 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                       Remove
                     </button>
                   </div>
-                ) : (
+                ) : isEditing && !newPhoto ? (
                   <button type="button" className="aes-photo-add" onClick={() => photoInputRef.current?.click()}>
                     + Attach receipt photo
                   </button>
-                )}
+                ) : null}
                 {photoError && <div className="aes-scan-msg error">{photoError}</div>}
               </div>
 
@@ -741,41 +800,154 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
               )}
 
               {/* Description */}
-              <div className="field-group">
-                <div className="field-label">What was it for?</div>
-                <input
-                  className="field-input"
-                  placeholder="Dinner, gas, groceries…"
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                />
-              </div>
+              <input
+                className="field-input aes-description"
+                placeholder="What was it for?"
+                aria-label="What was it for?"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+              />
 
-              {/* Category */}
+              {/* Group (only shown when no default) */}
+              {!defaultGroupId && (
+                <div className="field-group">
+                  <div className="field-label">Group</div>
+                  {groups.length === 0 ? (
+                    <p className="text-secondary text-sm">No groups yet — create one first</p>
+                  ) : (
+                    <div className="aes-group-picker">
+                      {groups.map(g => (
+                        <button
+                          key={g.id}
+                          type="button"
+                          className={`aes-group-option ${groupId === g.id ? 'active' : ''}`}
+                          aria-pressed={groupId === g.id}
+                          onClick={() => setGroupId(g.id)}
+                        >
+                          <span aria-hidden>{g.emoji}</span>
+                          <span className="aes-group-name">{g.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Scanned before a group was picked: the items are waiting for one */}
+              {!selectedGroup && lineItems.length > 0 && (
+                <div className="aes-pending-items">
+                  <div className="aes-pending-head">
+                    <span>{lineItems.length} {lineItems.length === 1 ? 'item' : 'items'} from the receipt</span>
+                    <span className="num">{formatCurrency(itemsSum, cur)}</span>
+                  </div>
+                  <p className="aes-pending-hint">
+                    Pick a group above and they'll be split by item, shared by everyone until you change who had what.
+                  </p>
+                  <div className="aes-pending-list">
+                    {lineItems.slice(0, 3).map(it => (
+                      <div key={it.id} className="aes-pending-row">
+                        <span>{it.description || 'Item'}</span>
+                        <span className="num">{formatCurrency(parseFloat(it.price) || 0, cur)}</span>
+                      </div>
+                    ))}
+                    {lineItems.length > 3 && <div className="aes-pending-row">and {lineItems.length - 3} more</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* Paid by · Date · Repeats: compact, each opens its own picker */}
+              <div className="aes-pills">
+                <label className={`aes-pill ${selectedGroup ? '' : 'disabled'}`}>
+                  <span className="aes-pill-label">Paid by</span>
+                  <span className="aes-pill-value">{paidBy === currentUser.id ? 'You' : getUserById(paidBy)?.name.split(' ')[0] ?? 'You'} ▾</span>
+                  <select
+                    className="aes-pill-select"
+                    aria-label="Paid by"
+                    value={paidBy}
+                    disabled={!selectedGroup}
+                    onChange={e => setPaidBy(e.target.value)}
+                  >
+                    {(selectedGroup?.members.map(m => m.userId) ?? [currentUser.id]).map(uid => (
+                      <option key={uid} value={uid}>
+                        {uid === currentUser.id ? 'You' : getUserById(uid)?.name ?? 'Someone'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="aes-pill"
+                  onClick={() => {
+                    const el = dateInputRef.current;
+                    if (!el) return;
+                    try { el.showPicker(); } catch { el.focus(); }
+                  }}
+                >
+                  <span className="aes-pill-label">{scannedDate ? 'Date · from receipt' : 'Date'}</span>
+                  <span className="aes-pill-value">{dateLabel(dateStr)} ▾</span>
+                  <input
+                    ref={dateInputRef}
+                    className="aes-pill-date"
+                    type="date"
+                    tabIndex={-1}
+                    aria-label="Date"
+                    value={dateStr}
+                    onChange={e => { setDateStr(e.target.value); setScannedDate(false); }}
+                  />
+                </button>
+                {!isEditing && (
+                  <label className="aes-pill">
+                    <span className="aes-pill-label">Repeats</span>
+                    <span className="aes-pill-value">{repeat ? FREQUENCY_LABELS[repeat] : 'Never'} ▾</span>
+                    <select
+                      id="aes-repeat"
+                      className="aes-pill-select"
+                      aria-label="Repeats"
+                      value={repeat}
+                      onChange={e => setRepeat(e.target.value as RepeatFrequency | '')}
+                    >
+                      <option value="">Never</option>
+                      {(Object.keys(FREQUENCY_LABELS) as RepeatFrequency[]).map(f => (
+                        <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
+              {repeat && (
+                <div className="aes-field-hint text-tertiary text-xs aes-repeat-hint">
+                  Added automatically on each date, starting with this one. Stop it from the group page.
+                </div>
+              )}
+              {isEditing && editRule && (
+                <div className="aes-repeat-note">
+                  Repeats {FREQUENCY_LABELS[editRule.frequency].toLowerCase()}.{' '}
+                  {editingLatestRepeat
+                    ? 'Changes here also apply to the next ones.'
+                    : 'Only this one changes; edit the latest to change the next ones.'}
+                </div>
+              )}
+
+              {/* Category: the group's most used first; the rest behind More */}
               <div className="field-group">
                 <div className="field-label">Category</div>
                 <div className="aes-category-row">
-                  {BUILT_IN_CATEGORIES.map(c => (
+                  {shownCategories.map(c => (
                     <button
                       key={c}
+                      type="button"
                       className={`aes-category-btn ${category === c ? 'active' : ''}`}
                       aria-pressed={category === c}
                       onClick={() => setCategory(c)}
                     >
-                      {CATEGORY_LABELS[c]}
+                      {categoryLabel(c, selectedGroup)}
                     </button>
                   ))}
-                  {selectedGroup?.categories?.map(c => (
-                    <button
-                      key={c.id}
-                      className={`aes-category-btn ${category === c.id ? 'active' : ''}`}
-                      aria-pressed={category === c.id}
-                      onClick={() => setCategory(c.id)}
-                    >
-                      {c.name}
+                  {!showAllCategories ? (
+                    <button type="button" className="aes-category-btn aes-category-new" onClick={() => setShowAllCategories(true)}>
+                      More…
                     </button>
-                  ))}
-                  {newCategory === null ? (
+                  ) : newCategory === null ? (
                     <button type="button" className="aes-category-btn aes-category-new" onClick={openNewCategory}>
                       + New
                     </button>
@@ -805,98 +977,12 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                 </div>
                 {newCategoryHint && <p className="aes-category-hint">{newCategoryHint}</p>}
               </div>
-
-              {/* Date */}
-              <div className="field-group">
-                <div className="field-label">Date</div>
-                <input
-                  className="field-input aes-date-input"
-                  type="date"
-                  value={dateStr}
-                  onChange={e => setDateStr(e.target.value)}
-                />
-                <div className="aes-field-hint text-tertiary text-xs">Leave empty to use today's date.</div>
               </div>
 
-              {/* Repeats: rent, bills, subscriptions */}
-              {!isEditing ? (
-                <div className="field-group">
-                  <label className="field-label" htmlFor="aes-repeat">Repeats</label>
-                  <select
-                    id="aes-repeat"
-                    className="field-input"
-                    value={repeat}
-                    onChange={e => setRepeat(e.target.value as RepeatFrequency | '')}
-                  >
-                    <option value="">Never</option>
-                    {(Object.keys(FREQUENCY_LABELS) as RepeatFrequency[]).map(f => (
-                      <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
-                    ))}
-                  </select>
-                  {repeat && (
-                    <div className="aes-field-hint text-tertiary text-xs">
-                      Added automatically on each date, starting with the date above. Stop it from the group page.
-                    </div>
-                  )}
-                </div>
-              ) : editRule && (
-                <div className="aes-repeat-note">
-                  Repeats {FREQUENCY_LABELS[editRule.frequency].toLowerCase()}.{' '}
-                  {editingLatestRepeat
-                    ? 'Changes here also apply to the next ones.'
-                    : 'Only this one changes; edit the latest to change the next ones.'}
-                </div>
+              <div className="aes-col-split">
+              {!selectedGroup && (
+                <p className="aes-split-placeholder">Pick a group to choose who's in it and how it's split.</p>
               )}
-
-              {/* Group (only shown when no default) */}
-              {!defaultGroupId && (
-                <div className="field-group">
-                  <div className="field-label">Group</div>
-                  <div className="aes-group-picker">
-                    {groups.length === 0 ? (
-                      <p className="text-secondary text-sm">No groups yet — create one first</p>
-                    ) : (
-                      groups.map(g => (
-                        <button
-                          key={g.id}
-                          className={`aes-group-option ${groupId === g.id ? 'active' : ''}`}
-                          style={groupId === g.id ? { borderColor: `${g.color}55`, background: `${g.color}18` } : {}}
-                          onClick={() => setGroupId(g.id)}
-                        >
-                          <span style={{ fontSize: 18 }}>{g.emoji}</span>
-                          <span className="aes-group-name">{g.name}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Paid by */}
-              {selectedGroup && (
-                <div className="field-group">
-                  <div className="field-label">Paid by</div>
-                  <div className="aes-paid-by-row">
-                    {selectedGroup.members.map(m => {
-                      const u = getUserById(m.userId);
-                      if (!u) return null;
-                      return (
-                        <button
-                          key={m.userId}
-                          className={`aes-payer-btn ${paidBy === m.userId ? 'active' : ''}`}
-                          onClick={() => setPaidBy(m.userId)}
-                        >
-                          <Avatar user={u} size="sm" showRing={paidBy === m.userId} />
-                          <span className="aes-payer-name">
-                            {m.userId === currentUser.id ? 'You' : u.name.split(' ')[0]}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
               {/* Split section */}
               {selectedGroup && (
                 <div className="field-group">
@@ -1116,6 +1202,8 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                   )}
                 </div>
               )}
+              </div>
+              </div>
             </div>
 
             {viewingPhoto && (newPhoto || existingPhotoUrl) && (
@@ -1128,8 +1216,9 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
             <div className="sheet-footer">
               <button className="sheet-cta" onClick={handleSubmit} disabled={!canSubmit}>
-                {isEditing ? 'Save Changes' : 'Add Expense'}{ctaTotal > 0 ? ` · ${formatCurrency(ctaTotal, cur)}` : ''}
+                {isEditing ? 'Save changes' : 'Add expense'}{ctaTotal > 0 ? ` · ${formatCurrency(ctaTotal, cur)}` : ''}
               </button>
+              {!groupId && <p className="aes-cta-hint">Pick a group to add it</p>}
             </div>
           </motion.div>
         </motion.div>

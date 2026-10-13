@@ -241,7 +241,11 @@ export default function Dashboard() {
                     const net = getNetAmountForUser(expense, currentUser.id);
                     const group = getGroupById(expense.groupId);
                     return (
-                      <div key={expense.id} className="dash-expense">
+                      <Link
+                        key={expense.id}
+                        to={expense.groupId ? `/groups/${expense.groupId}/expenses/${expense.id}` : '/groups'}
+                        className="dash-expense dash-expense-link"
+                      >
                         <span className="num dash-expense-date" title={formatDate(expense.date)}>
                           {formatLedgerDate(expense.date)}
                         </span>
@@ -256,7 +260,7 @@ export default function Dashboard() {
                         <span className={`num dash-expense-share ${net > 0.005 ? 'pos' : net < -0.005 ? 'neg' : 'zero'}`}>
                           {formatSigned(net, recordCurrency(expense))}
                         </span>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>

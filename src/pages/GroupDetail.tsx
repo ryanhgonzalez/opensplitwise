@@ -1,12 +1,12 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser, selectTotalsForGroup } from '../store';
 import { calculateBalances, calculateSettlements, round } from '../lib/calculations';
 import { EMPTY_FILTER, categoryOptions, filterExpenses, isFilterActive, type ExpenseFilter } from '../lib/expenseFilter';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned, getNetAmountForUser } from '../utils';
 import { categoryLabel } from '../lib/categories';
-import type { Expense, PaymentMethod } from '../types';
+import type { PaymentMethod } from '../types';
 import Avatar from '../components/Avatar';
 import GroupTile from '../components/GroupTile';
 import AddExpenseSheet from '../components/AddExpenseSheet';
@@ -52,9 +52,6 @@ export default function GroupDetail() {
   const navigate = useNavigate();
 
   const [showAddExpense, setShowAddExpense] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [duplicating, setDuplicating] = useState<Expense | null>(null);
-  const [expenseMenuId, setExpenseMenuId] = useState<string | null>(null);
   const [showEditGroup, setShowEditGroup] = useState(false);
   const [viewingReceipt, setViewingReceipt] = useState<{ id: string; title: string } | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -69,8 +66,6 @@ export default function GroupDetail() {
   const groups = useStore(s => s.groups);
   const allExpenses = useStore(s => s.expenses);
   const allSettlements = useStore(s => s.settlements);
-  const deleteExpense = useStore(s => s.deleteExpense);
-  const undoExpenseDelete = useStore(s => s.undoExpenseDelete);
   const allRecurring = useStore(s => s.recurring);
   const stopRecurring = useStore(s => s.stopRecurring);
   const [stoppingId, setStoppingId] = useState<string | null>(null);
@@ -154,31 +149,7 @@ export default function GroupDetail() {
     for (const en of e.split.entries) shareOf[en.userId] = (shareOf[en.userId] ?? 0) + en.amount;
   }
 
-  const openAddExpense = () => { setEditingExpense(null); setDuplicating(null); setShowAddExpense(true); };
-  const openDuplicate = (expense: Expense) => {
-    setEditingExpense(null);
-    setDuplicating(expense);
-    setExpenseMenuId(null);
-    setShowAddExpense(true);
-  };
-
-  const openEditExpense = (expense: Expense) => {
-    setDuplicating(null);
-    setEditingExpense(expense);
-    setExpenseMenuId(null);
-    setShowAddExpense(true);
-  };
-
-  const handleDeleteExpense = (expenseId: string) => {
-    const deleted = deleteExpense(expenseId);
-    setExpenseMenuId(null);
-    if (deleted) {
-      showToast({
-        message: `Deleted “${deleted.expense.description}”`,
-        action: { label: 'Undo', run: () => undoExpenseDelete(deleted) },
-      });
-    }
-  };
+  const openAddExpense = () => setShowAddExpense(true);
 
   const handleSettle = (amount: number, method: PaymentMethod) => {
     if (!settling) return;
@@ -305,11 +276,9 @@ export default function GroupDetail() {
                     <span role="columnheader" className="cap gd-col-wide">Paid by</span>
                     <span role="columnheader" className="cap gd-col-wide gd-right">Amount</span>
                     <span role="columnheader" className="cap gd-right">Your share</span>
-                    <span role="columnheader"><span className="sr-only">Actions</span></span>
                   </div>
                   {shownExpenses.map(expense => {
                     const net = round(getNetAmountForUser(expense, currentUser.id));
-                    const menuOpen = expenseMenuId === expense.id;
                     return (
                       <div key={expense.id} className="gd-expense" role="rowgroup">
                         <div className="gd-row" role="row">
@@ -318,7 +287,9 @@ export default function GroupDetail() {
                           </span>
                           <span role="cell" className="gd-desc-cell">
                             <span className="gd-desc">
-                              {expense.description}
+                              <Link to={`/groups/${group.id}/expenses/${expense.id}`} className="gd-desc-link">
+                                {expense.description}
+                              </Link>
                               {ruleIdOf(expense.id) && allRecurring.some(r => r.id === ruleIdOf(expense.id)) && (
                                 <span className="gd-repeat-mark" title="Repeating expense" aria-label="Repeating expense">↻</span>
                               )}
@@ -346,53 +317,8 @@ export default function GroupDetail() {
                               {net > 0.005 ? 'you lent' : net < -0.005 ? 'you borrowed' : 'not involved'}
                             </span>
                           </span>
-                          <span role="cell" className="gd-right">
-                            <button
-                              className={`gd-kebab ${menuOpen ? 'active' : ''}`}
-                              onClick={() => setExpenseMenuId(menuOpen ? null : expense.id)}
-                              aria-label={`Edit or delete ${expense.description}`}
-                              aria-expanded={menuOpen}
-                            >
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                                <circle cx="5" cy="12" r="1.6" />
-                                <circle cx="12" cy="12" r="1.6" />
-                                <circle cx="19" cy="12" r="1.6" />
-                              </svg>
-                            </button>
-                          </span>
                         </div>
 
-                        <AnimatePresence>
-                          {menuOpen && (
-                            <motion.div
-                              className="gd-actions"
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.16 }}
-                            >
-                              <div className="gd-actions-inner">
-                                <button className="btn btn-secondary btn-sm" onClick={() => openEditExpense(expense)}>
-                                  Edit
-                                </button>
-                                <button className="btn btn-secondary btn-sm" onClick={() => openDuplicate(expense)}>
-                                  Duplicate
-                                </button>
-                                {expense.receipt && (
-                                  <button
-                                    className="btn btn-secondary btn-sm"
-                                    onClick={() => setViewingReceipt({ id: expense.id, title: expense.description })}
-                                  >
-                                    Receipt
-                                  </button>
-                                )}
-                                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteExpense(expense.id)}>
-                                  Delete
-                                </button>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
                       </div>
                     );
                   })}
@@ -566,17 +492,10 @@ export default function GroupDetail() {
         </div>
       </div>
 
-      {/* Add / Edit expense sheet */}
+      {/* Add expense sheet (editing is on the expense's page) */}
       <AnimatePresence>
         {showAddExpense && (
-          <AddExpenseSheet
-            key={editingExpense?.id ?? (duplicating ? `copy-${duplicating.id}` : 'new-expense')}
-            open={showAddExpense}
-            onClose={() => { setShowAddExpense(false); setEditingExpense(null); setDuplicating(null); }}
-            defaultGroupId={id}
-            editExpense={editingExpense ?? undefined}
-            template={duplicating ?? undefined}
-          />
+          <AddExpenseSheet open={showAddExpense} onClose={() => setShowAddExpense(false)} defaultGroupId={id} />
         )}
       </AnimatePresence>
 

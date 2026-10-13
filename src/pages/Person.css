@@ -149,6 +149,15 @@
   padding: 6px 0;
 }
 
+.person-history-link {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.person-history-link:hover .person-history-title {
+  text-decoration: underline;
+}
+
 .person-history-date {
   width: 48px;
   flex-shrink: 0;

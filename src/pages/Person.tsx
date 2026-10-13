@@ -27,6 +27,8 @@ const signClass = (n: number) => (Math.abs(n) < 0.005 ? 'zero' : n > 0 ? 'pos' :
 
 interface HistoryRow {
   id: string;
+  /** For an expense: its page. */
+  to?: string;
   date: Date;
   title: string;
   meta: string;
@@ -34,6 +36,15 @@ interface HistoryRow {
   amount: number;
   currency: string;
   payment: boolean;
+}
+
+/** A history row: a link to the expense, or plain for a payment. */
+function HistoryLine({ to, children }: { to?: string; children: React.ReactNode }) {
+  return to ? (
+    <Link to={to} className="person-history-row person-history-link">{children}</Link>
+  ) : (
+    <div className="person-history-row">{children}</div>
+  );
 }
 
 export default function Person() {
@@ -103,6 +114,7 @@ export default function Person() {
       if (!theyPaid && !iPaid) continue;
       rows.push({
         id: e.id,
+        to: e.groupId ? `/groups/${e.groupId}/expenses/${e.id}` : undefined,
         date: e.date,
         title: e.description,
         meta: [theyPaid ? `${person?.name.split(' ')[0]} paid` : 'You paid', groupName(e.groupId)].filter(Boolean).join(' · '),
@@ -244,7 +256,7 @@ export default function Person() {
             ) : (
               <div className="ruled">
                 {shownHistory.map((r) => (
-                  <div key={r.id} className="person-history-row">
+                  <HistoryLine key={r.id} to={r.to}>
                     <span className="num person-history-date" title={formatDate(r.date)}>{formatLedgerDate(r.date)}</span>
                     <span className="person-history-info">
                       <span className="person-history-title">{r.title}</span>
@@ -253,7 +265,7 @@ export default function Person() {
                     <span className={`num person-history-amount ${r.payment ? '' : signClass(r.amount)}`}>
                       {r.payment ? formatCurrency(r.amount, r.currency) : formatSigned(r.amount, r.currency)}
                     </span>
-                  </div>
+                  </HistoryLine>
                 ))}
               </div>
             )}

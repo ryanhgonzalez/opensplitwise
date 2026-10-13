@@ -133,6 +133,15 @@
   display: none;
 }
 
+.dash-expense-link {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.dash-expense-link:hover .dash-expense-desc {
+  text-decoration: underline;
+}
+
 /* Coming up */
 .dash-coming-row {
   color: var(--ink);
