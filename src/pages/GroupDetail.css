@@ -82,26 +82,9 @@
   overflow-wrap: anywhere;
 }
 
-.gd-members {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-}
-
-.gd-member {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 0 8px 0 0;
-  border-radius: var(--radius-full);
+.gd-subline {
   font-size: 13px;
-  color: var(--ink-soft);
-}
-
-.gd-member:hover {
-  color: var(--ink);
-  text-decoration: underline;
+  color: var(--muted);
 }
 
 .gd-header-actions {
@@ -112,40 +95,37 @@
 
 /* Statement */
 .gd-statement {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.gd-statement-extra {
-  display: none !important;
+.gd-statement > * {
+  padding: 12px 10px;
 }
 
 .gd-figure {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .gd-figure-strong {
   font-weight: 600;
 }
 
-/* Grid of sections: mobile order is settle → payments → expenses → balances */
+/* Expenses first, then balances & settling, then repeating */
 .gd-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
-    'settle'
-    'payments'
     'expenses'
-    'repeating'
-    'balances';
+    'settle'
+    'repeating';
   gap: 28px;
 }
 
-.gd-area-settle { grid-area: settle; }
-.gd-area-payments { grid-area: payments; }
+.gd-area-settle { grid-area: settle; min-width: 0; }
 .gd-area-expenses { grid-area: expenses; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.gd-area-balances { grid-area: balances; }
-.gd-area-repeating { grid-area: repeating; }
+.gd-area-repeating { grid-area: repeating; min-width: 0; }
 
 .gd-h2 {
   font-size: 16px;
@@ -185,7 +165,59 @@
   font-weight: 600;
 }
 
+/* Member balances follow the transfers as one list */
+.ruled + .gd-balances {
+  border-top: 0;
+}
+
+.gd-balances .gd-balance {
+  min-height: 48px;
+}
+
+/* "3 completed payments · Show" and similar fold-outs */
+.gd-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: none;
+  font-size: 13px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.gd-toggle-action {
+  font-weight: 500;
+  color: var(--owed);
+}
+
+.gd-toggle:hover .gd-toggle-action,
+.gd-repeat-summary:hover .gd-toggle-action {
+  text-decoration: underline;
+}
+
+.gd-more {
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--owed);
+}
+
+.gd-more:hover {
+  text-decoration: underline;
+}
+
 /* Completed payments */
+.gd-payments > * {
+  border-bottom: 1px solid var(--rule);
+}
+
 .gd-payment {
   display: flex;
   align-items: center;
@@ -392,10 +424,9 @@
   }
 
   .gd {
-    max-width: 1216px;
+    max-width: 1120px;
     width: 100%;
-    margin: 0 auto;
-    padding: 32px 48px 64px;
+    padding: 32px 40px 64px;
     gap: 28px;
   }
 
@@ -411,27 +442,25 @@
     display: flex;
   }
 
-  .gd-statement {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .gd-statement > * {
+    padding: 14px 20px;
   }
 
-  .gd-statement-extra {
-    display: flex !important;
+  .gd-statement > :first-child {
+    padding-left: 0;
   }
 
   .gd-figure {
-    font-size: 26px;
+    font-size: 24px;
   }
 
   .gd-grid {
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
     grid-template-areas:
-      'expenses balances'
       'expenses settle'
-      'expenses payments'
       'expenses repeating'
       'expenses .';
-    grid-template-rows: auto auto auto auto 1fr;
+    grid-template-rows: auto auto 1fr;
     column-gap: 40px;
     row-gap: 32px;
     align-items: start;
@@ -476,6 +505,15 @@
 
   .gd-actions-inner {
     padding-right: 36px;
+  }
+
+  /* The side column is narrow: name and balance only (the person sheet has the rest) */
+  .gd-balances .gd-balance-meta {
+    display: none;
+  }
+
+  .gd-balances .gd-balance {
+    min-height: 44px;
   }
 }
 
@@ -527,4 +565,34 @@
   margin-left: 6px;
   font-size: 12px;
   color: var(--muted);
+}
+
+/* Repeating: one line until opened */
+.gd-repeat-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+}
+
+.gd-repeat-icon {
+  font-size: 16px;
+  color: var(--muted);
+}
+
+.gd-repeat-summary-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.gd-repeat-summary + .ruled {
+  margin-top: 12px;
 }

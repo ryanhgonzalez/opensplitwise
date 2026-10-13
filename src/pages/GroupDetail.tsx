@@ -29,6 +29,9 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   other: 'Other',
 };
 
+/** Expenses listed before "Show all". */
+const EXPENSES_SHOWN = 10;
+
 const signClass = (n: number) => (Math.abs(n) < 0.005 ? 'zero' : n > 0 ? 'pos' : 'neg');
 
 const RECEIPT_ICON = (
@@ -60,6 +63,9 @@ export default function GroupDetail() {
   const [settling, setSettling] = useState<{ from: string; to: string; amount: number } | null>(null);
   const [undoPaymentId, setUndoPaymentId] = useState<string | null>(null);
   const [expenseFilter, setExpenseFilter] = useState<ExpenseFilter>(EMPTY_FILTER);
+  const [showAllExpenses, setShowAllExpenses] = useState(false);
+  const [showPayments, setShowPayments] = useState(false);
+  const [showRepeating, setShowRepeating] = useState(false);
 
   const users = useStore(s => s.users);
   const groups = useStore(s => s.groups);
@@ -105,6 +111,9 @@ export default function GroupDetail() {
     [sortedExpenses, expenseFilter, users, group],
   );
   const filtering = isFilterActive(expenseFilter);
+  // The latest few until asked for all; a search or filter always shows every match.
+  const shownExpenses = filtering || showAllExpenses ? visibleExpenses : visibleExpenses.slice(0, EXPENSES_SHOWN);
+  const hiddenCount = visibleExpenses.length - shownExpenses.length;
   // Offered from every expense in the group, not just the visible ones, so a
   // chosen category doesn't vanish from the row as the other filters narrow.
   const expenseCategories = useMemo(
@@ -134,6 +143,10 @@ export default function GroupDetail() {
   const settlements = calculateSettlements({ expenses, memberIds, settlements: groupSettlements });
   const myBalance = balances[currentUser.id] ?? 0;
   const hasExpenses = expenses.length > 0;
+  const tomorrow = new Date(Date.now() + 86_400_000);
+  const nextRepeat = groupRecurring
+    .map(r => nextOccurrence(r, tomorrow))
+    .sort((a, b) => a.getTime() - b.getTime())[0];
 
   // What each member put in and what their split came to, for the balance rows.
   const paidBy: Record<string, number> = {};
@@ -214,26 +227,13 @@ export default function GroupDetail() {
                   {settingsIcon}
                 </button>
               </div>
-              <div className="gd-members">
-                {group.members.map(m => {
-                  const u = getUserById(m.userId);
-                  if (!u) return null;
-                  return (
-                    <button
-                      key={m.userId}
-                      className="gd-member"
-                      onClick={() => setSelectedMemberId(m.userId)}
-                    >
-                      <Avatar user={u} size="sm" />
-                      <span>{nameOf(m.userId)}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              <p className="gd-subline">
+                {group.members.map(m => nameOf(m.userId)).join(', ')} · {cur}
+              </p>
             </div>
             <div className="gd-header-actions">
               <button className="btn btn-secondary" onClick={() => setShowShare(true)}>Share</button>
-              <button className="btn btn-secondary" onClick={() => setShowEditGroup(true)}>Group settings</button>
+              <button className="btn btn-secondary" onClick={() => setShowEditGroup(true)}>Settings</button>
               <button className="btn btn-primary" onClick={openAddExpense}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -243,7 +243,7 @@ export default function GroupDetail() {
             </div>
           </header>
 
-          {/* Statement */}
+          {/* Summary */}
           <section className="statement gd-statement" aria-label="Group summary">
             <div>
               <span className="cap">Total spent</span>
@@ -257,86 +257,13 @@ export default function GroupDetail() {
                 {Math.abs(myBalance) < 0.005 ? 'Settled up' : formatSigned(myBalance, cur)}
               </span>
             </div>
-            <div className="gd-statement-extra">
-              <span className="cap">Still to settle</span>
-              <span className="num gd-figure">
-                {settlements.length} transfer{settlements.length === 1 ? '' : 's'}
-              </span>
+            <div>
+              <span className="cap">Expenses</span>
+              <span className="num gd-figure">{expenses.length}</span>
             </div>
           </section>
 
           <div className="gd-grid">
-            {/* Outstanding transfers */}
-            {settlements.length > 0 && (
-              <section className="gd-area-settle">
-                <h2 className="gd-h2">To settle</h2>
-                <div className="ruled">
-                  {settlements.map((s, i) => {
-                    const isMyDebt = s.from === currentUser.id;
-                    const isMyCredit = s.to === currentUser.id;
-                    return (
-                      <div key={i} className="gd-transfer">
-                        <span className="gd-transfer-text">
-                          <strong>{nameOf(s.from)}</strong>
-                          <span className="text-secondary"> pays </span>
-                          <strong>{nameOf(s.to, true)}</strong>
-                        </span>
-                        <span className="num gd-transfer-amount">{formatCurrency(s.amount, cur)}</span>
-                        <button
-                          className="btn btn-outline btn-sm"
-                          onClick={() => setSettling({ from: s.from, to: s.to, amount: s.amount })}
-                        >
-                          {isMyDebt ? 'Pay' : isMyCredit ? 'Mark paid' : 'Settle'}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
-
-            {/* Completed payments */}
-            {sortedPayments.length > 0 && (
-              <section className="gd-area-payments">
-                <h2 className="gd-h2">Completed payments</h2>
-                <div className="ruled">
-                  {sortedPayments.map(p => {
-                    const confirming = undoPaymentId === p.id;
-                    return (
-                      <div key={p.id} className="gd-payment">
-                        <span className="gd-payment-info">
-                          <span>
-                            <strong>{nameOf(p.fromUserId)}</strong>
-                            <span className="text-secondary"> paid </span>
-                            <strong>{nameOf(p.toUserId, true)}</strong>
-                          </span>
-                          <span className="num gd-payment-meta">
-                            {formatLedgerDate(p.date)}
-                            {p.paymentMethod ? ` · ${PAYMENT_METHOD_LABELS[p.paymentMethod].toUpperCase()}` : ''}
-                          </span>
-                        </span>
-                        <span className="num gd-payment-amount">{formatCurrency(p.amount, cur)}</span>
-                        {confirming ? (
-                          <span className="gd-payment-confirm">
-                            <button className="btn btn-secondary btn-sm" onClick={() => setUndoPaymentId(null)}>Keep</button>
-                            <button className="btn btn-danger-solid btn-sm" onClick={() => handleUndoPayment(p.id)}>Undo</button>
-                          </span>
-                        ) : (
-                          <button
-                            className="gd-undo"
-                            onClick={() => setUndoPaymentId(p.id)}
-                            aria-label="Undo this payment"
-                          >
-                            Undo
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
-
             {/* Expenses */}
             <section className="gd-area-expenses">
               <div className="gd-section-head">
@@ -382,7 +309,7 @@ export default function GroupDetail() {
                     <span role="columnheader" className="cap gd-right">Your share</span>
                     <span role="columnheader"><span className="sr-only">Actions</span></span>
                   </div>
-                  {visibleExpenses.map(expense => {
+                  {shownExpenses.map(expense => {
                     const net = round(getNetAmountForUser(expense, currentUser.id));
                     const menuOpen = expenseMenuId === expense.id;
                     return (
@@ -473,77 +400,170 @@ export default function GroupDetail() {
                   })}
                 </div>
               )}
+              {hiddenCount > 0 && (
+                <button className="gd-more" onClick={() => setShowAllExpenses(true)}>
+                  Show all {visibleExpenses.length}
+                </button>
+              )}
             </section>
 
-            {/* Repeating expenses */}
-            {groupRecurring.length > 0 && (
-              <section className="gd-area-repeating">
-                <h2 className="gd-h2">Repeating</h2>
-                <div className="ruled">
-                  {groupRecurring.map(r => (
-                    <div key={r.id} className="gd-repeat">
-                      <span className="gd-repeat-info">
-                        <span className="gd-repeat-name">{r.template.description}</span>
-                        <span className="gd-repeat-meta">
-                          {FREQUENCY_LABELS[r.frequency]} · next{' '}
-                          {nextOccurrence(r, new Date(Date.now() + 86_400_000)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          {' · '}{nameOf(r.template.paidBy)} {r.template.paidBy === currentUser.id ? 'pay' : 'pays'}
-                        </span>
-                      </span>
-                      <span className="num">{formatCurrency(r.template.amount, cur)}</span>
-                      {stoppingId === r.id ? (
-                        <span className="gd-payment-confirm">
-                          <button className="btn btn-secondary btn-sm" onClick={() => setStoppingId(null)}>Keep</button>
-                          <button
-                            className="btn btn-danger-solid btn-sm"
-                            onClick={() => {
-                              stopRecurring(r.id);
-                              setStoppingId(null);
-                              showToast({ message: `“${r.template.description}” won’t repeat any more. Past ones stay.` });
-                            }}
-                          >
-                            Stop
-                          </button>
-                        </span>
-                      ) : (
-                        <button className="gd-undo" onClick={() => setStoppingId(r.id)}>Stop</button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Balances */}
-            <section className="gd-area-balances" id="balances">
-              <h2 className="gd-h2">Balances</h2>
+            {/* Who pays whom, where everyone stands, and what's been paid */}
+            <section className="gd-area-settle" id="balances">
+              <h2 className="gd-h2">Balances &amp; settling</h2>
               {!hasExpenses ? (
                 <p className="text-sm text-secondary gd-balances-empty">Add an expense to see balances</p>
               ) : (
-                <div className="ruled">
-                  {group.members.map(m => {
-                    const u = getUserById(m.userId);
-                    if (!u) return null;
-                    const bal = balances[m.userId] ?? 0;
-                    const even = Math.abs(bal) < 0.005;
-                    return (
-                      <button key={m.userId} className="gd-balance" onClick={() => setSelectedMemberId(m.userId)}>
-                        <Avatar user={u} size="sm" />
-                        <span className="gd-balance-info">
-                          <span className="gd-balance-name">{nameOf(m.userId)}</span>
-                          <span className="num gd-balance-meta">
-                            paid {formatCurrency(paidBy[m.userId] ?? 0, cur)} · share {formatCurrency(shareOf[m.userId] ?? 0, cur)}
+                <>
+                  {settlements.length > 0 && (
+                    <div className="ruled">
+                      {settlements.map((s, i) => {
+                        const isMyDebt = s.from === currentUser.id;
+                        const isMyCredit = s.to === currentUser.id;
+                        return (
+                          <div key={i} className="gd-transfer">
+                            <span className="gd-transfer-text">
+                              {nameOf(s.from)} {isMyDebt ? 'pay' : 'pays'} {nameOf(s.to, true)}
+                            </span>
+                            <span className="num gd-transfer-amount">{formatCurrency(s.amount, cur)}</span>
+                            <button
+                              className={`btn btn-sm ${isMyDebt ? 'btn-primary' : 'btn-outline'}`}
+                              onClick={() => setSettling({ from: s.from, to: s.to, amount: s.amount })}
+                            >
+                              {isMyDebt ? 'Pay' : isMyCredit ? 'Received' : 'Settle'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="ruled gd-balances">
+                    {group.members.map(m => {
+                      const u = getUserById(m.userId);
+                      if (!u) return null;
+                      const bal = balances[m.userId] ?? 0;
+                      const even = Math.abs(bal) < 0.005;
+                      return (
+                        <button key={m.userId} className="gd-balance" onClick={() => setSelectedMemberId(m.userId)}>
+                          <Avatar user={u} size="sm" />
+                          <span className="gd-balance-info">
+                            <span className="gd-balance-name">{nameOf(m.userId)}</span>
+                            <span className="num gd-balance-meta">
+                              paid {formatCurrency(paidBy[m.userId] ?? 0, cur)} · share {formatCurrency(shareOf[m.userId] ?? 0, cur)}
+                            </span>
                           </span>
-                        </span>
-                        <span className={`gd-balance-amount ${even ? 'zero' : `num ${signClass(bal)}`}`}>
-                          {even ? 'settled up' : formatSigned(bal, cur)}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                          <span className={`gd-balance-amount ${even ? 'zero' : `num ${signClass(bal)}`}`}>
+                            {even ? 'settled up' : formatSigned(bal, cur)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {sortedPayments.length > 0 && (
+                <>
+                  <button
+                    className="gd-toggle"
+                    onClick={() => setShowPayments(v => !v)}
+                    aria-expanded={showPayments}
+                  >
+                    <span>
+                      {sortedPayments.length} completed {sortedPayments.length === 1 ? 'payment' : 'payments'}
+                    </span>
+                    <span className="gd-toggle-action">{showPayments ? 'Hide' : 'Show'}</span>
+                  </button>
+                  {showPayments && (
+                    <div className="gd-payments">
+                      {sortedPayments.map(p => {
+                        const confirming = undoPaymentId === p.id;
+                        return (
+                          <div key={p.id} className="gd-payment">
+                            <span className="gd-payment-info">
+                              <span>
+                                <strong>{nameOf(p.fromUserId)}</strong>
+                                <span className="text-secondary"> paid </span>
+                                <strong>{nameOf(p.toUserId, true)}</strong>
+                              </span>
+                              <span className="num gd-payment-meta">
+                                {formatLedgerDate(p.date)}
+                                {p.paymentMethod ? ` · ${PAYMENT_METHOD_LABELS[p.paymentMethod].toUpperCase()}` : ''}
+                              </span>
+                            </span>
+                            <span className="num gd-payment-amount">{formatCurrency(p.amount, cur)}</span>
+                            {confirming ? (
+                              <span className="gd-payment-confirm">
+                                <button className="btn btn-secondary btn-sm" onClick={() => setUndoPaymentId(null)}>Keep</button>
+                                <button className="btn btn-danger-solid btn-sm" onClick={() => handleUndoPayment(p.id)}>Undo</button>
+                              </span>
+                            ) : (
+                              <button
+                                className="gd-undo"
+                                onClick={() => setUndoPaymentId(p.id)}
+                                aria-label="Undo this payment"
+                              >
+                                Undo
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
               )}
             </section>
+
+            {/* Repeating expenses, folded into one line until opened */}
+            {groupRecurring.length > 0 && (
+              <section className="gd-area-repeating" aria-label="Repeating expenses">
+                <button
+                  className="gd-repeat-summary"
+                  onClick={() => setShowRepeating(v => !v)}
+                  aria-expanded={showRepeating}
+                >
+                  <span className="gd-repeat-icon" aria-hidden>↻</span>
+                  <span className="gd-repeat-summary-text">
+                    {groupRecurring.length} repeating · next {nextRepeat?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                  <span className="gd-toggle-action">{showRepeating ? 'Done' : 'Manage'}</span>
+                </button>
+                {showRepeating && (
+                    <div className="ruled">
+                      {groupRecurring.map(r => (
+                        <div key={r.id} className="gd-repeat">
+                          <span className="gd-repeat-info">
+                            <span className="gd-repeat-name">{r.template.description}</span>
+                            <span className="gd-repeat-meta">
+                              {FREQUENCY_LABELS[r.frequency]} · next{' '}
+                              {nextOccurrence(r, new Date(Date.now() + 86_400_000)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              {' · '}{nameOf(r.template.paidBy)} {r.template.paidBy === currentUser.id ? 'pay' : 'pays'}
+                            </span>
+                          </span>
+                          <span className="num">{formatCurrency(r.template.amount, cur)}</span>
+                          {stoppingId === r.id ? (
+                            <span className="gd-payment-confirm">
+                              <button className="btn btn-secondary btn-sm" onClick={() => setStoppingId(null)}>Keep</button>
+                              <button
+                                className="btn btn-danger-solid btn-sm"
+                                onClick={() => {
+                                  stopRecurring(r.id);
+                                  setStoppingId(null);
+                                  showToast({ message: `“${r.template.description}” won’t repeat any more. Past ones stay.` });
+                                }}
+                              >
+                                Stop
+                              </button>
+                            </span>
+                          ) : (
+                            <button className="gd-undo" onClick={() => setStoppingId(r.id)}>Stop</button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                )}
+              </section>
+            )}
           </div>
         </div>
       </div>
