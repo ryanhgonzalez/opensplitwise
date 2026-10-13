@@ -32,6 +32,8 @@ export interface ExportPayload {
   tombstones?: Tombstone[];
   userAliases?: Record<string, string>;
   groupSyncedAt?: Record<string, Date>;
+  /** Receipt photos, expense id → data: URL. Full backups carry them unless left out. */
+  receipts?: Record<string, string>;
 }
 
 export interface AppExport {

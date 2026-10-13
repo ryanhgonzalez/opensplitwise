@@ -11,6 +11,7 @@ import {
   snoozeBackupReminder,
 } from '../lib/dataSafety';
 import { formatRelativeDay } from '../utils/format';
+import { photosFor } from '../lib/receiptPhotos';
 import './BackupReminder.css';
 
 /**
@@ -31,8 +32,10 @@ export default function BackupReminder() {
   );
   if (!isBackupReminderDue({ expenses, settlements, groups }, status, backupSnoozedUntil())) return null;
 
-  const backUpNow = () => {
+  const backUpNow = async () => {
     const s = useStore.getState();
+    const withPhotos = s.expenses.filter((e) => e.receipt).map((e) => e.id);
+    const receipts = withPhotos.length ? await photosFor(withPhotos) : undefined;
     downloadExport(
       buildFullExport({
         currentUserId: s.currentUserId,
@@ -45,6 +48,7 @@ export default function BackupReminder() {
         tombstones: s.tombstones,
         userAliases: s.userAliases,
         groupSyncedAt: s.groupSyncedAt,
+        receipts,
       }),
     );
     markBackedUp();

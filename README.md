@@ -15,7 +15,7 @@ A mobile-first expense splitting PWA inspired by Splitwise, built with React and
 - **Theme Toggle** — Light, Dark, and System default modes with no flash on load
 - **Group Sharing** — No server: show a group as a cycling QR code that another phone scans in the app, or send it as a file. Re-sharing merges changes both ways (newer edit wins, deletions carry over)
 - **Multiple Currencies** — Each group has a currency; a single expense can be paid in another one with a rate you enter. Totals across groups are shown per currency, never converted
-- **Receipt Scanning** — Fill an expense, including line items, from a receipt photo, read on the device by PaddleOCR (Tesseract as the fallback)
+- **Receipt Scanning** — Fill an expense, including line items, from a receipt photo, read on the device by PaddleOCR (Tesseract as the fallback). The photo is kept with the expense (on the device, in IndexedDB) and goes into backups
 - **Works Offline** — After one online visit, everything above works with no connection (see below)
 
 ## Tech Stack

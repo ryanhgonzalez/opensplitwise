@@ -7,6 +7,8 @@ import type { CategoryId, Expense, SplitType, ExpenseSplit } from '../types';
 import { BUILT_IN_CATEGORIES, MAX_CATEGORY_NAME, isCustomCategory } from '../lib/categories';
 import { convertSplit, currencySymbol, groupCurrency, recordCurrency } from '../lib/currency';
 import CurrencySelect from './CurrencySelect';
+import ReceiptViewer from './ReceiptViewer';
+import { compressReceiptPhoto, formatBytes, loadPhoto, savePhoto } from '../lib/receiptPhotos';
 import type { TotalCandidate } from '../lib/receiptScanner';
 import { formatCurrency } from '../utils/format';
 import Avatar from './Avatar';
@@ -102,6 +104,54 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const [scanStatus, setScanStatus] = useState('');
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanned, setScanned] = useState(false);
+  // Receipt photo kept with the expense. `newPhoto` is one picked or scanned
+  // in this sheet; otherwise an edited expense keeps its existing photo
+  // unless removed.
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [newPhoto, setNewPhoto] = useState<{ blob: Blob; url: string } | null>(null);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
+  const [removeExisting, setRemoveExisting] = useState(false);
+  const [viewingPhoto, setViewingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const hasExisting = !!editExpense?.receipt && !removeExisting;
+
+  useEffect(() => {
+    if (!open || !editExpense?.receipt) return;
+    let url: string | null = null;
+    let live = true;
+    loadPhoto(editExpense.id)
+      .then((blob) => {
+        if (live && blob) setExistingPhotoUrl((url = URL.createObjectURL(blob)));
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [open, editExpense]);
+
+  const keepPhoto = async (file: Blob) => {
+    setPhotoError(null);
+    try {
+      const blob = await compressReceiptPhoto(file);
+      setNewPhoto((old) => {
+        if (old) URL.revokeObjectURL(old.url);
+        return { blob, url: URL.createObjectURL(blob) };
+      });
+    } catch {
+      setPhotoError('That photo couldn’t be read. Try another one.');
+    }
+  };
+
+  const dropPhoto = () => {
+    if (newPhoto) {
+      URL.revokeObjectURL(newPhoto.url);
+      setNewPhoto(null);
+    } else {
+      setRemoveExisting(true);
+    }
+  };
+
   // Amounts the scan found that could be the total: tap one to use it.
   const [totalCandidates, setTotalCandidates] = useState<TotalCandidate[]>([]);
 
@@ -275,6 +325,8 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     e.target.value = ''; // allow re-picking the same file later
     if (!file) return;
 
+    // The photo is kept with the expense whatever the scan makes of it.
+    void keepPhoto(file);
     setScanning(true);
     setScanError(null);
     setScanStatus('Reading receipt…');
@@ -333,6 +385,8 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const handleSubmit = () => {
     if (!canSubmit) return;
 
+    const receipt = newPhoto ? { bytes: newPhoto.blob.size } : hasExisting ? editExpense!.receipt : undefined;
+
     const expenseDate = dateStr ? fromDateInputValue(dateStr) : new Date();
 
     let amount: number;
@@ -372,9 +426,11 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         date: expenseDate,
         currency: groupCur,
         original,
+        receipt,
       });
+      if (newPhoto) void savePhoto(editExpense.id, newPhoto.blob);
     } else {
-      addExpense({
+      const added = addExpense({
         description: description.trim(),
         amount,
         currency: groupCur,
@@ -384,13 +440,21 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         date: expenseDate,
         split,
         category,
+        receipt,
       });
+      // Saved under the new expense's id, which exists only now.
+      if (newPhoto) void savePhoto(added.id, newPhoto.blob);
     }
 
     handleClose();
   };
 
   const handleClose = () => {
+    if (newPhoto) URL.revokeObjectURL(newPhoto.url);
+    setNewPhoto(null);
+    setRemoveExisting(false);
+    setViewingPhoto(false);
+    setPhotoError(null);
     setDescription(editExpense?.description ?? '');
     setAmountStr(editExpense ? String(editForeign?.amount ?? editExpense.amount) : '');
     setEntryCurrency(editForeign?.currency ?? null);
@@ -501,6 +565,50 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                   )}
                 </div>
               )}
+
+              {/* Receipt photo, kept with the expense on this device */}
+              <div className="aes-photo">
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = '';
+                    if (f) void keepPhoto(f);
+                  }}
+                />
+                {newPhoto || (hasExisting && existingPhotoUrl) ? (
+                  <div className="aes-photo-row">
+                    <button
+                      type="button"
+                      className="aes-photo-thumb"
+                      onClick={() => setViewingPhoto(true)}
+                      aria-label="View receipt photo"
+                    >
+                      <img src={newPhoto?.url ?? existingPhotoUrl!} alt="" />
+                    </button>
+                    <span className="aes-photo-text">
+                      <span className="aes-photo-title">Receipt photo</span>
+                      <span className="aes-photo-sub">
+                        {formatBytes(newPhoto?.blob.size ?? editExpense?.receipt?.bytes ?? 0)} · kept on this device
+                      </span>
+                    </span>
+                    <button type="button" className="aes-photo-action" onClick={() => photoInputRef.current?.click()}>
+                      Replace
+                    </button>
+                    <button type="button" className="aes-photo-action" onClick={dropPhoto}>
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" className="aes-photo-add" onClick={() => photoInputRef.current?.click()}>
+                    + Attach receipt photo
+                  </button>
+                )}
+                {photoError && <div className="aes-scan-msg error">{photoError}</div>}
+              </div>
 
               {/* Amount — hero input */}
               <div className="aes-amount-hero">
@@ -922,6 +1030,14 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                 </div>
               )}
             </div>
+
+            {viewingPhoto && (newPhoto || existingPhotoUrl) && (
+              <ReceiptViewer
+                src={newPhoto?.url ?? existingPhotoUrl!}
+                title={description.trim() || 'Receipt photo'}
+                onClose={() => setViewingPhoto(false)}
+              />
+            )}
 
             <div className="sheet-footer">
               <button className="sheet-cta" onClick={handleSubmit} disabled={!canSubmit}>

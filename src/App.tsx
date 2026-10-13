@@ -15,6 +15,7 @@ import Onboarding from './pages/Onboarding';
 import IdentityPicker from './components/IdentityPicker';
 import InstallGuide from './components/InstallGuide';
 import { requestPersistentStorage } from './lib/dataSafety';
+import { removeOrphanPhotos } from './lib/receiptPhotos';
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -54,12 +55,23 @@ export default function App() {
   const needsIdentity = useStore((s) => s.needsIdentity);
   const theme = useStore((s) => s.theme);
   const hasExpenses = useStore((s) => s.expenses.length > 0);
+  const expenses = useStore((s) => s.expenses);
 
   // Once there's something worth keeping, ask the browser not to clear it.
   // Waiting until then matters in Firefox, which asks the person.
   useEffect(() => {
     if (hasExpenses) void requestPersistentStorage();
   }, [hasExpenses]);
+
+  // Receipt photos whose expense is gone (deleted, merged away, restored over)
+  // are cleared out a moment after expenses change, and once at startup.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const keep = new Set(expenses.filter((e) => e.receipt).map((e) => e.id));
+      removeOrphanPhotos(keep).catch(() => {});
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [expenses]);
 
   // Apply theme to <html data-theme="..."> and keep it in sync
   useEffect(() => {

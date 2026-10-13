@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store';
 import { buildBundle, type GroupBundle } from '../lib/groupSync';
 import { compressBundle, sendBundleFile, toFrames } from '../lib/groupShare';
+import { formatBytes, photosFor } from '../lib/receiptPhotos';
 import '../styles/sheet.css';
 import './GroupShare.css';
 
@@ -26,6 +27,9 @@ export default function ShareGroupSheet({ open, onClose, groupId }: ShareGroupSh
   const [frameIndex, setFrameIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  // Photos only travel in the file, and only if asked: they can make it many times larger.
+  const [includePhotos, setIncludePhotos] = useState(false);
+  const [sending, setSending] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Pack the group as it is right now, each time the sheet opens.
@@ -87,9 +91,18 @@ export default function ShareGroupSheet({ open, onClose, groupId }: ShareGroupSh
     };
   }, [frames, frameIndex, tab]);
 
+  const withPhotos = bundle?.expenses.filter((e) => e.receipt) ?? [];
+  const photoBytes = withPhotos.reduce((n, e) => n + (e.receipt?.bytes ?? 0), 0);
+
   const sendFile = async () => {
     if (!bundle) return;
-    if (await sendBundleFile(bundle)) setSent(true);
+    setSending(true);
+    try {
+      const receipts = includePhotos && withPhotos.length ? await photosFor(withPhotos.map((e) => e.id)) : undefined;
+      if (await sendBundleFile({ ...bundle, receipts })) setSent(true);
+    } finally {
+      setSending(false);
+    }
   };
 
   const expenseCount = bundle?.expenses.length ?? 0;
@@ -154,8 +167,14 @@ export default function ShareGroupSheet({ open, onClose, groupId }: ShareGroupSh
                     For when you're not together: send the group as a file with AirDrop, Messages or email. They open
                     it from <strong>Groups → Receive → Open file</strong>.
                   </p>
-                  <button className="btn btn-primary gs-send" onClick={sendFile} disabled={!bundle}>
-                    Send file
+                  {withPhotos.length > 0 && (
+                    <label className="gs-photos">
+                      <input type="checkbox" checked={includePhotos} onChange={(e) => setIncludePhotos(e.target.checked)} />
+                      <span>Include receipt photos ({withPhotos.length} · +{formatBytes(photoBytes)})</span>
+                    </label>
+                  )}
+                  <button className="btn btn-primary gs-send" onClick={sendFile} disabled={!bundle || sending}>
+                    {sending ? 'Preparing…' : 'Send file'}
                   </button>
                   {sent && <p className="gs-hint">Sent. When they open it, your changes are merged into their copy.</p>}
                 </div>

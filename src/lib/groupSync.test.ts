@@ -125,6 +125,8 @@ describe('re-sharing', () => {
     const { state, summary } = mergeBundle(anas, back, defaultChoice(matches), T(21));
     expect(summary).toMatchObject({ added: 1, updated: 0, deleted: 0, newPeople: 0 });
     expect(state.expenses.find((e) => e.id === 'lunch')).toMatchObject({ paidBy: 'b1' });
+    // Only lunch came from Ben, so only its receipt photo would be taken.
+    expect(summary.receivedIds).toEqual(['lunch']);
     expect(state.expenses.find((e) => e.id === 'dinner')?.paidBy).toBe('a1');
 
     // Next time Ben's phone needn't ask: Ana remembered.

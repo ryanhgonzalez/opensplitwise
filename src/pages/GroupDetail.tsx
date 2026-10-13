@@ -12,6 +12,7 @@ import GroupTile from '../components/GroupTile';
 import AddExpenseSheet from '../components/AddExpenseSheet';
 import EditGroupSheet from '../components/EditGroupSheet';
 import ShareGroupSheet from '../components/ShareGroupSheet';
+import ReceiptViewer from '../components/ReceiptViewer';
 import PersonSheet from '../components/PersonSheet';
 import ExpenseFilterBar from '../components/ExpenseFilterBar';
 import SettleModal from '../components/SettleModal';
@@ -27,6 +28,13 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 };
 
 const signClass = (n: number) => (Math.abs(n) < 0.005 ? 'zero' : n > 0 ? 'pos' : 'neg');
+
+const RECEIPT_ICON = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    <path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
 
 const SHARE_ICON = (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -44,6 +52,7 @@ export default function GroupDetail() {
   const [expenseMenuId, setExpenseMenuId] = useState<string | null>(null);
   const [showEditGroup, setShowEditGroup] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [viewingReceipt, setViewingReceipt] = useState<{ id: string; title: string } | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [settling, setSettling] = useState<{ from: string; to: string; amount: number } | null>(null);
   const [undoPaymentId, setUndoPaymentId] = useState<string | null>(null);
@@ -362,7 +371,19 @@ export default function GroupDetail() {
                             {formatLedgerDate(expense.date)}
                           </span>
                           <span role="cell" className="gd-desc-cell">
-                            <span className="gd-desc">{expense.description}</span>
+                            <span className="gd-desc">
+                              {expense.description}
+                              {expense.receipt && (
+                                <button
+                                  className="gd-receipt-btn"
+                                  onClick={() => setViewingReceipt({ id: expense.id, title: expense.description })}
+                                  aria-label={`Receipt photo for ${expense.description}`}
+                                  title="Receipt photo"
+                                >
+                                  {RECEIPT_ICON}
+                                </button>
+                              )}
+                            </span>
                             <span className="num gd-cat gd-col-wide-inline">{categoryLabel(expense.category, group)}</span>
                             <span className="text-xs text-secondary gd-meta-mobile">
                               {nameOf(expense.paidBy)} paid {expenseAmountLabel(expense)}
@@ -405,6 +426,14 @@ export default function GroupDetail() {
                                 <button className="btn btn-secondary btn-sm" onClick={() => openEditExpense(expense)}>
                                   Edit
                                 </button>
+                                {expense.receipt && (
+                                  <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => setViewingReceipt({ id: expense.id, title: expense.description })}
+                                  >
+                                    Receipt
+                                  </button>
+                                )}
                                 <button className="btn btn-danger btn-sm" onClick={() => handleDeleteExpense(expense.id)}>
                                   Delete
                                 </button>
@@ -475,6 +504,13 @@ export default function GroupDetail() {
 
       {/* Edit group sheet */}
       <AnimatePresence>
+        {viewingReceipt && (
+          <ReceiptViewer
+            expenseId={viewingReceipt.id}
+            title={viewingReceipt.title}
+            onClose={() => setViewingReceipt(null)}
+          />
+        )}
         {showShare && <ShareGroupSheet open={showShare} onClose={() => setShowShare(false)} groupId={group.id} />}
         {showEditGroup && (
           <EditGroupSheet

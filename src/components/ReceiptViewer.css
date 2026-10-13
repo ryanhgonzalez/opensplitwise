@@ -1,0 +1,85 @@
+/* Full-screen receipt photo */
+.rv {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  background: #111;
+  color: #fff;
+  padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
+}
+
+.rv-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 8px 0 16px;
+}
+
+.rv-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rv-close {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.rv-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.rv-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+
+/* Zoomed: the photo at full size, scrolled within the screen */
+.rv-stage.zoomed {
+  display: block;
+  overflow: auto;
+  cursor: zoom-out;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rv-stage.zoomed .rv-img {
+  max-width: none;
+  max-height: none;
+  width: 200%;
+  display: block;
+  margin: 0 auto;
+}
+
+.rv-hint {
+  margin: 0;
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.rv-missing {
+  max-width: 320px;
+  padding: 0 24px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+}

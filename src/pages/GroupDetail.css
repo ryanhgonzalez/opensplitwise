@@ -475,3 +475,21 @@
     padding-right: 36px;
   }
 }
+
+/* Receipt photo kept with an expense */
+.gd-receipt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 6px;
+  vertical-align: -5px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+}
+
+.gd-receipt-btn:hover {
+  background: var(--panel);
+  color: var(--ink);
+}

@@ -47,6 +47,8 @@ export interface GroupBundle {
   expenses: Expense[];
   settlements: Settlement[];
   tombstones: Tombstone[];
+  /** Receipt photos (expense id → data: URL), only in files and only when the sender chose to include them. */
+  receipts?: Record<string, string>;
 }
 
 /** The parts of the store a share reads or changes. */
@@ -157,6 +159,8 @@ export interface MergeSummary {
   /** Names of members who join or leave this phone's copy of an existing group. */
   membersAdded: string[];
   membersRemoved: string[];
+  /** Expenses now as the sender has them (new, or their edit won): their receipt photos apply. */
+  receivedIds: string[];
   /** Descriptions of expenses edited on both phones since the last share, and whose edit was kept. */
   conflicts: { description: string; kept: 'theirs' | 'yours' }[];
 }
@@ -271,6 +275,7 @@ export function mergeBundle(
   const conflicts: MergeSummary['conflicts'] = [];
   const incomingExpenses = new Map(bundle.expenses.map((e) => [e.id, mapExpense(e)]));
   const removedExpenseIds = new Set<string>();
+  const receivedIds: string[] = [];
   const expenses: Expense[] = [];
 
   for (const mine of state.expenses) {
@@ -292,6 +297,7 @@ export function mergeBundle(
     const bothEdited = mine.updatedAt.getTime() > lastSync && theirs.updatedAt.getTime() > lastSync && lastSync > 0;
     if (theirs.updatedAt > mine.updatedAt) {
       expenses.push({ ...theirs, currency });
+      receivedIds.push(theirs.id);
       updated++;
       if (bothEdited) conflicts.push({ description: theirs.description, kept: 'theirs' });
     } else {
@@ -302,6 +308,7 @@ export function mergeBundle(
   for (const theirs of incomingExpenses.values()) {
     if (deletedAfter('expense', theirs.id, theirs.updatedAt)) continue;
     expenses.push({ ...theirs, currency });
+    receivedIds.push(theirs.id);
     added++;
   }
 
@@ -369,6 +376,7 @@ export function mergeBundle(
       newPeople,
       membersAdded,
       membersRemoved,
+      receivedIds,
       conflicts,
     },
   };

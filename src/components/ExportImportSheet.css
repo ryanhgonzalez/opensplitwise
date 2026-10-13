@@ -432,3 +432,22 @@
     flex-direction: row;
   }
 }
+
+/* Receipt photos in a full backup */
+.eis-photos {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.eis-photos input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--ink);
+}

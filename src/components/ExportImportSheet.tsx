@@ -10,6 +10,7 @@ import {
 } from '../lib/dataExport';
 import type { AppExport, ParseResult, ImportStats, ImportMode } from '../lib/dataExport';
 import { lastBackupAt, markBackedUp } from '../lib/dataSafety';
+import { formatBytes, photosFor, savePhotos } from '../lib/receiptPhotos';
 import { formatRelativeDay } from '../utils/format';
 import './ExportImportSheet.css';
 
@@ -126,6 +127,10 @@ export default function ExportImportSheet({
   const [exportTarget, setExportTarget]   = useState<'full' | 'group'>(defaultGroupId ? 'group' : 'full');
   const [exportGroupId, setExportGroupId] = useState(defaultGroupId ?? groups[0]?.id ?? '');
   const [exportDone, setExportDone]       = useState(false);
+  // Receipt photos go into full backups unless left out (they can make the file much larger).
+  const [includePhotos, setIncludePhotos] = useState(true);
+  const withPhotos  = expenses.filter((e) => e.receipt);
+  const photoBytes  = withPhotos.reduce((n, e) => n + (e.receipt?.bytes ?? 0), 0);
 
   // ── Import state ──
   const fileRef = useRef<HTMLInputElement>(null);
@@ -148,10 +153,14 @@ export default function ExportImportSheet({
 
   // ── Export handlers ──────────────────────────────────────────────────────────
 
-  function handleExport() {
+  async function handleExport() {
+    const receipts =
+      exportTarget === 'full' && includePhotos && withPhotos.length
+        ? await photosFor(withPhotos.map((e) => e.id))
+        : undefined;
     const data =
       exportTarget === 'full'
-        ? buildFullExport(statePayload)
+        ? buildFullExport({ ...statePayload, receipts })
         : buildGroupExport(statePayload, exportGroupId);
     if (!data) return;
     downloadExport(data);
@@ -203,6 +212,7 @@ export default function ExportImportSheet({
     try {
       if (importMode === 'replace') {
         restoreAllData(exported.data);
+        void savePhotos(exported.data.receipts);
         // The data on hand is now exactly what's in that file.
         markBackedUp();
         setImportStats({
@@ -213,6 +223,7 @@ export default function ExportImportSheet({
         });
       } else if (importMode === 'merge') {
         const stats = mergeImportData(exported.data);
+        void savePhotos(exported.data.receipts);
         setImportStats(stats);
       } else {
         // new-group: fold whoever the importer said they are into their own
@@ -347,6 +358,16 @@ export default function ExportImportSheet({
                       <span className="eis-option-sub">Members, expenses &amp; settlements</span>
                     </button>
                   </div>
+
+                  {exportTarget === 'full' && withPhotos.length > 0 && (
+                    <label className="eis-photos">
+                      <input type="checkbox" checked={includePhotos} onChange={(e) => setIncludePhotos(e.target.checked)} />
+                      <span>
+                        Include receipt photos ({withPhotos.length} · {formatBytes(photoBytes)}).
+                        Without them, photos can't be restored from this backup.
+                      </span>
+                    </label>
+                  )}
 
                   {/* Group selector */}
                   {exportTarget === 'group' && (

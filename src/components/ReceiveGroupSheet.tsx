@@ -13,6 +13,7 @@ import {
   type SyncState,
 } from '../lib/groupSync';
 import { FrameCollector, decompressBundle, parseBundle } from '../lib/groupShare';
+import { loadPhoto, savePhotos } from '../lib/receiptPhotos';
 import '../styles/sheet.css';
 import './GroupShare.css';
 
@@ -174,9 +175,18 @@ export default function ReceiveGroupSheet({ open, onClose }: ReceiveGroupSheetPr
       ? `Two people are matched to ${chosenTwice.join(', ')}.`
       : null;
 
-  const merge = () => {
+  const merge = async () => {
     if (!bundle || problem) return;
-    applyGroupBundle(bundle, choice);
+    const result = applyGroupBundle(bundle, choice);
+    // Photos that came with the file: for expenses taken from them, and any
+    // this phone has no photo for. A newer photo here is never overwritten.
+    if (bundle.receipts) {
+      const take = new Set(result.receivedIds);
+      for (const id of Object.keys(bundle.receipts)) {
+        if (!take.has(id) && !(await loadPhoto(id).catch(() => undefined))) take.add(id);
+      }
+      await savePhotos(bundle.receipts, take).catch(() => {});
+    }
     const id = bundle.group.id;
     close();
     navigate(`/groups/${id}`);
@@ -301,6 +311,9 @@ export default function ReceiveGroupSheet({ open, onClose }: ReceiveGroupSheetPr
                         summary.newPeople && `${summary.newPeople} new ${summary.newPeople === 1 ? 'person' : 'people'}`,
                         summary.membersAdded.length && `${summary.membersAdded.join(', ')} added`,
                         summary.membersRemoved.length && `${summary.membersRemoved.join(', ')} removed`,
+                        bundle.receipts &&
+                          Object.keys(bundle.receipts).length &&
+                          `${Object.keys(bundle.receipts).length} receipt ${Object.keys(bundle.receipts).length === 1 ? 'photo' : 'photos'}`,
                       ]
                         .filter(Boolean)
                         .join(' · ') || 'Nothing new: your copy is up to date.'}

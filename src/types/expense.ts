@@ -86,7 +86,12 @@ export interface Expense {
    */
   original?: { amount: number; currency: string; rate: number };
   notes?: string;
-  receiptUrl?: string;
+  /**
+   * Set when a photo of the receipt is kept with the expense. The photo
+   * itself is on this device, in IndexedDB under the expense's id
+   * (src/lib/receiptPhotos.ts); this just says there is one, and its size.
+   */
+  receipt?: { bytes: number };
   createdAt: Date;
   updatedAt: Date;
 }
