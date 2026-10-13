@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from './store';
 import BottomNav from './components/BottomNav';
@@ -8,7 +8,6 @@ import Dashboard from './pages/Dashboard';
 import Groups from './pages/Groups';
 import GroupDetail from './pages/GroupDetail';
 import Activity from './pages/Activity';
-import SettleUp from './pages/SettleUp';
 import Insights from './pages/Insights';
 import People from './pages/People';
 import Settings from './pages/Settings';
@@ -43,7 +42,8 @@ function AnimatedRoutes() {
           <Route path="/groups" element={<Groups />} />
           <Route path="/groups/:id" element={<GroupDetail />} />
           <Route path="/activity" element={<Activity />} />
-          <Route path="/settle" element={<SettleUp />} />
+          {/* Settling moved to Home and each group; keep old links working */}
+          <Route path="/settle" element={<Navigate to="/" replace />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/people" element={<People />} />
           <Route path="/settings" element={<Settings />} />

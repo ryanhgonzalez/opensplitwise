@@ -43,25 +43,23 @@
 }
 
 .dash-statement {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .dash-statement > :first-child {
-  grid-column: 1 / -1;
   padding-right: 0;
-  padding-bottom: 10px;
 }
 
+/* Phones show the net only; the parts are on desktop */
 .dash-statement > .dash-statement-part {
-  border-left: 0;
-  border-top: 1px solid var(--rule);
-  padding-top: 10px;
-  padding-left: 0;
+  display: none;
 }
 
-.dash-statement > .dash-statement-part + .dash-statement-part {
-  border-left: 1px solid var(--rule);
-  padding-left: 14px;
+/* Several currencies sit side by side */
+.dash-nets {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 16px;
 }
 
 .dash-part-amount {
@@ -82,57 +80,71 @@
   min-width: 0;
 }
 
-/* Tabs */
-.dash-tabs {
-  display: flex;
-  gap: 20px;
-  border-bottom: 1px solid var(--rule);
+.dash-empty {
+  padding: 16px 0;
 }
 
-.dash-tab {
-  min-height: 44px;
-  padding: 0;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  background: none;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--muted);
-}
-
-.dash-tab.active {
-  border-bottom-color: var(--ink);
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.dash-person {
+/* To settle */
+.dash-settle {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 56px;
-  border-bottom: 1px solid var(--rule);
+  min-height: 60px;
 }
 
-.dash-person-info {
+.dash-settle-info {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
-.dash-person-name {
+.dash-settle-who {
   font-weight: 500;
 }
 
-.dash-person-amount {
+.dash-settle-group {
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-settle-group:hover {
+  color: var(--owed);
+  text-decoration: underline;
+}
+
+.dash-settle-amount {
   font-weight: 600;
 }
 
-.dash-empty {
-  padding: 16px 0;
-  border-bottom: 1px solid var(--rule);
+.dash-settle-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Phones keep one action per row */
+.dash-remind,
+.dash-wide-only {
+  display: none;
+}
+
+/* Coming up */
+.dash-coming-row {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.dash-coming-row:hover .dash-expense-desc {
+  text-decoration: underline;
+}
+
+.dash-coming-amount {
+  font-size: 14px;
 }
 
 /* Section heads */
@@ -202,68 +214,16 @@
   text-align: right;
 }
 
-/* Groups: a row of three on phones, a ruled column on desktop */
-.dash-group-list {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.dash-group-list::-webkit-scrollbar {
+/* The side column (coming up, groups) is desktop only */
+.dash-side {
   display: none;
-}
-
-.dash-group {
-  flex: 1 0 110px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 10px 12px;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-md);
-  background: var(--paper);
-  text-align: left;
-  color: var(--ink);
-}
-
-.dash-group:hover {
-  background: var(--panel);
-}
-
-.dash-group > span[aria-hidden] {
-  display: none !important;
-}
-
-.dash-group-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.dash-group-name {
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dash-group-meta {
-  display: none;
-}
-
-.dash-group-bal {
-  font-size: 12px;
 }
 
 /* ── Desktop ───────────────────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
   .dash {
-    max-width: 1216px;
-    margin: 0 auto;
-    padding: 32px 48px 64px;
+    max-width: 1120px;
+    padding: 32px 40px 64px;
     gap: 28px;
   }
 
@@ -289,8 +249,8 @@
     padding: 16px 20px 16px 0;
   }
 
-  .dash-statement > .dash-statement-part,
-  .dash-statement > .dash-statement-part + .dash-statement-part {
+  .dash-statement > .dash-statement-part {
+    display: flex;
     border-top: 0;
     border-left: 1px solid var(--rule);
     padding: 16px 20px;
@@ -313,18 +273,31 @@
     gap: 32px;
   }
 
-  .dash-tabs {
-    gap: 24px;
-    border-bottom: 1px solid var(--ink);
+  .dash-remind,
+  .dash-wide-only {
+    display: inline;
   }
 
-  .dash-tab {
-    font-size: 15px;
-    border-bottom-width: 3px;
+  .dash-remind {
+    display: inline-flex;
   }
 
-  .dash-person {
+  .dash-narrow-only {
+    display: none;
+  }
+
+  .dash-settle {
     min-height: 60px;
+  }
+
+  .dash-settle-info {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .dash-settle-group::before {
+    content: '· ';
   }
 
   .dash-section-head h2 {
@@ -335,52 +308,50 @@
     display: block;
   }
 
-  .dash-groups {
+  .dash-side {
     flex: 0 0 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
   }
 
   .dash-group-list {
+    display: flex;
     flex-direction: column;
-    gap: 0;
-    overflow: visible;
     border-top: 1px solid var(--ink);
   }
 
   .dash-group {
-    flex: none;
-    flex-direction: row;
+    display: flex;
     align-items: center;
     gap: 12px;
+    width: 100%;
     min-height: 64px;
     padding: 0;
     border: 0;
     border-bottom: 1px solid var(--rule);
-    border-radius: 0;
     background: none;
-  }
-
-  .dash-group:hover {
-    background: none;
+    text-align: left;
+    color: var(--ink);
   }
 
   .dash-group:hover .dash-group-name {
     text-decoration: underline;
   }
 
-  .dash-group > span[aria-hidden] {
-    display: inline-flex !important;
-  }
-
   .dash-group-info {
     flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .dash-group-name {
     font-size: 14px;
-  }
-
-  .dash-group-meta {
-    display: block;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .dash-group-bal {
