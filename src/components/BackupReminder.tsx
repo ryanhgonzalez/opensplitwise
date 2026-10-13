@@ -1,17 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../store';
-import { selectFriendBalances } from '../store/selectors';
-import { buildFullExport, downloadExport } from '../lib/dataExport';
+import { downloadFullBackup } from '../lib/backupNow';
 import {
   backupSnoozedUntil,
   backupStatus,
   isBackupReminderDue,
   lastBackupAt,
-  markBackedUp,
   snoozeBackupReminder,
 } from '../lib/dataSafety';
 import { formatRelativeDay } from '../utils/format';
-import { photosFor } from '../lib/receiptPhotos';
 import './BackupReminder.css';
 
 /**
@@ -33,26 +30,7 @@ export default function BackupReminder() {
   if (!isBackupReminderDue({ expenses, settlements, groups }, status, backupSnoozedUntil())) return null;
 
   const backUpNow = async () => {
-    const s = useStore.getState();
-    const withPhotos = s.expenses.filter((e) => e.receipt).map((e) => e.id);
-    const receipts = withPhotos.length ? await photosFor(withPhotos) : undefined;
-    downloadExport(
-      buildFullExport({
-        currentUserId: s.currentUserId,
-        users: s.users,
-        groups: s.groups,
-        expenses: s.expenses,
-        settlements: s.settlements,
-        activities: s.activities,
-        friendBalances: selectFriendBalances(s),
-        tombstones: s.tombstones,
-        userAliases: s.userAliases,
-        groupSyncedAt: s.groupSyncedAt,
-        recurring: s.recurring,
-        receipts,
-      }),
-    );
-    markBackedUp();
+    await downloadFullBackup();
     setTick((t) => t + 1);
   };
 

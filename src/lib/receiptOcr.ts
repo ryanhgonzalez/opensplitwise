@@ -185,6 +185,18 @@ function loadOrt() {
  */
 const CACHE = 'ocr-files';
 
+/** Whether the model's files are already saved, so scanning works offline. */
+export async function isOcrDownloaded(model: OcrModel = RECEIPT_OCR): Promise<boolean> {
+  if (typeof caches === 'undefined') return false;
+  try {
+    const cache = await caches.open(CACHE);
+    const hits = await Promise.all([model.det, model.rec].map((url) => cache.match(url)));
+    return hits.every(Boolean);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Loads several files from the cache, downloading (and caching) any that are
  * missing with their combined progress reported. Cached entries that aren't

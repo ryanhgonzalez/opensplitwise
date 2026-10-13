@@ -7,7 +7,7 @@
   .side-nav {
     display: flex;
     flex-direction: column;
-    gap: 28px;
+    gap: 20px;
     width: 248px;
     flex-shrink: 0;
     height: 100vh;
@@ -64,7 +64,6 @@
 
   .side-nav-add-btn {
     width: 100%;
-    margin-bottom: -12px;
   }
 
   .side-nav-user {
@@ -72,12 +71,20 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 16px 0 0;
-    border: 0;
-    border-top: 1px solid var(--rule);
-    background: none;
-    text-align: left;
+    padding: 10px;
+    border-radius: var(--radius-md);
+    text-decoration: none;
     color: var(--ink);
+    transition: background var(--transition-fast);
+  }
+
+  .side-nav-user:hover {
+    background: var(--rule);
+  }
+
+  .side-nav-user.active {
+    background: var(--paper);
+    box-shadow: 0 0 0 1px var(--rule);
   }
 
   .side-nav-user-info {

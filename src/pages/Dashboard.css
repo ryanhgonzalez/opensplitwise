@@ -29,10 +29,6 @@
   justify-content: center;
 }
 
-.dash-add-btn {
-  display: none;
-}
-
 /* Statement */
 .dash-net {
   font-size: 38px;
@@ -262,20 +258,6 @@
   font-size: 12px;
 }
 
-/* FAB */
-.fab-fixed {
-  position: fixed;
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
-  right: calc(50vw - 215px + 20px);
-  z-index: 150;
-}
-
-@media (max-width: 430px) {
-  .fab-fixed {
-    right: 20px;
-  }
-}
-
 /* ── Desktop ───────────────────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
   .dash {
@@ -296,10 +278,6 @@
 
   .dash-account-btn {
     display: none;
-  }
-
-  .dash-add-btn {
-    display: inline-flex;
   }
 
   .dash-statement {

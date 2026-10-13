@@ -11,6 +11,7 @@ import Activity from './pages/Activity';
 import SettleUp from './pages/SettleUp';
 import Insights from './pages/Insights';
 import People from './pages/People';
+import Settings from './pages/Settings';
 import Onboarding from './pages/Onboarding';
 import IdentityPicker from './components/IdentityPicker';
 import InstallGuide from './components/InstallGuide';
@@ -45,6 +46,7 @@ function AnimatedRoutes() {
           <Route path="/settle" element={<SettleUp />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/people" element={<People />} />
+          <Route path="/settings" element={<Settings />} />
         </Routes>
       </motion.div>
     </AnimatePresence>

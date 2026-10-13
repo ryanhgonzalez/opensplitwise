@@ -65,22 +65,3 @@
   background: var(--rule);
 }
 
-/* Floating add button: an ink square */
-.glass-fab {
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
-  background: var(--ink);
-  border: 0;
-  box-shadow: 0 6px 18px rgba(21, 23, 28, 0.25);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--on-ink);
-  transition: transform var(--transition-fast);
-}
-
-.glass-fab:active {
-  transform: scale(0.96);
-}

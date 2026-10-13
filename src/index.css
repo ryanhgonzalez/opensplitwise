@@ -151,11 +151,6 @@ input[type='radio']:focus-visible {
   .bottom-nav {
     display: none !important;
   }
-
-  /* FAB hidden on desktop — sidebar Add Expense button replaces it */
-  .fab-fixed {
-    display: none;
-  }
 }
 
 /* Typography scale */

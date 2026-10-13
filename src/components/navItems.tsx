@@ -1,9 +1,7 @@
-/** The six destinations, shared by the desktop sidebar and the mobile tab bar. */
+/** The four destinations, shared by the desktop sidebar and the mobile tab bar. */
 export interface NavItem {
   to: string;
   label: string;
-  /** Shorter label for the six-across mobile tab bar. */
-  shortLabel: string;
   /** One stroke path on a 24 × 24 grid. */
   path: string;
 }
@@ -11,38 +9,22 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   {
     to: '/',
-    label: 'Dashboard',
-    shortLabel: 'Home',
+    label: 'Home',
     path: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z',
   },
   {
     to: '/groups',
     label: 'Groups',
-    shortLabel: 'Groups',
     path: 'M9 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.9.7 3.1 2.4 3.5 5.2',
   },
   {
     to: '/people',
     label: 'People',
-    shortLabel: 'People',
     path: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1-4 4-6 8-6s7 2 8 6',
-  },
-  {
-    to: '/activity',
-    label: 'Activity',
-    shortLabel: 'Activity',
-    path: 'M3 12h4l3-8 4 16 3-8h4',
-  },
-  {
-    to: '/settle',
-    label: 'Settle Up',
-    shortLabel: 'Settle',
-    path: 'M7 7h13l-4-4M17 17H4l4 4',
   },
   {
     to: '/insights',
     label: 'Insights',
-    shortLabel: 'Insights',
     path: 'M5 20V11M11 20V5M17 20v-6M3 20h18',
   },
 ];

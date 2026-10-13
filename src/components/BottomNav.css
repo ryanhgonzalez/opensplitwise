@@ -1,4 +1,4 @@
-/* Mobile tab bar: six destinations across a flat panel strip. */
+/* Mobile tab bar: four destinations with the Add button in the middle. */
 .bottom-nav {
   position: fixed;
   left: 0;
@@ -6,7 +6,7 @@
   bottom: 0;
   z-index: 200;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   max-width: 430px;
   margin: 0 auto;
   height: calc(64px + env(safe-area-inset-bottom, 0px));
@@ -32,10 +32,33 @@
 }
 
 .bottom-nav-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
 }
 
 .bottom-nav-tab.active .bottom-nav-label {
   font-weight: 600;
+}
+
+.bottom-nav-add-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bottom-nav-add {
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--ink);
+  color: var(--on-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition-fast);
+}
+
+.bottom-nav-add:active {
+  transform: scale(0.94);
 }

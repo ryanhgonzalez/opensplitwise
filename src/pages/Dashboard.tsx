@@ -3,8 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 import GroupTile from '../components/GroupTile';
-import AddExpenseSheet from '../components/AddExpenseSheet';
-import AccountMenuSheet from '../components/AccountMenuSheet';
 import BackupReminder from '../components/BackupReminder';
 import { useStore, selectCurrentUser, selectMainCurrency, selectOverallBalances, selectRecentExpenses, selectGroupTotals } from '../store';
 import { expenseAmountLabel, groupCurrency, recordCurrency } from '../lib/currency';
@@ -15,8 +13,6 @@ type BalanceTab = 'owe' | 'owed';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<BalanceTab>('owed');
-  const [showAddExpense, setShowAddExpense] = useState(false);
-  const [showAccountMenu, setShowAccountMenu] = useState(false);
   const navigate = useNavigate();
 
   const currentUser = useStore(selectCurrentUser)!;
@@ -55,19 +51,9 @@ export default function Dashboard() {
             <p className="text-secondary text-sm">{greeting}</p>
             <h1 className="dash-name">{currentUser.name}</h1>
           </div>
-          <button
-            className="dash-account-btn"
-            aria-label="Account menu"
-            onClick={() => setShowAccountMenu(true)}
-          >
+          <Link to="/settings" className="dash-account-btn" aria-label="Settings">
             <Avatar user={currentUser} size="lg" />
-          </button>
-          <button className="btn btn-primary dash-add-btn" onClick={() => setShowAddExpense(true)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            Add expense
-          </button>
+          </Link>
         </header>
 
         {/* Overall balance */}
@@ -234,34 +220,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* FAB (mobile) */}
-      <button
-        className="glass-fab fab-fixed"
-        aria-label="Add expense"
-        onClick={() => setShowAddExpense(true)}
-      >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-      </button>
-
-      <AnimatePresence>
-        {showAddExpense && (
-          <AddExpenseSheet
-            open={showAddExpense}
-            onClose={() => setShowAddExpense(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showAccountMenu && (
-          <AccountMenuSheet
-            open={showAccountMenu}
-            onClose={() => setShowAccountMenu(false)}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }
