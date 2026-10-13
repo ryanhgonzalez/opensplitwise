@@ -615,6 +615,12 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                   {scanned && !scanError && (
                     <div className="aes-scan-msg ok">Filled from receipt — double-check the details below.</div>
                   )}
+                  {/* The items split only shows once there's a group, so say they're waiting */}
+                  {!selectedGroup && lineItems.length > 0 && (
+                    <div className="aes-scan-msg ok">
+                      {lineItems.length} {lineItems.length === 1 ? 'item' : 'items'} read · pick a group below to split them by item
+                    </div>
+                  )}
                 </div>
               )}
 
