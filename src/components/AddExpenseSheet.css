@@ -734,3 +734,13 @@
 .aes-amount-hero:focus-within {
   border-top-color: var(--owed);
 }
+
+/* Editing one repeat of a recurring expense */
+.aes-repeat-note {
+  margin: -6px 0 18px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  font-size: 13px;
+  color: var(--ink);
+}

@@ -136,6 +136,7 @@
     'settle'
     'payments'
     'expenses'
+    'repeating'
     'balances';
   gap: 28px;
 }
@@ -144,6 +145,7 @@
 .gd-area-payments { grid-area: payments; }
 .gd-area-expenses { grid-area: expenses; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .gd-area-balances { grid-area: balances; }
+.gd-area-repeating { grid-area: repeating; }
 
 .gd-h2 {
   font-size: 16px;
@@ -427,8 +429,9 @@
       'expenses balances'
       'expenses settle'
       'expenses payments'
+      'expenses repeating'
       'expenses .';
-    grid-template-rows: auto auto auto 1fr;
+    grid-template-rows: auto auto auto auto 1fr;
     column-gap: 40px;
     row-gap: 32px;
     align-items: start;
@@ -492,4 +495,36 @@
 .gd-receipt-btn:hover {
   background: var(--panel);
   color: var(--ink);
+}
+
+/* Repeating expenses */
+.gd-repeat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.gd-repeat-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gd-repeat-name {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.gd-repeat-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.gd-repeat-mark {
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--muted);
 }

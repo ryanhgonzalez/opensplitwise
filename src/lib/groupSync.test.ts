@@ -52,6 +52,7 @@ const phone = (me: User, others: User[], over: Partial<SyncState> = {}): SyncSta
   tombstones: [],
   userAliases: {},
   groupSyncedAt: {},
+  recurring: [],
   ...over,
 });
 
@@ -279,5 +280,34 @@ describe('receipt items', () => {
       ['Bacalhau', ['a2']],
       ['Wine', ['a2', 'b2']],
     ]);
+  });
+});
+
+describe('recurring expenses', () => {
+  const rule = {
+    id: 'rent', groupId: 'trip', frequency: 'monthly' as const, startDate: T(0), createdAt: T(0), updatedAt: T(0),
+    template: {
+      description: 'Rent', amount: 1000, currency: 'EUR', paidBy: 'a1', category: 'rent' as const,
+      split: { type: 'equal' as const, entries: [{ userId: 'a1', amount: 500 }, { userId: 'b1', amount: 500 }] },
+    },
+  };
+
+  it('travel with the group, people translated; the same month added on both phones is one expense', () => {
+    const month = { ...expense('rent:2026-10-01', 'a1', ['a1', 'b1'], 1000, T(0), 'Rent') };
+    const anas = { ...anasPhone(), recurring: [rule], expenses: [month] };
+    const bensMonth = { ...month, paidBy: 'a2', split: { type: 'equal' as const, entries: [{ userId: 'a2', amount: 500 }, { userId: 'b2', amount: 500 }] } };
+    const bens = phone(ben, [anaOnBen], { groups: [trip(['a2', 'b2'])], expenses: [bensMonth], userAliases: { a1: 'a2', b1: 'b2' } });
+    const { state, summary } = mergeBundle(bens, buildBundle(anas, 'trip', T(10))!, {}, T(10));
+    expect(state.recurring[0].template.paidBy).toBe('a2');
+    expect(state.recurring[0].template.split.entries.map((e) => e.userId)).toEqual(['a2', 'b2']);
+    expect(state.expenses.filter((e) => e.description === 'Rent')).toHaveLength(1);
+    expect(summary.added).toBe(0);
+  });
+
+  it('stopping travels', () => {
+    const bens = phone(ben, [anaOnBen], { groups: [trip(['a2', 'b2'])], recurring: [rule], userAliases: { a1: 'a2', b1: 'b2' } });
+    const anas = { ...anasPhone(), tombstones: [{ id: 'rent', kind: 'recurring' as const, groupId: 'trip', deletedAt: T(20) }] };
+    const { state } = mergeBundle(bens, buildBundle(anas, 'trip', T(21))!, {}, T(21));
+    expect(state.recurring).toEqual([]);
   });
 });

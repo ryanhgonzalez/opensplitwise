@@ -1,4 +1,6 @@
 import type {
+  RecurringExpense,
+  RecurringTemplate,
   Activity,
   CustomCategory,
   Expense,
@@ -47,6 +49,8 @@ export interface GroupBundle {
   expenses: Expense[];
   settlements: Settlement[];
   tombstones: Tombstone[];
+  /** The group's repeating expenses. Absent in bundles from before them. */
+  recurring?: RecurringExpense[];
   /** Receipt photos (expense id → data: URL), only in files and only when the sender chose to include them. */
   receipts?: Record<string, string>;
 }
@@ -64,6 +68,7 @@ export interface SyncState {
   userAliases: Record<string, string>;
   /** groupId → when it was last received from someone. */
   groupSyncedAt: Record<string, Date>;
+  recurring: RecurringExpense[];
 }
 
 const editedAt = (g: Pick<Group, 'updatedAt' | 'createdAt'>) => g.updatedAt ?? g.createdAt;
@@ -98,6 +103,7 @@ export function buildBundle(state: SyncState, groupId: string, now = new Date())
     expenses,
     settlements,
     tombstones: state.tombstones.filter((t) => t.groupId === groupId),
+    recurring: state.recurring.filter((r) => r.groupId === groupId),
   };
 }
 
@@ -206,6 +212,12 @@ export function mergeBundle(
     paidBy: map(e.paidBy),
     split: { ...e.split, entries: e.split.entries.map((en) => ({ ...en, userId: map(en.userId) })) },
     ...(e.items && { items: e.items.map((it) => ({ ...it, assigned: it.assigned.map(map) })) }),
+  });
+  const mapTemplate = (t: RecurringTemplate): RecurringTemplate => ({
+    ...t,
+    paidBy: map(t.paidBy),
+    split: { ...t.split, entries: t.split.entries.map((en) => ({ ...en, userId: map(en.userId) })) },
+    ...(t.items && { items: t.items.map((it) => ({ ...it, assigned: it.assigned.map(map) })) }),
   });
   const mapSettlement = (s: Settlement): Settlement => ({ ...s, fromUserId: map(s.fromUserId), toUserId: map(s.toUserId) });
 
@@ -331,6 +343,15 @@ export function mergeBundle(
     added++;
   }
 
+  // ── Repeating expenses: the newer version of each wins; a stopped one stays stopped.
+  const recurringById = new Map(state.recurring.map((r) => [r.id, r]));
+  for (const incoming of bundle.recurring ?? []) {
+    const theirs: RecurringExpense = { ...incoming, template: mapTemplate(incoming.template) };
+    const mine = recurringById.get(theirs.id);
+    if (!mine || theirs.updatedAt > mine.updatedAt) recurringById.set(theirs.id, theirs);
+  }
+  const recurring = [...recurringById.values()].filter((r) => !(r.groupId === groupId && isDeleted('recurring', r.id)));
+
   // ── Activity: drop entries for what's gone, add one summary entry.
   const activities = state.activities.filter((a) => {
     if ((a.type === 'expense_added' || a.type === 'expense_updated') && removedExpenseIds.has(a.expenseId)) return false;
@@ -367,6 +388,7 @@ export function mergeBundle(
       tombstones: [...tombs.values()],
       userAliases: aliases,
       groupSyncedAt: { ...state.groupSyncedAt, [groupId]: now },
+      recurring,
     },
     summary: {
       groupName: group.name,

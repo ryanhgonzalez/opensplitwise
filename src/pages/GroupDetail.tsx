@@ -14,6 +14,7 @@ import EditGroupSheet from '../components/EditGroupSheet';
 import ShareGroupSheet from '../components/ShareGroupSheet';
 import ReceiptViewer from '../components/ReceiptViewer';
 import { showToast } from '../lib/toast';
+import { FREQUENCY_LABELS, nextOccurrence, ruleIdOf } from '../lib/recurring';
 import PersonSheet from '../components/PersonSheet';
 import ExpenseFilterBar from '../components/ExpenseFilterBar';
 import SettleModal from '../components/SettleModal';
@@ -66,6 +67,10 @@ export default function GroupDetail() {
   const allSettlements = useStore(s => s.settlements);
   const deleteExpense = useStore(s => s.deleteExpense);
   const undoExpenseDelete = useStore(s => s.undoExpenseDelete);
+  const allRecurring = useStore(s => s.recurring);
+  const stopRecurring = useStore(s => s.stopRecurring);
+  const [stoppingId, setStoppingId] = useState<string | null>(null);
+  const groupRecurring = useMemo(() => allRecurring.filter(r => r.groupId === id), [allRecurring, id]);
   const addSettlement = useStore(s => s.addSettlement);
   const deleteSettlement = useStore(s => s.deleteSettlement);
   const currentUser = useStore(selectCurrentUser)!;
@@ -389,6 +394,9 @@ export default function GroupDetail() {
                           <span role="cell" className="gd-desc-cell">
                             <span className="gd-desc">
                               {expense.description}
+                              {ruleIdOf(expense.id) && allRecurring.some(r => r.id === ruleIdOf(expense.id)) && (
+                                <span className="gd-repeat-mark" title="Repeating expense" aria-label="Repeating expense">↻</span>
+                              )}
                               {expense.receipt && (
                                 <button
                                   className="gd-receipt-btn"
@@ -466,6 +474,45 @@ export default function GroupDetail() {
                 </div>
               )}
             </section>
+
+            {/* Repeating expenses */}
+            {groupRecurring.length > 0 && (
+              <section className="gd-area-repeating">
+                <h2 className="gd-h2">Repeating</h2>
+                <div className="ruled">
+                  {groupRecurring.map(r => (
+                    <div key={r.id} className="gd-repeat">
+                      <span className="gd-repeat-info">
+                        <span className="gd-repeat-name">{r.template.description}</span>
+                        <span className="gd-repeat-meta">
+                          {FREQUENCY_LABELS[r.frequency]} · next{' '}
+                          {nextOccurrence(r, new Date(Date.now() + 86_400_000)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {' · '}{nameOf(r.template.paidBy)} {r.template.paidBy === currentUser.id ? 'pay' : 'pays'}
+                        </span>
+                      </span>
+                      <span className="num">{formatCurrency(r.template.amount, cur)}</span>
+                      {stoppingId === r.id ? (
+                        <span className="gd-payment-confirm">
+                          <button className="btn btn-secondary btn-sm" onClick={() => setStoppingId(null)}>Keep</button>
+                          <button
+                            className="btn btn-danger-solid btn-sm"
+                            onClick={() => {
+                              stopRecurring(r.id);
+                              setStoppingId(null);
+                              showToast({ message: `“${r.template.description}” won’t repeat any more. Past ones stay.` });
+                            }}
+                          >
+                            Stop
+                          </button>
+                        </span>
+                      ) : (
+                        <button className="gd-undo" onClick={() => setStoppingId(r.id)}>Stop</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Balances */}
             <section className="gd-area-balances" id="balances">

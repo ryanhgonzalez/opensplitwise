@@ -16,7 +16,11 @@ import type {
   CustomCategory,
   CustomCategoryId,
   Tombstone,
+  RecurringExpense,
+  RecurringTemplate,
+  RepeatFrequency,
 } from '../types';
+import { dueRepeats, ruleIdOf } from '../lib/recurring';
 import { mergeBundle, type GroupBundle, type MergeSummary, type PeopleChoice } from '../lib/groupSync';
 import type { ExportPayload, ImportStats } from '../lib/dataExport';
 import { cleanCategoryName, findCategoryByName } from '../lib/categories';
@@ -86,6 +90,8 @@ export interface AppStore {
   userAliases: Record<string, string>;
   /** groupId → when it was last received from someone. */
   groupSyncedAt: Record<string, Date>;
+  /** Repeating expenses (rent, bills); each repeat is added as an ordinary expense when due. */
+  recurring: RecurringExpense[];
 
   // ── Theme ──
   setTheme: (theme: ThemeMode) => void;
@@ -141,6 +147,24 @@ export interface AppStore {
   restoreAllData: (payload: ExportPayload) => void;
   mergeImportData: (payload: ExportPayload) => ImportStats;
 
+  // ── Recurring ──
+  /** Sets up a repeating expense and adds any repeats already due (the first, if it starts today or earlier). */
+  addRecurring: (input: {
+    groupId: string;
+    frequency: RepeatFrequency;
+    startDate: Date;
+    template: RecurringTemplate;
+    /** A receipt photo for the first repeat (the one on the start date). */
+    receipt?: Expense['receipt'];
+  }) => {
+    rule: RecurringExpense;
+    added: Expense[];
+  };
+  /** Stops a repeat; expenses it already added stay. */
+  stopRecurring: (id: string) => void;
+  /** Adds every repeat that has come due, on its own date. Returns them. */
+  addDueRecurring: (today?: Date) => Expense[];
+
   // ── Sharing ──
   /** Merges a group received from another phone; returns what changed. */
   applyGroupBundle: (bundle: GroupBundle, people: PeopleChoice) => MergeSummary;
@@ -187,6 +211,20 @@ function debtCleared(
   const buckets = outstandingByGroup(expenses, settlements, fromUserId, toUserId, currency);
   const inScope = groupId ? buckets.filter((b) => b.groupId === groupId) : buckets;
   return inScope.reduce((sum, b) => sum + b.outstanding, 0) <= EPSILON;
+}
+
+/** What a recurring expense repeats, taken from one of its expenses. */
+function templateOf(e: Expense): RecurringTemplate {
+  return {
+    description: e.description,
+    amount: e.amount,
+    currency: e.currency,
+    original: e.original,
+    paidBy: e.paidBy,
+    split: e.split,
+    category: e.category,
+    items: e.items,
+  };
 }
 
 function touchGroups(groups: Group[], groupIds: Set<string>, when: Date): Group[] {
@@ -262,6 +300,7 @@ export const useStore = create<AppStore>()(
         tombstones: [],
         userAliases: {},
         groupSyncedAt: {},
+        recurring: [],
 
         // ── Theme ────────────────────────────────────────────────────────────
 
@@ -348,11 +387,24 @@ export const useStore = create<AppStore>()(
           // An expense can be moved between groups, so both ends need touching.
           const touched = new Set([old.groupId, updated.groupId].filter(Boolean) as string[]);
 
+          // Editing a recurring expense's latest repeat (this month's bill) sets
+          // what the next ones are: "the last amount".
+          const ruleId = ruleIdOf(id);
+          const rule = ruleId ? get().recurring.find((r) => r.id === ruleId) : undefined;
+          const latest = rule
+            ? expenses.filter((e) => ruleIdOf(e.id) === rule.id).every((e) => e.date <= old.date)
+            : false;
+
           set(
             {
               expenses: expenses.map((e) => (e.id === id ? updated : e)),
               activities: [activity, ...activities],
               groups: touchGroups(groups, touched, now),
+              ...(rule && latest && {
+                recurring: get().recurring.map((r) =>
+                  r.id === rule.id ? { ...r, template: templateOf(updated), updatedAt: now } : r,
+                ),
+              }),
             },
             false,
             'updateExpense',
@@ -451,6 +503,7 @@ export const useStore = create<AppStore>()(
               activities: activities.filter((a) => a.groupId !== id),
               tombstones: tombstones.filter((t) => t.groupId !== id),
               groupSyncedAt: syncedAt,
+              recurring: get().recurring.filter((r) => r.groupId !== id),
             },
             false,
             'deleteGroup',
@@ -725,7 +778,7 @@ export const useStore = create<AppStore>()(
 
         restoreAllData: (payload) => {
           const { currentUserId, users, groups, expenses, settlements, activities } = payload;
-          const { tombstones = [], userAliases = {}, groupSyncedAt = {} } = payload;
+          const { tombstones = [], userAliases = {}, groupSyncedAt = {}, recurring = [] } = payload;
           set(
             {
               hasOnboarded: true,
@@ -743,6 +796,7 @@ export const useStore = create<AppStore>()(
               tombstones,
               userAliases,
               groupSyncedAt,
+              recurring,
             },
             false,
             'restoreAllData',
@@ -792,6 +846,66 @@ export const useStore = create<AppStore>()(
           };
         },
 
+        // ── Recurring ──────────────────────────────────────────────────────────
+
+        addRecurring: ({ groupId, frequency, startDate, template, receipt }) => {
+          const now = new Date();
+          const rule: RecurringExpense = { id: uid(), groupId, frequency, startDate, template, createdAt: now, updatedAt: now };
+          set({ recurring: [...get().recurring, rule] }, false, 'addRecurring');
+          let added = get().addDueRecurring(now).filter((e) => ruleIdOf(e.id) === rule.id);
+          const first = added.find((e) => e.date.getTime() === added[0]?.date.getTime());
+          if (receipt && first) {
+            set({ expenses: get().expenses.map((e) => (e.id === first.id ? { ...e, receipt } : e)) }, false, 'addRecurring');
+            added = added.map((e) => (e.id === first.id ? { ...e, receipt } : e));
+          }
+          return { rule, added };
+        },
+
+        stopRecurring: (id) => {
+          const rule = get().recurring.find((r) => r.id === id);
+          if (!rule) return;
+          set(
+            {
+              recurring: get().recurring.filter((r) => r.id !== id),
+              // So stopping it travels when the group is shared.
+              tombstones: [...get().tombstones, { id, kind: 'recurring', groupId: rule.groupId, deletedAt: new Date() }],
+            },
+            false,
+            'stopRecurring',
+          );
+        },
+
+        addDueRecurring: (today = new Date()) => {
+          const { recurring, expenses, tombstones, activities, groups, currentUserId } = get();
+          if (recurring.length === 0) return [];
+          const have = new Set(expenses.map((e) => e.id));
+          const deleted = new Set(tombstones.filter((t) => t.kind === 'expense').map((t) => t.id));
+          const added = recurring
+            .filter((r) => groups.some((g) => g.id === r.groupId))
+            .flatMap((r) => dueRepeats(r, today, (id) => have.has(id) || deleted.has(id)));
+          if (added.length === 0) return [];
+
+          const now = new Date();
+          const entries: ExpenseAddedActivity[] = added.map((e) => ({
+            id: uid(),
+            type: 'expense_added',
+            actorId: currentUserId,
+            expenseId: e.id,
+            groupId: e.groupId,
+            date: e.date,
+          }));
+          set(
+            {
+              expenses: [...expenses, ...added],
+              activities: [...entries, ...activities],
+              groups: touchGroups(groups, new Set(added.map((e) => e.groupId!)), now),
+            },
+            false,
+            'addDueRecurring',
+          );
+          return added;
+        },
+
         // ── Sharing ────────────────────────────────────────────────────────────
 
         applyGroupBundle: (bundle, people) => {
@@ -807,6 +921,7 @@ export const useStore = create<AppStore>()(
               tombstones: s.tombstones,
               userAliases: s.userAliases,
               groupSyncedAt: s.groupSyncedAt,
+        recurring: s.recurring,
             },
             bundle,
             people,
@@ -821,6 +936,7 @@ export const useStore = create<AppStore>()(
               tombstones: state.tombstones,
               userAliases: state.userAliases,
               groupSyncedAt: state.groupSyncedAt,
+              recurring: state.recurring,
             },
             false,
             'applyGroupBundle',
@@ -845,6 +961,7 @@ export const useStore = create<AppStore>()(
               tombstones: [],
               userAliases: {},
               groupSyncedAt: {},
+              recurring: [],
             },
             false,
             'wipeAllData',
@@ -901,6 +1018,7 @@ export const useStore = create<AppStore>()(
           tombstones:    state.tombstones,
           userAliases:   state.userAliases,
           groupSyncedAt: state.groupSyncedAt,
+          recurring:     state.recurring,
         }),
       },
     ),

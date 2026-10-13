@@ -48,6 +48,7 @@ export default function ShareGroupSheet({ open, onClose, groupId }: ShareGroupSh
         tombstones: s.tombstones,
         userAliases: s.userAliases,
         groupSyncedAt: s.groupSyncedAt,
+        recurring: s.recurring,
       },
       groupId,
     );

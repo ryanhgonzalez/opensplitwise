@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useStore } from './useStore';
 import { selectFriendBalances, selectFriendBalancesByCurrency, selectGroupTotals, selectOverallBalances } from './selectors';
 import { round } from '../lib/calculations';
@@ -425,6 +425,71 @@ describe('currencies', () => {
     state().updateGroup(group.id, { currency: 'EUR' });
     expect(state().expenses.map((e) => [e.amount, e.currency])).toEqual([[50, 'EUR']]);
     expect(selectFriendBalancesByCurrency(state())).toEqual({ EUR: { [alice.id]: 25 } });
+  });
+});
+
+describe('recurring expenses', () => {
+  const day = (y: number, m: number, d: number) => new Date(y, m - 1, d);
+  // Setting one up adds what's due by today, so "today" is pinned to mid-July 2026.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(day(2026, 7, 15));
+  });
+  afterEach(() => vi.useRealTimers());
+  function rent(me: User, alice: User, group: Group, startDate: Date) {
+    return state().addRecurring({
+      groupId: group.id,
+      frequency: 'monthly',
+      startDate,
+      template: {
+        description: 'Rent', amount: 1000, currency: 'USD', paidBy: me.id, category: 'rent',
+        split: { type: 'equal', entries: [{ userId: me.id, amount: 500 }, { userId: alice.id, amount: 500 }] },
+      },
+    });
+  }
+  const rentIds = () => state().expenses.filter((e) => e.description === 'Rent').map((e) => e.id.slice(-10)).sort();
+
+  it('adds each due month on its own date, once', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const { rule } = rent(me, others[0], group, day(2026, 7, 1));
+    state().addDueRecurring(day(2026, 9, 15));
+    expect(rentIds()).toEqual(['2026-07-01', '2026-08-01', '2026-09-01']);
+    const count = state().expenses.length;
+    state().addDueRecurring(day(2026, 9, 15));
+    expect(state().expenses.length).toBe(count);
+    expect(state().expenses.every((e) => e.id.startsWith(rule.id))).toBe(true);
+  });
+
+  it('doesn’t bring back a deleted month', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const { rule } = rent(me, others[0], group, day(2026, 7, 1));
+    state().addDueRecurring(day(2026, 8, 15));
+    state().deleteExpense(`${rule.id}:2026-08-01`);
+    state().addDueRecurring(day(2026, 9, 15));
+    expect(rentIds()).toEqual(['2026-07-01', '2026-09-01']);
+  });
+
+  it('uses the latest month’s edited amount from then on; editing an older month doesn’t', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const { rule } = rent(me, others[0], group, day(2026, 7, 1));
+    state().addDueRecurring(day(2026, 8, 15));
+    const split = { type: 'equal' as const, entries: [{ userId: me.id, amount: 550 }, { userId: others[0].id, amount: 550 }] };
+    state().updateExpense(`${rule.id}:2026-07-01`, { amount: 900 });
+    expect(state().recurring[0].template.amount).toBe(1000);
+    state().updateExpense(`${rule.id}:2026-08-01`, { amount: 1100, split });
+    expect(state().recurring[0].template.amount).toBe(1100);
+    state().addDueRecurring(day(2026, 9, 15));
+    expect(state().expenses.find((e) => e.id === `${rule.id}:2026-09-01`)?.amount).toBe(1100);
+  });
+
+  it('stops: no more months, the old ones stay, and a marker records it', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const { rule } = rent(me, others[0], group, day(2026, 7, 1));
+    state().addDueRecurring(day(2026, 7, 15));
+    state().stopRecurring(rule.id);
+    state().addDueRecurring(day(2026, 12, 15));
+    expect(rentIds()).toEqual(['2026-07-01']);
+    expect(state().tombstones.map((t) => t.kind)).toEqual(['recurring']);
   });
 });
 

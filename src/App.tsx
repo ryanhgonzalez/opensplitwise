@@ -64,6 +64,18 @@ export default function App() {
     if (hasExpenses) void requestPersistentStorage();
   }, [hasExpenses]);
 
+  // Repeating expenses: add what's come due, at startup, when rules change
+  // (set up, received from someone) and whenever the app comes back into view.
+  const recurring = useStore((s) => s.recurring);
+  useEffect(() => {
+    const addDue = () => {
+      if (document.visibilityState === 'visible') useStore.getState().addDueRecurring();
+    };
+    addDue();
+    document.addEventListener('visibilitychange', addDue);
+    return () => document.removeEventListener('visibilitychange', addDue);
+  }, [recurring]);
+
   // Receipt photos whose expense is gone (deleted, merged away, restored over)
   // are cleared out after expenses settle, and once at startup. The wait
   // outlasts the Undo toast, so undoing a delete keeps the photo.

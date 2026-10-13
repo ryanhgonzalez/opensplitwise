@@ -1,4 +1,4 @@
-import type { User, Group, Expense, Settlement, Activity, Tombstone } from '../types';
+import type { User, Group, Expense, Settlement, Activity, Tombstone, RecurringExpense } from '../types';
 
 // ─── Schema constants ─────────────────────────────────────────────────────────
 
@@ -32,6 +32,8 @@ export interface ExportPayload {
   tombstones?: Tombstone[];
   userAliases?: Record<string, string>;
   groupSyncedAt?: Record<string, Date>;
+  /** Repeating expenses. Absent in files from before them. */
+  recurring?: RecurringExpense[];
   /** Receipt photos, expense id → data: URL. Full backups carry them unless left out. */
   receipts?: Record<string, string>;
 }

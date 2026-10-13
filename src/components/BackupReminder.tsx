@@ -48,6 +48,7 @@ export default function BackupReminder() {
         tombstones: s.tombstones,
         userAliases: s.userAliases,
         groupSyncedAt: s.groupSyncedAt,
+        recurring: s.recurring,
         receipts,
       }),
     );

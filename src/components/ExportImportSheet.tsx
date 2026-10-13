@@ -118,6 +118,7 @@ export default function ExportImportSheet({
   const tombstones      = useStore((s) => s.tombstones);
   const userAliases     = useStore((s) => s.userAliases);
   const groupSyncedAt   = useStore((s) => s.groupSyncedAt);
+  const recurring       = useStore((s) => s.recurring);
   const restoreAllData  = useStore((s) => s.restoreAllData);
   const mergeImportData = useStore((s) => s.mergeImportData);
 
@@ -146,7 +147,7 @@ export default function ExportImportSheet({
 
   const statePayload = {
     currentUserId, users, groups, expenses, settlements, activities, friendBalances,
-    tombstones, userAliases, groupSyncedAt,
+    tombstones, userAliases, groupSyncedAt, recurring,
   };
   // Re-read on every render; exporting re-renders (exportDone), so it stays current.
   const lastBackup = lastBackupAt();

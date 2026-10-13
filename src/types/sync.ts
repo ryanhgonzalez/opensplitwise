@@ -1,5 +1,5 @@
 /** What a deletion marker removes when a group is shared. */
-export type TombstoneKind = 'expense' | 'settlement' | 'category' | 'member';
+export type TombstoneKind = 'expense' | 'settlement' | 'category' | 'member' | 'recurring';
 
 /**
  * Left behind when an expense, payment or custom category is deleted from a

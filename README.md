@@ -13,6 +13,7 @@ A mobile-first expense splitting PWA inspired by Splitwise, built with React and
 - **Group PDF Reports** — Export a full expense report for any group as a PDF
 - **Data Import / Export** — Back up and restore all app data as JSON
 - **Theme Toggle** — Light, Dark, and System default modes with no flash on load
+- **Repeating Expenses** — Rent, bills and subscriptions repeat weekly, every 2 weeks, monthly or yearly; each one is added on its date (missed ones too), editing the latest sets the next amount, and repeats travel with shared groups without duplicating
 - **Undo & Duplicate** — Deleting an expense can be undone from the toast; any expense can be duplicated for a repeat purchase
 - **Group Sharing** — No server: show a group as a cycling QR code that another phone scans in the app, or send it as a file. Re-sharing merges changes both ways (newer edit wins, deletions carry over)
 - **Multiple Currencies** — Each group has a currency; a single expense can be paid in another one with a rate you enter. Totals across groups are shown per currency, never converted

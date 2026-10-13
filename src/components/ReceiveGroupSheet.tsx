@@ -37,6 +37,7 @@ const syncStateOf = (s: ReturnType<typeof useStore.getState>): SyncState => ({
   tombstones: s.tombstones,
   userAliases: s.userAliases,
   groupSyncedAt: s.groupSyncedAt,
+  recurring: s.recurring,
 });
 
 /**

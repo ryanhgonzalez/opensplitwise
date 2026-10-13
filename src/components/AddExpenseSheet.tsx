@@ -9,6 +9,9 @@ import { convertSplit, currencySymbol, groupCurrency, recordCurrency } from '../
 import CurrencySelect from './CurrencySelect';
 import ReceiptViewer from './ReceiptViewer';
 import { compressReceiptPhoto, formatBytes, loadPhoto, savePhoto } from '../lib/receiptPhotos';
+import { FREQUENCY_LABELS, nextOccurrence, ruleIdOf } from '../lib/recurring';
+import { showToast } from '../lib/toast';
+import type { RepeatFrequency } from '../types';
 import type { TotalCandidate } from '../lib/receiptScanner';
 import { formatCurrency } from '../utils/format';
 import Avatar from './Avatar';
@@ -73,6 +76,9 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const addExpense = useStore(s => s.addExpense);
   const updateExpense = useStore(s => s.updateExpense);
   const addGroupCategory = useStore(s => s.addGroupCategory);
+  const addRecurring = useStore(s => s.addRecurring);
+  const recurring = useStore(s => s.recurring);
+  const allExpenses = useStore(s => s.expenses);
 
   const initSplitType = (e?: Expense): SplitMode =>
     e?.items?.length ? 'items'
@@ -109,6 +115,13 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const [scanStatus, setScanStatus] = useState('');
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanned, setScanned] = useState(false);
+  // Repeating: set when adding; an edited repeat shows its rule instead.
+  const [repeat, setRepeat] = useState<RepeatFrequency | ''>('');
+  const editRule = editExpense ? recurring.find(r => r.id === ruleIdOf(editExpense.id)) : undefined;
+  const editingLatestRepeat = !!editRule && allExpenses
+    .filter(e => ruleIdOf(e.id) === editRule.id)
+    .every(e => e.date <= editExpense!.date);
+
   // Receipt photo kept with the expense. `newPhoto` is one picked or scanned
   // in this sheet; otherwise an edited expense keeps its existing photo
   // unless removed.
@@ -451,6 +464,21 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         items,
       });
       if (newPhoto) void savePhoto(editExpense.id, newPhoto.blob);
+    } else if (repeat && groupId) {
+      // Repeating: the rule adds this one (if its date has come) and the rest as they're due.
+      const start = new Date(expenseDate.getFullYear(), expenseDate.getMonth(), expenseDate.getDate());
+      const { rule, added: repeats } = addRecurring({
+        groupId,
+        frequency: repeat,
+        startDate: start,
+        template: { description: description.trim(), amount, currency: groupCur, original, paidBy, split, category, items },
+        receipt,
+      });
+      if (newPhoto && repeats[0]) void savePhoto(repeats[0].id, newPhoto.blob);
+      const next = nextOccurrence(rule, new Date(Date.now() + 86_400_000));
+      showToast({
+        message: `${description.trim()} repeats ${FREQUENCY_LABELS[repeat].toLowerCase()}; next on ${next.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+      });
     } else {
       const added = addExpense({
         description: description.trim(),
@@ -475,6 +503,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const handleClose = () => {
     if (newPhoto) URL.revokeObjectURL(newPhoto.url);
     setNewPhoto(null);
+    setRepeat('');
     setRemoveExisting(false);
     setViewingPhoto(false);
     setPhotoError(null);
@@ -788,6 +817,36 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                 />
                 <div className="aes-field-hint text-tertiary text-xs">Leave empty to use today's date.</div>
               </div>
+
+              {/* Repeats: rent, bills, subscriptions */}
+              {!isEditing ? (
+                <div className="field-group">
+                  <label className="field-label" htmlFor="aes-repeat">Repeats</label>
+                  <select
+                    id="aes-repeat"
+                    className="field-input"
+                    value={repeat}
+                    onChange={e => setRepeat(e.target.value as RepeatFrequency | '')}
+                  >
+                    <option value="">Never</option>
+                    {(Object.keys(FREQUENCY_LABELS) as RepeatFrequency[]).map(f => (
+                      <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
+                    ))}
+                  </select>
+                  {repeat && (
+                    <div className="aes-field-hint text-tertiary text-xs">
+                      Added automatically on each date, starting with the date above. Stop it from the group page.
+                    </div>
+                  )}
+                </div>
+              ) : editRule && (
+                <div className="aes-repeat-note">
+                  Repeats {FREQUENCY_LABELS[editRule.frequency].toLowerCase()}.{' '}
+                  {editingLatestRepeat
+                    ? 'Changes here also apply to the next ones.'
+                    : 'Only this one changes; edit the latest to change the next ones.'}
+                </div>
+              )}
 
               {/* Group (only shown when no default) */}
               {!defaultGroupId && (
