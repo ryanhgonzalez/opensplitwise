@@ -141,6 +141,69 @@
   opacity: 0.75;
 }
 
+/* Currency of this expense: a small code button, native list on tap */
+.aes-currency-pick {
+  position: relative;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.aes-currency-pick.foreign {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.aes-currency-pick-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  font-size: 16px; /* below 16px, iOS zooms the page on focus */
+  cursor: pointer;
+}
+
+.aes-currency-pick:focus-within {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* Rate, when the expense isn't in the group's currency */
+.aes-rate {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: -8px 0 18px;
+}
+
+.aes-rate-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.aes-rate-input {
+  width: 120px;
+  min-height: 40px;
+  font-family: var(--font-mono);
+}
+
+.aes-rate-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .aes-currency-symbol {
   font-family: var(--font-mono);
   font-size: 28px;

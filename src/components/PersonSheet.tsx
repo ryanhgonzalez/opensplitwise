@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useStore, selectCurrentUser, selectFriendBalances } from '../store';
+import { useStore, selectCurrentUser, selectFriendBalancesByCurrency } from '../store';
+import { groupCurrency } from '../lib/currency';
 import Avatar from './Avatar';
 import { formatCurrency } from '../utils';
 import { calculateBalances } from '../lib/calculations';
@@ -22,7 +23,7 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
   const groups = useStore(s => s.groups);
   const allExpenses = useStore(s => s.expenses);
   const allSettlements = useStore(s => s.settlements);
-  const friendBalances = useStore(selectFriendBalances);
+  const byCurrency = useStore(selectFriendBalancesByCurrency);
   const updateUser = useStore(s => s.updateUser);
   const deleteUser = useStore(s => s.deleteUser);
   const removeGroupMember = useStore(s => s.removeGroupMember);
@@ -38,10 +39,10 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
   if (!person) return null;
   if (groupId && !group) return null;
 
-  // When in a specific group context, use per-group balance.
-  // Otherwise use the running overall balance tracked in the store.
-  const balance = group
-    ? (() => {
+  // When in a specific group context, use per-group balance (in its currency).
+  // Otherwise the overall balance, one per currency.
+  const balances: { currency: string; amount: number }[] = group
+    ? [{ currency: groupCurrency(group), amount: (() => {
         const groupExpenses = allExpenses.filter(e => e.groupId === groupId);
         const groupSettlements = allSettlements.filter(s => s.groupId === groupId);
         const memberIds = group.members.map(m => m.userId);
@@ -51,8 +52,9 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
           settlements: groupSettlements,
         });
         return balances[userId] ?? 0;
-      })()
-    : (friendBalances[userId] ?? 0);
+      })() }]
+    : Object.entries(byCurrency).map(([currency, b]) => ({ currency, amount: b[userId] ?? 0 }));
+  const unsettled = balances.filter(b => Math.abs(b.amount) >= 0.005);
 
   // Groups this person shares with the current user (for global view).
   const sharedGroups = group
@@ -83,7 +85,9 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
   ).length;
 
   const previewUser = { ...person, name: name || person.name, avatarColor };
-  const settled = Math.abs(balance) < 0.005;
+  const settled = unsettled.length === 0;
+  // The colour follows the larger balance when there are several currencies.
+  const lead = [...unsettled].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))[0];
   const firstName = person.name.split(' ')[0];
 
   return (
@@ -123,10 +127,12 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
                 <div className="ps-identity-text">
                   <span className="ps-name">{name || person.name}</span>
                   {!isSelf && (
-                    <span className={`ps-balance ${settled ? 'zero' : `num ${balance > 0 ? 'pos' : 'neg'}`}`}>
+                    <span className={`ps-balance ${settled ? 'zero' : `num ${lead.amount > 0 ? 'pos' : 'neg'}`}`}>
                       {settled
                         ? `Settled up${group ? ` in ${group.name}` : ''}`
-                        : `${balance > 0 ? 'owes you' : 'you owe'} ${formatCurrency(balance)}${group ? ` in ${group.name}` : ' overall'}`}
+                        : `${unsettled
+                            .map(b => `${b.amount > 0 ? 'owes you' : 'you owe'} ${formatCurrency(b.amount, b.currency)}`)
+                            .join(' · ')}${group ? ` in ${group.name}` : ' overall'}`}
                     </span>
                   )}
                 </div>

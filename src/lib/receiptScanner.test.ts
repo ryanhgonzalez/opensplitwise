@@ -231,3 +231,15 @@ describe('parseReceiptText: total candidates', () => {
     expect(picks('Cold Beverage  2.80\nLunch Salmon  14.50')).toEqual([[14.5, 'Total']]);
   });
 });
+
+describe('parseReceiptText: currency', () => {
+  it('reads a currency from symbols or codes', () => {
+    expect(parseReceiptText(CIDER).currency).toBe('GBP');
+    expect(parseReceiptText('Wine  €12,50\nTotal  €12,50').currency).toBe('EUR');
+    expect(parseReceiptText(COSTCO).currency).toBe('USD'); // "TOTAL USD"
+  });
+
+  it('says nothing for a plain dollar sign', () => {
+    expect(parseReceiptText(DINEFINE).currency).toBeUndefined();
+  });
+});

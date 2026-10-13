@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useStore } from './useStore';
-import { selectFriendBalances, selectGroupTotals, selectOverallBalance } from './selectors';
+import { selectFriendBalances, selectFriendBalancesByCurrency, selectGroupTotals, selectOverallBalances } from './selectors';
 import { round } from '../lib/calculations';
 import type { Group, User } from '../types';
 
@@ -113,7 +113,7 @@ describe('derived balances', () => {
     });
 
     const grouped = round(Object.values(groupTotals()).reduce((s, g) => s + g.yourBalance, 0));
-    expect(grouped).toBe(round(selectOverallBalance(state()).net));
+    expect(grouped).toBe(round(selectOverallBalances(state())[0]?.net ?? 0));
   });
 });
 
@@ -373,6 +373,58 @@ describe('custom categories', () => {
     };
     state().mergeImportData(file);
     expect(groupOf(group.id).categories).toEqual([{ id: mine, name: 'Gas' }, theirs]);
+  });
+});
+
+describe('currencies', () => {
+  /** A second group in another currency, with the same people. */
+  function euroGroup(members: User[]): Group {
+    return state().createGroup({
+      name: 'Paris',
+      emoji: '🗼',
+      color: '#000',
+      type: 'trip',
+      currency: 'EUR',
+      members: members.map((u) => ({ userId: u.id, role: 'member' as const, joinedAt: new Date() })),
+    });
+  }
+  const addIn = (group: Group, payerId: string, ids: string[], amount: number) =>
+    state().addExpense({
+      description: 'x', amount, currency: group.currency ?? 'USD', paidBy: payerId, groupId: group.id, date: new Date(),
+      category: 'food', split: { type: 'equal', entries: ids.map((userId) => ({ userId, amount: round(amount / ids.length) })) },
+    });
+
+  it('keeps balances in different currencies apart', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const [alice] = others;
+    const paris = euroGroup([me, alice]);
+    addIn(group, me.id, [me.id, alice.id], 50); // Alice owes $25
+    addIn(paris, me.id, [me.id, alice.id], 80); // Alice owes €40
+
+    const byCurrency = selectFriendBalancesByCurrency(state());
+    expect(byCurrency).toEqual({ USD: { [alice.id]: 25 }, EUR: { [alice.id]: 40 } });
+    expect(selectOverallBalances(state()).map((b) => [b.currency, b.net])).toEqual([['EUR', 40], ['USD', 25]]);
+  });
+
+  it('pays down only debts in the payment’s currency', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const [alice] = others;
+    const paris = euroGroup([me, alice]);
+    addIn(group, me.id, [me.id, alice.id], 50);
+    addIn(paris, me.id, [me.id, alice.id], 80);
+
+    const created = state().settleWithUser({ fromUserId: alice.id, toUserId: me.id, amount: 40, currency: 'EUR', date: new Date() });
+    expect(created.map((s) => [s.groupId, s.amount, s.currency])).toEqual([[paris.id, 40, 'EUR']]);
+    expect(selectFriendBalancesByCurrency(state())).toEqual({ USD: { [alice.id]: 25 }, EUR: { [alice.id]: 0 } });
+  });
+
+  it('relabels a group’s amounts when its currency changes, without converting them', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const [alice] = others;
+    addIn(group, me.id, [me.id, alice.id], 50);
+    state().updateGroup(group.id, { currency: 'EUR' });
+    expect(state().expenses.map((e) => [e.amount, e.currency])).toEqual([[50, 'EUR']]);
+    expect(selectFriendBalancesByCurrency(state())).toEqual({ EUR: { [alice.id]: 25 } });
   });
 });
 

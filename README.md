@@ -13,6 +13,7 @@ A mobile-first expense splitting PWA inspired by Splitwise, built with React and
 - **Group PDF Reports** — Export a full expense report for any group as a PDF
 - **Data Import / Export** — Back up and restore all app data as JSON
 - **Theme Toggle** — Light, Dark, and System default modes with no flash on load
+- **Multiple Currencies** — Each group has a currency; a single expense can be paid in another one with a rate you enter. Totals across groups are shown per currency, never converted
 - **Receipt Scanning** — Fill an expense, including line items, from a receipt photo, read on the device by PaddleOCR (Tesseract as the fallback)
 - **Works Offline** — After one online visit, everything above works with no connection (see below)
 

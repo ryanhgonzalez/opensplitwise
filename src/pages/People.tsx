@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { useStore, selectCurrentUser, selectFriendBalances, selectOverallBalance } from '../store';
+import { useStore, selectCurrentUser, selectFriendBalancesByCurrency, selectOverallBalances } from '../store';
 import Avatar from '../components/Avatar';
 import PersonSheet from '../components/PersonSheet';
 import { formatCurrency, formatSigned } from '../utils';
@@ -10,8 +10,8 @@ export default function People() {
   const currentUser = useStore(selectCurrentUser)!;
   const users = useStore(s => s.users);
   const groups = useStore(s => s.groups);
-  const friendBalances = useStore(selectFriendBalances);
-  const overall = useStore(selectOverallBalance);
+  const byCurrency = useStore(selectFriendBalancesByCurrency);
+  const overall = useStore(selectOverallBalances);
   const addUser = useStore(s => s.addUser);
 
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -19,12 +19,18 @@ export default function People() {
 
   const others = users.filter(u => u.id !== currentUser.id);
 
+  /** A person's unsettled balances, one per currency, largest first. */
+  const balancesOf = (userId: string) =>
+    Object.entries(byCurrency)
+      .map(([currency, balances]) => ({ currency, amount: balances[userId] ?? 0 }))
+      .filter((b) => Math.abs(b.amount) >= 0.005)
+      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+
   // Sort: unsettled balances first, then alphabetical
   const sorted = [...others].sort((a, b) => {
-    const balA = Math.abs(friendBalances[a.id] ?? 0);
-    const balB = Math.abs(friendBalances[b.id] ?? 0);
-    if (balA > 0.005 && balB <= 0.005) return -1;
-    if (balA <= 0.005 && balB > 0.005) return 1;
+    const openA = balancesOf(a.id).length > 0;
+    const openB = balancesOf(b.id).length > 0;
+    if (openA !== openB) return openA ? -1 : 1;
     return a.name.localeCompare(b.name);
   });
 
@@ -43,8 +49,7 @@ export default function People() {
     setNewName('');
   };
 
-  const myNet = overall.net;
-  const meSettled = Math.abs(myNet) < 0.005;
+  const meSettled = overall.length === 0;
 
   return (
     <div className="page-content">
@@ -78,8 +83,16 @@ export default function People() {
               <span className="people-row-name">{currentUser.name}</span>
               <span className="text-xs text-secondary">{currentUser.email ?? 'Your profile'}</span>
             </span>
-            <span className={`people-row-amount ${meSettled ? 'zero' : `num ${myNet > 0 ? 'pos' : 'neg'}`}`}>
-              {meSettled ? 'Settled' : formatSigned(myNet)}
+            <span className="people-row-balance">
+              {meSettled ? (
+                <span className="people-row-amount zero">Settled</span>
+              ) : (
+                overall.map((b) => (
+                  <span key={b.currency} className={`num people-row-amount ${b.net > 0 ? 'pos' : 'neg'}`}>
+                    {formatSigned(b.net, b.currency)}
+                  </span>
+                ))
+              )}
             </span>
           </button>
         </section>
@@ -89,8 +102,8 @@ export default function People() {
           <section>
             <h2 className="cap people-section-label">People · {sorted.length}</h2>
             {sorted.map(user => {
-              const balance = friendBalances[user.id] ?? 0;
-              const settled = Math.abs(balance) < 0.005;
+              const balances = balancesOf(user.id);
+              const settled = balances.length === 0;
               const shared = sharedGroupNames(user.id);
               return (
                 <button key={user.id} className="people-row" onClick={() => setSelectedUserId(user.id)}>
@@ -105,12 +118,14 @@ export default function People() {
                     {settled ? (
                       <span className="zero">Settled</span>
                     ) : (
-                      <>
-                        <span className={`num people-row-amount ${balance > 0 ? 'pos' : 'neg'}`}>
-                          {formatCurrency(balance)}
+                      balances.map((b) => (
+                        <span key={b.currency} className="people-row-line">
+                          <span className={`num people-row-amount ${b.amount > 0 ? 'pos' : 'neg'}`}>
+                            {formatCurrency(b.amount, b.currency)}
+                          </span>
+                          <span className="text-xs text-secondary">{b.amount > 0 ? 'owes you' : 'you owe'}</span>
                         </span>
-                        <span className="text-xs text-secondary">{balance > 0 ? 'owes you' : 'you owe'}</span>
-                      </>
+                      ))
                     )}
                   </span>
                 </button>

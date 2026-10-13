@@ -32,6 +32,11 @@
   line-height: 1.1;
 }
 
+/* Several currencies: one line each, smaller so they stack */
+.settle-net-multi {
+  font-size: 26px;
+}
+
 .settle-part-amount {
   font-weight: 600;
 }

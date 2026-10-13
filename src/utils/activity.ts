@@ -9,7 +9,9 @@ export function getActivityDescription(
   activity: Activity,
   currentUserId: string,
   getExpense: GetExpense,
-  getUser: GetUser
+  getUser: GetUser,
+  /** The activity's group currency; payments don't record their own. */
+  currency = 'USD',
 ): string {
   const actorName =
     activity.actorId === currentUserId
@@ -33,9 +35,9 @@ export function getActivityDescription(
           ? 'you'
           : (getUser(activity.toUserId)?.name ?? 'someone');
       if (activity.actorId === currentUserId) {
-        return `You paid ${toName} ${formatCurrency(activity.amount)}`;
+        return `You paid ${toName} ${formatCurrency(activity.amount, currency)}`;
       }
-      return `${actorName} paid ${toName} ${formatCurrency(activity.amount)}`;
+      return `${actorName} paid ${toName} ${formatCurrency(activity.amount, currency)}`;
     }
     case 'settled': {
       const toName =

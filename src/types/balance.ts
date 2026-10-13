@@ -12,6 +12,8 @@ export interface GroupBalance {
 }
 
 export interface OverallBalance {
+  /** Every amount below is in this currency; balances in different currencies are never added. */
+  currency: string;
   net: number;
   totalOwed: number;
   totalOwe: number;

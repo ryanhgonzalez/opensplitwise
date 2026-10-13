@@ -9,6 +9,7 @@ import {
   isActivityPositive,
   getActivityAmount,
 } from '../utils';
+import { expenseAmountLabel, groupCurrency } from '../lib/currency';
 import './Activity.css';
 
 type Filter = 'all' | 'expenses' | 'payments';
@@ -94,7 +95,8 @@ export default function ActivityPage() {
               const group = activity.groupId ? getGroupById(activity.groupId) : undefined;
               if (!actor) return null;
 
-              const description = getActivityDescription(activity, currentUser.id, getExpenseById, getUserById);
+              const cur = groupCurrency(group);
+              const description = getActivityDescription(activity, currentUser.id, getExpenseById, getUserById, cur);
               const isPositive = isActivityPositive(activity, currentUser.id, getExpenseById);
               const amount = getActivityAmount(activity, currentUser.id, getExpenseById);
               const isPayment = activity.type === 'payment' || activity.type === 'settled';
@@ -113,14 +115,14 @@ export default function ActivityPage() {
                     <span>{description}</span>
                     <span className="text-xs text-secondary">
                       {group ? `${group.name} · ` : ''}
-                      {expense ? `${formatCurrency(expense.amount)} · ` : ''}
+                      {expense ? `${expenseAmountLabel(expense)} · ` : ''}
                       {formatTime(activity.date)}
                     </span>
                   </span>
                   {amount > 0 && (
                     <span className="activity-amount">
                       <span className={`num ${isPositive ? 'pos' : 'neg'}`}>
-                        {isPositive ? '+' : '−'}{formatCurrency(amount)}
+                        {isPositive ? '+' : '−'}{formatCurrency(amount, cur)}
                       </span>
                       <span className="text-xs text-secondary">
                         {isPayment

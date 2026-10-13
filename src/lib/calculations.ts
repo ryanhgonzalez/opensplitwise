@@ -330,10 +330,14 @@ export interface GroupTotals {
 
 export interface DerivedTotals {
   /**
-   * userId → net balance with the current user.
+   * userId → net balance with the current user, summed across every group.
    * Positive → they owe the current user. Negative → the current user owes them.
+   * Only meaningful when everything is in one currency; kept for the export
+   * file's format. Screens use `friendBalancesByCurrency`.
    */
   friendBalances: BalanceMap;
+  /** currency → userId → net balance, as in `friendBalances` but never mixing currencies. */
+  friendBalancesByCurrency: Record<string, BalanceMap>;
   /** groupId → that group's totals. Groups with no expenses are absent. */
   groupTotals: Record<string, GroupTotals>;
 }
@@ -353,10 +357,15 @@ export function deriveTotals(
   currentUserId: string,
 ): DerivedTotals {
   const friendBalances: BalanceMap = {};
+  const friendBalancesByCurrency: Record<string, BalanceMap> = {};
   const groupTotals: Record<string, GroupTotals> = {};
 
+  // Records from before groups had a currency are US dollars.
+  let currency = 'USD';
   const bump = (userId: string, delta: number) => {
     friendBalances[userId] = (friendBalances[userId] ?? 0) + delta;
+    const inCurrency = (friendBalancesByCurrency[currency] ??= {});
+    inCurrency[userId] = (inCurrency[userId] ?? 0) + delta;
   };
 
   const totalsFor = (groupId?: string): GroupTotals | undefined => {
@@ -370,6 +379,7 @@ export function deriveTotals(
   };
 
   for (const expense of expenses) {
+    currency = expense.currency || 'USD';
     const myShare = expense.split.entries.find((e) => e.userId === currentUserId)?.amount ?? 0;
 
     if (expense.paidBy === currentUserId) {
@@ -390,6 +400,7 @@ export function deriveTotals(
   }
 
   for (const settlement of settlements) {
+    currency = settlement.currency || 'USD';
     const totals = totalsFor(settlement.groupId);
 
     if (settlement.fromUserId === currentUserId) {
@@ -404,12 +415,15 @@ export function deriveTotals(
   for (const userId of Object.keys(friendBalances)) {
     friendBalances[userId] = round(friendBalances[userId]);
   }
+  for (const balances of Object.values(friendBalancesByCurrency)) {
+    for (const userId of Object.keys(balances)) balances[userId] = round(balances[userId]);
+  }
   for (const groupId of Object.keys(groupTotals)) {
     groupTotals[groupId].yourBalance = round(groupTotals[groupId].yourBalance);
     groupTotals[groupId].totalSpent = round(groupTotals[groupId].totalSpent);
   }
 
-  return { friendBalances, groupTotals };
+  return { friendBalances, friendBalancesByCurrency, groupTotals };
 }
 
 // ─── Payment allocation ───────────────────────────────────────────────────────
@@ -432,6 +446,9 @@ export interface PaymentAllocation {
  * returned — a group where the money flows the other way cannot be paid down by
  * this transfer. Expenses with no group collapse into a single `undefined` bucket.
  *
+ * With `currency`, only records in that currency count: a payment in euros
+ * can only pay down debts in euros.
+ *
  * Sorted largest first so allocation is deterministic.
  */
 export function outstandingByGroup(
@@ -439,7 +456,9 @@ export function outstandingByGroup(
   settlements: Settlement[],
   debtorId: string,
   creditorId: string,
+  currency?: string,
 ): OutstandingBucket[] {
+  const inCurrency = (r: { currency?: string }) => !currency || (r.currency || 'USD') === currency;
   const UNGROUPED = ' ungrouped';
   const owed: Record<string, number> = {};
   const bump = (groupId: string | undefined, delta: number) => {
@@ -448,6 +467,7 @@ export function outstandingByGroup(
   };
 
   for (const expense of expenses) {
+    if (!inCurrency(expense)) continue;
     const shareOf = (userId: string) =>
       expense.split.entries.find((e) => e.userId === userId)?.amount ?? 0;
 
@@ -456,6 +476,7 @@ export function outstandingByGroup(
   }
 
   for (const settlement of settlements) {
+    if (!inCurrency(settlement)) continue;
     if (settlement.fromUserId === debtorId && settlement.toUserId === creditorId) {
       bump(settlement.groupId, -settlement.amount);
     } else if (settlement.fromUserId === creditorId && settlement.toUserId === debtorId) {

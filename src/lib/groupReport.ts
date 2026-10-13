@@ -4,6 +4,8 @@ import { autoTable, type CellDef, type RowInput, type UserOptions } from 'jspdf-
 type ColumnStyles = NonNullable<UserOptions['columnStyles']>;
 import type { Group, Expense, User, Settlement, PaymentMethod } from '../types';
 import { categoryLabel } from './categories';
+import { groupCurrency } from './currency';
+import { formatCurrency } from '../utils/format';
 import { calculateBalances, calculateSettlements } from './calculations';
 import plexSansRegularUrl from '../assets/fonts/IBMPlexSans-Regular.ttf?url';
 import plexSansSemiBoldUrl from '../assets/fonts/IBMPlexSans-SemiBold.ttf?url';
@@ -100,15 +102,22 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   other: 'Other',
 };
 
-function usd(n: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Math.abs(n));
+/**
+ * The group's currency, unsigned. The embedded fonts cover Latin-1 plus €, so
+ * "$12.50", "€12.50", "£" and "¥" print as symbols; anything else ("₹", "₩")
+ * prints as its code, "INR 1,250.00", rather than as a missing glyph.
+ */
+function fmtMoney(n: number, currency: string): string {
+  const symbol = formatCurrency(n, currency);
+  if (!/[^\u0020-\u00ff€]/.test(symbol)) return symbol;
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency, currencyDisplay: 'code' }).format(Math.abs(n));
 }
 
 const isZero = (n: number) => Math.abs(n) < 0.005;
 
-function signed(n: number, f: Fonts): string {
-  if (isZero(n)) return usd(0);
-  return `${n > 0 ? '+' : f.minus}${usd(n)}`;
+function signed(n: number, f: Fonts, currency: string): string {
+  if (isZero(n)) return fmtMoney(0, currency);
+  return `${n > 0 ? '+' : f.minus}${fmtMoney(n, currency)}`;
 }
 
 function longDate(d: Date): string {
@@ -139,6 +148,7 @@ export async function generateGroupReport(
 ): Promise<void> {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const f = await loadFonts(doc);
+  const cur = groupCurrency(group);
 
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -252,12 +262,12 @@ export async function generateGroupReport(
   };
 
   const money = (n: number, opts: { color?: RGB; bold?: boolean } = {}): CellDef => ({
-    content: usd(n),
+    content: fmtMoney(n, cur),
     styles: { font: f.mono, halign: 'right', textColor: opts.color ?? C.ink, fontStyle: opts.bold ? 'bold' : 'normal' },
   });
 
   const signedMoney = (n: number): CellDef => ({
-    content: isZero(n) ? 'Settled' : signed(n, f),
+    content: isZero(n) ? 'Settled' : signed(n, f, cur),
     styles: {
       font: isZero(n) ? f.sans : f.mono,
       halign: 'right',
@@ -290,12 +300,12 @@ export async function generateGroupReport(
   // ── Summary strip ──────────────────────────────────────────────────────────
 
   const stats: { label: string; value: string; color?: RGB }[] = [
-    { label: 'TOTAL SPENT', value: usd(totalSpent) },
+    { label: 'TOTAL SPENT', value: fmtMoney(totalSpent, cur) },
     { label: 'DATES', value: dateRange },
     { label: 'EXPENSES', value: String(expenses.length) },
     {
       label: 'STILL TO SETTLE',
-      value: isZero(outstanding) ? 'Nothing' : usd(outstanding),
+      value: isZero(outstanding) ? 'Nothing' : fmtMoney(outstanding, cur),
       color: isZero(outstanding) ? C.muted : C.ink,
     },
   ];
@@ -350,7 +360,7 @@ export async function generateGroupReport(
       money(r.share),
       ...(anyPayments
         ? [{
-            content: isZero(r.settled) ? f.minus === '-' ? '-' : '—' : signed(r.settled, f),
+            content: isZero(r.settled) ? f.minus === '-' ? '-' : '—' : signed(r.settled, f, cur),
             styles: { font: f.mono, halign: 'right' as const, textColor: isZero(r.settled) ? C.muted : C.soft },
           }]
         : []),
@@ -429,7 +439,7 @@ export async function generateGroupReport(
         const n = e.split.entries.length;
         return `Equal ${f.dot} ${n} ${n === 1 ? 'person' : 'people'}`;
       }
-      return e.split.entries.map((en) => `${nameOf(en.userId)} ${usd(en.amount)}`).join(', ');
+      return e.split.entries.map((en) => `${nameOf(en.userId)} ${fmtMoney(en.amount, cur)}`).join(', ');
     };
 
     table(
@@ -437,7 +447,11 @@ export async function generateGroupReport(
       ['Date', 'Description', 'Category', 'Paid by', 'Split', 'Amount'],
       sortedExpenses.map((e) => [
         { content: ledgerDate(e.date), styles: { font: f.mono, textColor: C.muted, fontSize: 7.5 } },
-        { content: stripEmoji(e.description) || 'Expense', styles: { fontStyle: 'bold' } },
+        {
+          // Paid in another currency: show what was actually paid next to the name.
+          content: `${stripEmoji(e.description) || 'Expense'}${e.original && e.original.currency !== cur ? ` (${fmtMoney(e.original.amount, e.original.currency)})` : ''}`,
+          styles: { fontStyle: 'bold' },
+        },
         { content: stripEmoji(categoryLabel(e.category, group)) || 'Other', styles: { textColor: C.soft, fontSize: 7.5 } },
         nameOf(e.paidBy),
         { content: splitLabel(e), styles: { textColor: C.soft, fontSize: 7.5 } },

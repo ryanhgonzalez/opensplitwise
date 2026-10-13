@@ -27,6 +27,8 @@ export interface TotalCandidate {
 }
 
 export interface ParsedReceipt {
+  /** ISO code the receipt is in, when it says so: a code ("EUR") or a symbol that isn't "$". */
+  currency?: string;
   amount?: number;
   /**
    * The parser's total first, then other amounts it might be, for the person to
@@ -160,6 +162,7 @@ export function parseReceiptText(text: string, options: ParseOptions = {}): Omit
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const amount = extractTotal(lines);
   return {
+    currency: detectCurrency(text),
     amount,
     totalCandidates: extractTotalCandidates(lines, amount),
     description: extractMerchant(lines),
@@ -281,6 +284,23 @@ function extractTotalCandidates(lines: string[], chosen: number | undefined): To
   const largest = Math.max(0, ...lines.flatMap((l) => moneyOnLine(l)));
   add(largest, 'Largest amount');
   return out.slice(0, 4);
+}
+
+const CURRENCY_CODES =
+  /\b(USD|EUR|GBP|CAD|AUD|NZD|CHF|JPY|MXN|SEK|NOK|DKK|PLN|CZK|HUF|BRL|INR|CNY|KRW|SGD|HKD|THB|ZAR|TRY)\b/g;
+const CURRENCY_SYMBOLS: Record<string, string> = { '€': 'EUR', '£': 'GBP', '¥': 'JPY', '₹': 'INR', '₩': 'KRW' };
+
+/**
+ * The receipt's currency, from codes ("TOTAL EUR") and symbols, whichever
+ * appears most. "$" alone says nothing (US, Canadian, Australian…), so a
+ * dollar receipt with no code gives undefined.
+ */
+function detectCurrency(text: string): string | undefined {
+  const counts = new Map<string, number>();
+  const bump = (code: string) => counts.set(code, (counts.get(code) ?? 0) + 1);
+  for (const m of text.toUpperCase().matchAll(CURRENCY_CODES)) bump(m[1]);
+  for (const ch of text) if (CURRENCY_SYMBOLS[ch]) bump(CURRENCY_SYMBOLS[ch]);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
 }
 
 /** Merchant name is almost always at the very top of the receipt. */

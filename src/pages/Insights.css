@@ -20,8 +20,15 @@
 /* Phones: both controls share one row, each button stretching to fill it. */
 .ins-controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   width: 100%;
+}
+
+/* Phones: period and view stay side by side; the currency switch gets its own row */
+.ins-controls .seg.ins-currency-seg {
+  order: 3;
+  flex: 1 1 100%;
 }
 
 .ins-controls .seg {
@@ -378,6 +385,11 @@
   }
 
   .ins-controls .seg {
+    flex: none;
+  }
+
+  .ins-controls .seg.ins-currency-seg {
+    order: 0;
     flex: none;
   }
 

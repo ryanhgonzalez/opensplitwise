@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useStore, selectCurrentUser } from '../store';
+import { useStore, selectCurrentUser, selectMainCurrency } from '../store';
+import { localeCurrency } from '../lib/currency';
+import CurrencySelect from './CurrencySelect';
 import { firstGrapheme } from '../lib/emoji';
 import type { GroupType } from '../types';
 import Avatar from './Avatar';
@@ -32,6 +34,10 @@ export default function CreateGroupSheet({ open, onClose, onCreated }: CreateGro
   const [emoji, setEmoji] = useState('🏠');
   const [color, setColor] = useState('#7c3aed');
   const [type, setType] = useState<GroupType>('other');
+  // Most people keep using one currency; the first group guesses from the device's region.
+  const mainCurrency = useStore(selectMainCurrency);
+  const hasGroups = useStore(s => s.groups.length > 0);
+  const [currency, setCurrency] = useState(() => (hasGroups ? mainCurrency : localeCurrency()));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [newPersonName, setNewPersonName] = useState('');
   const [showNewPerson, setShowNewPerson] = useState(false);
@@ -76,7 +82,7 @@ export default function CreateGroupSheet({ open, onClose, onCreated }: CreateGro
         joinedAt: new Date(),
       })),
     ];
-    const group = createGroup({ name: name.trim(), emoji, color, type, members });
+    const group = createGroup({ name: name.trim(), emoji, color, type, currency, members });
     handleClose();
     onCreated(group.id);
   };
@@ -86,6 +92,7 @@ export default function CreateGroupSheet({ open, onClose, onCreated }: CreateGro
     setEmoji('🏠');
     setColor('#7c3aed');
     setType('other');
+    setCurrency(mainCurrency);
     setSelectedIds(new Set());
     setNewPersonName('');
     setShowNewPerson(false);
@@ -196,6 +203,12 @@ export default function CreateGroupSheet({ open, onClose, onCreated }: CreateGro
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Currency */}
+              <div className="field-group">
+                <label className="field-label" htmlFor="cgs-currency">Currency</label>
+                <CurrencySelect id="cgs-currency" value={currency} onChange={setCurrency} />
               </div>
 
               {/* Members */}

@@ -79,6 +79,12 @@ export interface Expense {
   date: Date;
   split: ExpenseSplit;
   category: CategoryId;
+  /**
+   * Set when it was paid in another currency than the group's. `amount` and
+   * the split are then the converted figures the balances use; this is what
+   * was actually paid, and the rate entered (group currency per 1 unit).
+   */
+  original?: { amount: number; currency: string; rate: number };
   notes?: string;
   receiptUrl?: string;
   createdAt: Date;

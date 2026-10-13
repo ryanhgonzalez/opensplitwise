@@ -157,8 +157,9 @@ function debtCleared(
   fromUserId: string,
   toUserId: string,
   groupId?: string,
+  currency?: string,
 ): boolean {
-  const buckets = outstandingByGroup(expenses, settlements, fromUserId, toUserId);
+  const buckets = outstandingByGroup(expenses, settlements, fromUserId, toUserId, currency);
   const inScope = groupId ? buckets.filter((b) => b.groupId === groupId) : buckets;
   return inScope.reduce((sum, b) => sum + b.outstanding, 0) <= EPSILON;
 }
@@ -376,12 +377,24 @@ export const useStore = create<AppStore>()(
           return group;
         },
 
-        updateGroup: (id, updates) =>
+        updateGroup: (id, updates) => {
+          const { groups, expenses, settlements } = get();
+          const before = groups.find((g) => g.id === id);
+          // A new currency relabels the group's amounts; it doesn't convert them.
+          // (The usual reason: the group predates currencies and was never in dollars.)
+          const relabel = updates.currency && updates.currency !== (before?.currency || 'USD') ? updates.currency : undefined;
           set(
-            { groups: get().groups.map((g) => (g.id === id ? { ...g, ...updates } : g)) },
+            {
+              groups: groups.map((g) => (g.id === id ? { ...g, ...updates } : g)),
+              ...(relabel && {
+                expenses: expenses.map((e) => (e.groupId === id ? { ...e, currency: relabel } : e)),
+                settlements: settlements.map((st) => (st.groupId === id ? { ...st, currency: relabel } : st)),
+              }),
+            },
             false,
             'updateGroup',
-          ),
+          );
+        },
 
         deleteGroup: (id) => {
           const { groups, expenses, settlements, activities } = get();
@@ -513,7 +526,8 @@ export const useStore = create<AppStore>()(
           const { settlements, groups, expenses, activities } = get();
           const now = new Date();
 
-          const buckets = outstandingByGroup(expenses, settlements, input.fromUserId, input.toUserId);
+          // Only debts in the payment's currency can be paid down by it.
+          const buckets = outstandingByGroup(expenses, settlements, input.fromUserId, input.toUserId, input.currency);
           const allocations = allocatePayment(input.amount, buckets);
           if (allocations.length === 0) return [];
 
@@ -536,6 +550,8 @@ export const useStore = create<AppStore>()(
             nextSettlements,
             input.fromUserId,
             input.toUserId,
+            undefined,
+            input.currency,
           );
 
           // One feed entry per slice, each tagged with its group so the feed

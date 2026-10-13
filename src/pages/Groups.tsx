@@ -5,6 +5,7 @@ import GroupTile from '../components/GroupTile';
 import CreateGroupSheet from '../components/CreateGroupSheet';
 import { useStore, selectGroupTotals } from '../store';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned } from '../utils';
+import { groupCurrency } from '../lib/currency';
 import type { GroupType } from '../types';
 import './Groups.css';
 
@@ -35,9 +36,14 @@ export default function Groups() {
     g.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Net across every group: positive means you are owed overall.
-  const net = groups.reduce((sum, g) => sum + totalsOf(g.id).yourBalance, 0);
-  const netEven = Math.abs(net) < 0.005;
+  // Net across every group, per currency: positive means you are owed overall.
+  const netByCurrency = new Map<string, number>();
+  for (const g of groups) {
+    const c = groupCurrency(g);
+    netByCurrency.set(c, (netByCurrency.get(c) ?? 0) + totalsOf(g.id).yourBalance);
+  }
+  const nets = [...netByCurrency.entries()].filter(([, n]) => Math.abs(n) >= 0.005);
+  const netEven = nets.length === 0;
 
   const memberSummary = (ids: string[]) => {
     const names = ids.map(nameOf);
@@ -64,9 +70,15 @@ export default function Groups() {
           </div>
           <div>
             <span className="cap">Net balance</span>
-            <span className={`num groups-figure groups-net ${netEven ? 'zero' : net > 0 ? 'pos' : 'neg'}`}>
-              {netEven ? 'Settled' : formatSigned(net)}
-            </span>
+            {netEven ? (
+              <span className="num groups-figure groups-net zero">Settled</span>
+            ) : (
+              nets.map(([currency, net]) => (
+                <span key={currency} className={`num groups-figure groups-net ${net > 0 ? 'pos' : 'neg'}`}>
+                  {formatSigned(net, currency)}
+                </span>
+              ))
+            )}
           </div>
         </section>
 
@@ -138,10 +150,10 @@ export default function Groups() {
                     {formatLedgerDate(group.lastActivity)}
                   </span>
                   <span role="cell" className="num groups-col-wide groups-right">
-                    {formatCurrency(totalSpent)}
+                    {formatCurrency(totalSpent, groupCurrency(group))}
                   </span>
                   <span role="cell" className={`groups-right groups-bal ${even ? 'zero' : `num ${yourBalance > 0 ? 'pos' : 'neg'}`}`}>
-                    {even ? 'Settled' : formatSigned(yourBalance)}
+                    {even ? 'Settled' : formatSigned(yourBalance, groupCurrency(group))}
                   </span>
                 </button>
               );

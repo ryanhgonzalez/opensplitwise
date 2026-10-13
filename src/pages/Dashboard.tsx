@@ -6,7 +6,8 @@ import GroupTile from '../components/GroupTile';
 import AddExpenseSheet from '../components/AddExpenseSheet';
 import AccountMenuSheet from '../components/AccountMenuSheet';
 import BackupReminder from '../components/BackupReminder';
-import { useStore, selectCurrentUser, selectOverallBalance, selectRecentExpenses, selectGroupTotals } from '../store';
+import { useStore, selectCurrentUser, selectMainCurrency, selectOverallBalances, selectRecentExpenses, selectGroupTotals } from '../store';
+import { expenseAmountLabel, groupCurrency, recordCurrency } from '../lib/currency';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned, getNetAmountForUser } from '../utils';
 import './Dashboard.css';
 
@@ -19,7 +20,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const currentUser = useStore(selectCurrentUser)!;
-  const balance = useStore(selectOverallBalance);
+  const balances = useStore(selectOverallBalances);
+  const mainCurrency = useStore(selectMainCurrency);
   const recentExpenses = useStore(selectRecentExpenses(5));
   const groups = useStore((s) => s.groups);
   const users = useStore((s) => s.users);
@@ -28,13 +30,21 @@ export default function Dashboard() {
   const getUserById = (id: string) => users.find((u) => u.id === id);
   const getGroupById = (id?: string) => (id ? groups.find((g) => g.id === id) : undefined);
   const balanceOf = (groupId: string) => groupTotals[groupId]?.yourBalance ?? 0;
-  const settled = Math.abs(balance.net) < 0.005;
-  const isPositive = balance.net > 0;
+  // One entry per currency with a balance. With none, show zero in the main currency.
+  const shown = balances.length ? balances : [{ currency: mainCurrency, net: 0, totalOwed: 0, totalOwe: 0, owedByFriend: [], oweToFriend: [] }];
+  const multiCurrency = shown.length > 1;
+  const settled = balances.length === 0;
+  const isPositive = shown[0].net > 0;
   const activeGroups = groups.filter((g) => Math.abs(balanceOf(g.id)) >= 0.005).length;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  const rows = activeTab === 'owed' ? balance.owedByFriend : balance.oweToFriend;
+  // A friend can owe in more than one currency; each is its own row.
+  const rows = shown.flatMap((b) =>
+    (activeTab === 'owed' ? b.owedByFriend : b.oweToFriend).map((r) => ({ ...r, currency: b.currency })),
+  );
+  const owedCount = new Set(shown.flatMap((b) => b.owedByFriend.map((r) => r.userId))).size;
+  const oweCount = new Set(shown.flatMap((b) => b.oweToFriend.map((r) => r.userId))).size;
 
   return (
     <div className="page-content">
@@ -64,11 +74,16 @@ export default function Dashboard() {
         <section className="statement dash-statement" aria-label="Overall balance">
           <div>
             <span className="cap">
-              {settled ? 'All settled up' : isPositive ? 'Overall, you are owed' : 'Overall, you owe'}
+              {settled ? 'All settled up' : multiCurrency ? 'Overall balance' : isPositive ? 'Overall, you are owed' : 'Overall, you owe'}
             </span>
-            <span className={`num dash-net ${settled ? 'zero' : isPositive ? 'pos' : 'neg'}`}>
-              {formatSigned(balance.net)}
-            </span>
+            {shown.map((b) => (
+              <span
+                key={b.currency}
+                className={`num dash-net ${multiCurrency ? 'dash-net-multi' : ''} ${Math.abs(b.net) < 0.005 ? 'zero' : b.net > 0 ? 'pos' : 'neg'}`}
+              >
+                {formatSigned(b.net, b.currency)}
+              </span>
+            ))}
             {activeGroups > 0 && (
               <span className="text-xs text-secondary">
                 across {activeGroups} {activeGroups === 1 ? 'group' : 'groups'}
@@ -77,11 +92,15 @@ export default function Dashboard() {
           </div>
           <div className="dash-statement-part">
             <span className="cap">Owed to you</span>
-            <span className="num pos dash-part-amount">{formatCurrency(balance.totalOwed)}</span>
+            {shown.map((b) => (
+              <span key={b.currency} className="num pos dash-part-amount">{formatCurrency(b.totalOwed, b.currency)}</span>
+            ))}
           </div>
           <div className="dash-statement-part">
             <span className="cap">You owe</span>
-            <span className="num neg dash-part-amount">{formatCurrency(balance.totalOwe)}</span>
+            {shown.map((b) => (
+              <span key={b.currency} className="num neg dash-part-amount">{formatCurrency(b.totalOwe, b.currency)}</span>
+            ))}
           </div>
         </section>
 
@@ -98,7 +117,7 @@ export default function Dashboard() {
                   className={`dash-tab ${activeTab === 'owed' ? 'active' : ''}`}
                   onClick={() => setActiveTab('owed')}
                 >
-                  Owed to you · {balance.owedByFriend.length}
+                  Owed to you · {owedCount}
                 </button>
                 <button
                   role="tab"
@@ -106,7 +125,7 @@ export default function Dashboard() {
                   className={`dash-tab ${activeTab === 'owe' ? 'active' : ''}`}
                   onClick={() => setActiveTab('owe')}
                 >
-                  You owe · {balance.oweToFriend.length}
+                  You owe · {oweCount}
                 </button>
               </div>
 
@@ -128,7 +147,7 @@ export default function Dashboard() {
                       const friend = getUserById(b.userId);
                       if (!friend) return null;
                       return (
-                        <div key={b.userId} className="dash-person">
+                        <div key={`${b.userId}-${b.currency}`} className="dash-person">
                           <Avatar user={friend} size="md" />
                           <div className="dash-person-info">
                             <span className="dash-person-name">{friend.name}</span>
@@ -137,7 +156,7 @@ export default function Dashboard() {
                             </span>
                           </div>
                           <span className={`num ${activeTab === 'owed' ? 'pos' : 'neg'} dash-person-amount`}>
-                            {formatCurrency(b.amount)}
+                            {formatCurrency(b.amount, b.currency)}
                           </span>
                         </div>
                       );
@@ -167,12 +186,12 @@ export default function Dashboard() {
                       <span className="dash-expense-info">
                         <span className="dash-expense-desc">{expense.description}</span>
                         <span className="text-xs text-secondary">
-                          {isPaidByMe ? 'You' : paidByUser?.name} paid {formatCurrency(expense.amount)}
+                          {isPaidByMe ? 'You' : paidByUser?.name} paid {expenseAmountLabel(expense)}
                         </span>
                       </span>
                       <span className="dash-expense-group">{group?.name ?? ''}</span>
                       <span className={`num dash-expense-share ${net > 0.005 ? 'pos' : net < -0.005 ? 'neg' : 'zero'}`}>
-                        {formatSigned(net)}
+                        {formatSigned(net, recordCurrency(expense))}
                       </span>
                     </div>
                   );
@@ -205,7 +224,7 @@ export default function Dashboard() {
                       </span>
                     </span>
                     <span className={`${even ? '' : 'num'} dash-group-bal ${even ? 'zero' : bal > 0 ? 'pos' : 'neg'}`}>
-                      {even ? 'settled' : formatSigned(bal)}
+                      {even ? 'settled' : formatSigned(bal, groupCurrency(group))}
                     </span>
                   </button>
                 );

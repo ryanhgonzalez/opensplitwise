@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store';
 import { parseAndValidate } from '../lib/dataExport';
 import type { GroupType } from '../types';
+import { localeCurrency } from '../lib/currency';
+import CurrencySelect from '../components/CurrencySelect';
 import './Onboarding.css';
 
 const features = [
@@ -45,6 +47,7 @@ export default function Onboarding() {
   const [emoji, setEmoji] = useState('🏠');
   const [color, setColor] = useState('#7c3aed');
   const [type, setType] = useState<GroupType>('other');
+  const [currency, setCurrency] = useState(localeCurrency);
   const [people, setPeople] = useState<string[]>([]);
   const [personDraft, setPersonDraft] = useState('');
 
@@ -72,6 +75,7 @@ export default function Onboarding() {
         emoji,
         color,
         type,
+        currency,
         members: [
           { userId: currentUserId, role: 'owner', joinedAt: new Date() },
           ...memberIds.map((id) => ({ userId: id, role: 'member' as const, joinedAt: new Date() })),
@@ -264,6 +268,10 @@ export default function Onboarding() {
                   </button>
                 ))}
               </div>
+
+              {/* Currency */}
+              <label className="ob-label" htmlFor="ob-currency">Currency</label>
+              <CurrencySelect id="ob-currency" className="ob-input" value={currency} onChange={setCurrency} />
 
               {/* People */}
               <span className="ob-label">Add people (optional)</span>

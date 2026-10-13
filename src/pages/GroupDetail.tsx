@@ -14,6 +14,7 @@ import EditGroupSheet from '../components/EditGroupSheet';
 import PersonSheet from '../components/PersonSheet';
 import ExpenseFilterBar from '../components/ExpenseFilterBar';
 import SettleModal from '../components/SettleModal';
+import { expenseAmountLabel, groupCurrency } from '../lib/currency';
 import './GroupDetail.css';
 
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -50,6 +51,8 @@ export default function GroupDetail() {
   const { totalSpent } = useStore(selectTotalsForGroup(id ?? ''));
 
   const group = useMemo(() => groups.find(g => g.id === id), [groups, id]);
+  // Every amount in a group is in its currency.
+  const cur = groupCurrency(group);
   const expenses = useMemo(
     () => allExpenses.filter(e => e.groupId === id),
     [allExpenses, id],
@@ -133,7 +136,7 @@ export default function GroupDetail() {
       fromUserId: settling.from,
       toUserId: settling.to,
       amount,
-      currency: 'USD',
+      currency: cur,
       groupId: id,
       date: new Date(),
       paymentMethod: method,
@@ -201,14 +204,14 @@ export default function GroupDetail() {
           <section className="statement gd-statement" aria-label="Group summary">
             <div>
               <span className="cap">Total spent</span>
-              <span className="num gd-figure">{formatCurrency(totalSpent)}</span>
+              <span className="num gd-figure">{formatCurrency(totalSpent, cur)}</span>
             </div>
             <div>
               <span className="cap">
                 {Math.abs(myBalance) < 0.005 ? 'Your balance' : myBalance > 0 ? 'You are owed' : 'You owe'}
               </span>
               <span className={`gd-figure gd-figure-strong ${Math.abs(myBalance) < 0.005 ? 'zero' : `num ${signClass(myBalance)}`}`}>
-                {Math.abs(myBalance) < 0.005 ? 'Settled up' : formatSigned(myBalance)}
+                {Math.abs(myBalance) < 0.005 ? 'Settled up' : formatSigned(myBalance, cur)}
               </span>
             </div>
             <div className="gd-statement-extra">
@@ -235,7 +238,7 @@ export default function GroupDetail() {
                           <span className="text-secondary"> pays </span>
                           <strong>{nameOf(s.to, true)}</strong>
                         </span>
-                        <span className="num gd-transfer-amount">{formatCurrency(s.amount)}</span>
+                        <span className="num gd-transfer-amount">{formatCurrency(s.amount, cur)}</span>
                         <button
                           className="btn btn-outline btn-sm"
                           onClick={() => setSettling({ from: s.from, to: s.to, amount: s.amount })}
@@ -269,7 +272,7 @@ export default function GroupDetail() {
                             {p.paymentMethod ? ` · ${PAYMENT_METHOD_LABELS[p.paymentMethod].toUpperCase()}` : ''}
                           </span>
                         </span>
-                        <span className="num gd-payment-amount">{formatCurrency(p.amount)}</span>
+                        <span className="num gd-payment-amount">{formatCurrency(p.amount, cur)}</span>
                         {confirming ? (
                           <span className="gd-payment-confirm">
                             <button className="btn btn-secondary btn-sm" onClick={() => setUndoPaymentId(null)}>Keep</button>
@@ -349,13 +352,13 @@ export default function GroupDetail() {
                             <span className="gd-desc">{expense.description}</span>
                             <span className="num gd-cat gd-col-wide-inline">{categoryLabel(expense.category, group)}</span>
                             <span className="text-xs text-secondary gd-meta-mobile">
-                              {nameOf(expense.paidBy)} paid {formatCurrency(expense.amount)}
+                              {nameOf(expense.paidBy)} paid {expenseAmountLabel(expense)}
                             </span>
                           </span>
                           <span role="cell" className="gd-col-wide">{nameOf(expense.paidBy)}</span>
-                          <span role="cell" className="num gd-col-wide gd-right gd-amount">{formatCurrency(expense.amount)}</span>
+                          <span role="cell" className="num gd-col-wide gd-right gd-amount">{formatCurrency(expense.amount, cur)}</span>
                           <span role="cell" className="gd-right gd-share">
-                            <span className={`num ${signClass(net)}`}>{formatSigned(net)}</span>
+                            <span className={`num ${signClass(net)}`}>{formatSigned(net, cur)}</span>
                             <span className="gd-share-label">
                               {net > 0.005 ? 'you lent' : net < -0.005 ? 'you borrowed' : 'not involved'}
                             </span>
@@ -421,11 +424,11 @@ export default function GroupDetail() {
                         <span className="gd-balance-info">
                           <span className="gd-balance-name">{nameOf(m.userId)}</span>
                           <span className="num gd-balance-meta">
-                            paid {formatCurrency(paidBy[m.userId] ?? 0)} · share {formatCurrency(shareOf[m.userId] ?? 0)}
+                            paid {formatCurrency(paidBy[m.userId] ?? 0, cur)} · share {formatCurrency(shareOf[m.userId] ?? 0, cur)}
                           </span>
                         </span>
                         <span className={`gd-balance-amount ${even ? 'zero' : `num ${signClass(bal)}`}`}>
-                          {even ? 'settled up' : formatSigned(bal)}
+                          {even ? 'settled up' : formatSigned(bal, cur)}
                         </span>
                       </button>
                     );
@@ -488,6 +491,7 @@ export default function GroupDetail() {
             fromUserId={settling.from}
             toUserId={settling.to}
             amount={settling.amount}
+            currency={cur}
             mode="settle"
             groupLabel={group.name}
             onClose={() => setSettling(null)}

@@ -20,6 +20,8 @@ export interface Group {
   color: string;
   type: GroupType;
   members: GroupMember[];
+  /** ISO 4217 code every amount in this group is in. Absent on older data, which is US dollars. */
+  currency?: string;
   /** Categories made for this group, offered next to the built-in ones. Absent on older data. */
   categories?: CustomCategory[];
   lastActivity: Date;

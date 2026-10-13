@@ -74,6 +74,17 @@
   font-weight: 600;
 }
 
+/* One per currency the person has a balance in */
+.people-row-line {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.people-row-line + .people-row-line {
+  margin-top: 4px;
+}
+
 @media (min-width: 1024px) {
   .people-page {
     max-width: 860px;

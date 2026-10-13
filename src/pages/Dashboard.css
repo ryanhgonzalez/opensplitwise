@@ -41,6 +41,11 @@
   line-height: 1.1;
 }
 
+/* Several currencies: one line each, smaller so they stack */
+.dash-net-multi {
+  font-size: 26px;
+}
+
 .dash-statement {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }

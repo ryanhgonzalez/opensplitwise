@@ -5,6 +5,8 @@ import { buildSplit, round, splitByItems } from '../lib/calculations';
 import { CATEGORY_LABELS } from '../types';
 import type { CategoryId, Expense, SplitType, ExpenseSplit } from '../types';
 import { BUILT_IN_CATEGORIES, MAX_CATEGORY_NAME, isCustomCategory } from '../lib/categories';
+import { convertSplit, currencySymbol, groupCurrency, recordCurrency } from '../lib/currency';
+import CurrencySelect from './CurrencySelect';
 import type { TotalCandidate } from '../lib/receiptScanner';
 import { formatCurrency } from '../utils/format';
 import Avatar from './Avatar';
@@ -69,8 +71,19 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const initSplitType = (e?: Expense): SplitMode =>
     e?.split.type === 'percentage' ? 'exact' : (e?.split.type === 'shares' ? 'exact' : (e?.split.type ?? 'equal'));
 
+  // Paid in another currency than the group's: the form shows and edits what was
+  // actually paid; balances get the converted figures on save.
+  const editForeign =
+    editExpense?.original && editExpense.original.currency !== recordCurrency(editExpense)
+      ? editExpense.original
+      : undefined;
+
   const [description, setDescription] = useState(editExpense?.description ?? '');
-  const [amountStr, setAmountStr] = useState(editExpense ? String(editExpense.amount) : '');
+  const [amountStr, setAmountStr] = useState(editExpense ? String(editForeign?.amount ?? editExpense.amount) : '');
+  /** The currency the amount is entered in; null = the group's. */
+  const [entryCurrency, setEntryCurrency] = useState<string | null>(editForeign?.currency ?? null);
+  /** Group currency per 1 unit of the entry currency, as typed. */
+  const [rateStr, setRateStr] = useState(editForeign ? String(editForeign.rate) : '');
   const [category, setCategory] = useState<CategoryId>(editExpense?.category ?? 'food');
   // Inline "+ New" category entry; null while closed.
   const [newCategory, setNewCategory] = useState<string | null>(null);
@@ -127,9 +140,13 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     if (editExpense && editExpense.groupId === selectedGroup.id) {
       const eSplitType = initSplitType(editExpense);
       setSplitType(eSplitType);
+      // Shares are stored converted; show them in the currency the amount is edited in.
+      const entries = editForeign
+        ? convertSplit(editExpense.split.entries, 1 / editForeign.rate, editForeign.amount)
+        : editExpense.split.entries;
       setParticipants(
         selectedGroup.members.map(m => {
-          const entry = editExpense.split.entries.find(e => e.userId === m.userId);
+          const entry = entries.find(e => e.userId === m.userId);
           return {
             userId: m.userId,
             checked: !!entry,
@@ -151,6 +168,11 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   }, [groupId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const parsedAmount = parseFloat(amountStr) || 0;
+  const groupCur = groupCurrency(selectedGroup);
+  const cur = entryCurrency ?? groupCur;
+  const isForeign = cur !== groupCur;
+  const rate = isForeign ? parseFloat(rateStr) || 0 : 1;
+  const sym = currencySymbol(cur);
   const checkedParticipants = participants.filter(p => p.checked);
   const checkedCount = checkedParticipants.length;
 
@@ -213,7 +235,10 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     effectiveTotal > 0 &&
     itemsSum <= effectiveTotal + 0.01;
 
+  const rateValid = !isForeign || rate > 0;
+
   const canSubmit =
+    rateValid &&
     description.trim().length > 0 &&
     !!groupId &&
     (splitType === 'items' ? itemsValid : parsedAmount > 0 && splitValid);
@@ -270,6 +295,8 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
       let filledAny = false;
       if (result.amount && result.amount > 0) { setAmountStr(result.amount.toFixed(2)); filledAny = true; }
+      // A receipt that says it's in another currency than the group's: enter it in that one.
+      if (result.currency) setEntryCurrency(result.currency === groupCur ? null : result.currency);
       setTotalCandidates(result.totalCandidates ?? []);
       if (result.description) { setDescription(result.description); filledAny = true; }
       if (result.category) { setCategory(result.category); filledAny = true; }
@@ -324,6 +351,16 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
       split = buildSplit(parsedAmount, splitType as SplitType, activeParticipants);
     }
 
+    // Balances are kept in the group's currency: convert what was entered, and
+    // remember what was actually paid.
+    let original: Expense['original'];
+    if (isForeign) {
+      const converted = round(amount * rate);
+      original = { amount, currency: cur, rate };
+      split = { ...split, entries: convertSplit(split.entries, rate, converted) };
+      amount = converted;
+    }
+
     if (isEditing && editExpense) {
       updateExpense(editExpense.id, {
         description: description.trim(),
@@ -333,12 +370,15 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         split,
         category,
         date: expenseDate,
+        currency: groupCur,
+        original,
       });
     } else {
       addExpense({
         description: description.trim(),
         amount,
-        currency: 'USD',
+        currency: groupCur,
+        original,
         paidBy,
         groupId: groupId || undefined,
         date: expenseDate,
@@ -352,7 +392,9 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
   const handleClose = () => {
     setDescription(editExpense?.description ?? '');
-    setAmountStr(editExpense ? String(editExpense.amount) : '');
+    setAmountStr(editExpense ? String(editForeign?.amount ?? editExpense.amount) : '');
+    setEntryCurrency(editForeign?.currency ?? null);
+    setRateStr(editForeign ? String(editForeign.rate) : '');
     setCategory(editExpense?.category ?? 'food');
     setNewCategory(null);
     setNewCategoryHint(null);
@@ -462,7 +504,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
               {/* Amount — hero input */}
               <div className="aes-amount-hero">
-                <span className="aes-currency-symbol">$</span>
+                <span className="aes-currency-symbol">{sym}</span>
                 <input
                   className="aes-amount-input"
                   type="number"
@@ -473,7 +515,46 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                   value={amountStr}
                   onChange={e => setAmountStr(e.target.value)}
                 />
+                {/* Shows the code; the invisible select on top opens the full list */}
+                <span className={`aes-currency-pick ${isForeign ? 'foreign' : ''}`}>
+                  {cur}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <CurrencySelect
+                    className="aes-currency-pick-select"
+                    aria-label="Currency of this expense"
+                    value={cur}
+                    onChange={c => setEntryCurrency(c === groupCur ? null : c)}
+                  />
+                </span>
               </div>
+
+              {/* Paid in another currency than the group's: the rate converts it */}
+              {isForeign && (
+                <div className="aes-rate">
+                  <label className="aes-rate-row">
+                    <span>1 {cur} =</span>
+                    <input
+                      className="field-input aes-rate-input"
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="rate"
+                      min="0"
+                      step="any"
+                      value={rateStr}
+                      onChange={e => setRateStr(e.target.value)}
+                      aria-label={`${groupCur} per 1 ${cur}`}
+                    />
+                    <span>{groupCur}</span>
+                  </label>
+                  <span className="aes-rate-hint">
+                    {rate > 0 && ctaTotal > 0
+                      ? `= ${formatCurrency(round(ctaTotal * rate), groupCur)}${selectedGroup ? ` in ${selectedGroup.name}` : ''}. Your card statement shows the rate you actually paid.`
+                      : `${selectedGroup?.name ?? 'This group'} is in ${groupCur}. Enter the rate to convert; your card statement shows the one you actually paid.`}
+                  </span>
+                </div>
+              )}
 
               {/* After a scan: the other amounts that could be the total, one tap to switch */}
               {totalCandidates.length > 1 && (
@@ -490,7 +571,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                           aria-pressed={active}
                           onClick={() => setAmountStr(c.amount.toFixed(2))}
                         >
-                          <span className="num">{formatCurrency(c.amount)}</span>
+                          <span className="num">{formatCurrency(c.amount, cur)}</span>
                           <span className="aes-total-chip-label">{c.label}</span>
                         </button>
                       );
@@ -652,7 +733,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                           if (!u) return null;
                           const isMe = p.userId === currentUser.id;
                           const sharePreview = splitType === 'equal' && parsedAmount > 0 && p.checked
-                            ? formatSharePreview(equalShare)
+                            ? `${formatCurrency(equalShare, cur)} each`
                             : null;
 
                           return (
@@ -683,7 +764,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                               {(splitType === 'exact' || splitType === 'percentage') && p.checked && (
                                 <div className="aes-value-input-wrap">
                                   <span className="aes-value-prefix">
-                                    {splitType === 'exact' ? '$' : ''}
+                                    {splitType === 'exact' ? sym : ''}
                                   </span>
                                   <input
                                     className="aes-value-input"
@@ -717,7 +798,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                           ) : (
                             <>
                               {splitType === 'exact'
-                                ? `${remainder > 0 ? '$' + remainder.toFixed(2) + ' remaining' : '$' + Math.abs(remainder).toFixed(2) + ' over'}`
+                                ? `${formatCurrency(remainder, cur)} ${remainder > 0 ? 'remaining' : 'over'}`
                                 : `${remainder > 0 ? remainder.toFixed(1) + '% remaining' : Math.abs(remainder).toFixed(1) + '% over'}`
                               }
                             </>
@@ -747,7 +828,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                                 onChange={e => updateItem(it.id, 'description', e.target.value)}
                               />
                               <div className="aes-item-price-wrap">
-                                <span className="aes-value-prefix">$</span>
+                                <span className="aes-value-prefix">{sym}</span>
                                 <input
                                   className="aes-item-price"
                                   type="number"
@@ -786,7 +867,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                             {price > 0 && (
                               who.length > 0 ? (
                                 <div className="aes-item-hint text-tertiary text-xs">
-                                  ${perEach.toFixed(2)} each · {who.length} {who.length === 1 ? 'person' : 'people'}
+                                  {formatCurrency(perEach, cur)} each · {who.length} {who.length === 1 ? 'person' : 'people'}
                                 </div>
                               ) : (
                                 <div className="aes-item-hint warn">Assign at least one person</div>
@@ -801,16 +882,16 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                       {/* Summary */}
                       <div className="aes-items-summary">
                         <div className="aes-items-row">
-                          <span>Items</span><span>${itemsSum.toFixed(2)}</span>
+                          <span>Items</span><span>{formatCurrency(itemsSum, cur)}</span>
                         </div>
                         {itemsSum > 0 && Math.abs(effectiveTotal - itemsSum) > 0.005 && (
                           <div className="aes-items-row">
                             <span>{effectiveTotal >= itemsSum ? 'Tax & tip' : 'Discount'}</span>
-                            <span>${(effectiveTotal - itemsSum).toFixed(2)}</span>
+                            <span>{formatCurrency(effectiveTotal - itemsSum, cur)}</span>
                           </div>
                         )}
                         <div className="aes-items-row total">
-                          <span>Total</span><span>${effectiveTotal.toFixed(2)}</span>
+                          <span>Total</span><span>{formatCurrency(effectiveTotal, cur)}</span>
                         </div>
 
                         <div className="aes-items-people">
@@ -824,7 +905,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                                 <span className="aes-items-person-name">
                                   {id === currentUser.id ? 'You' : u.name.split(' ')[0]}
                                 </span>
-                                <span className="aes-items-person-amt">${amt.toFixed(2)}</span>
+                                <span className="aes-items-person-amt">{formatCurrency(amt, cur)}</span>
                               </div>
                             );
                           })}
@@ -844,7 +925,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
             <div className="sheet-footer">
               <button className="sheet-cta" onClick={handleSubmit} disabled={!canSubmit}>
-                {isEditing ? 'Save Changes' : 'Add Expense'}{ctaTotal > 0 ? ` · $${ctaTotal.toFixed(2)}` : ''}
+                {isEditing ? 'Save Changes' : 'Add Expense'}{ctaTotal > 0 ? ` · ${formatCurrency(ctaTotal, cur)}` : ''}
               </button>
             </div>
           </motion.div>
@@ -854,6 +935,3 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   );
 }
 
-function formatSharePreview(amount: number): string {
-  return `$${amount.toFixed(2)} each`;
-}

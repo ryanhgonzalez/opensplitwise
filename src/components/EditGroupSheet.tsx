@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser } from '../store';
 import { firstGrapheme } from '../lib/emoji';
 import { MAX_CATEGORY_NAME, cleanCategoryName, findCategoryByName } from '../lib/categories';
+import { groupCurrency } from '../lib/currency';
+import CurrencySelect from './CurrencySelect';
 import type { CustomCategoryId, Group, GroupType } from '../types';
 import Avatar from './Avatar';
 import '../styles/sheet.css';
@@ -41,6 +43,7 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
   const [emoji, setEmoji] = useState(group.emoji);
   const [color, setColor] = useState(group.color);
   const [type, setType] = useState<GroupType>(group.type);
+  const [currency, setCurrency] = useState(groupCurrency(group));
   const [memberIds, setMemberIds] = useState<Set<string>>(
     new Set(group.members.map(m => m.userId))
   );
@@ -108,7 +111,7 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
   const handleSave = () => {
     if (!name.trim()) return;
 
-    updateGroup(group.id, { name: name.trim(), emoji, color, type });
+    updateGroup(group.id, { name: name.trim(), emoji, color, type, currency });
 
     // Diff members: add newly selected, remove deselected.
     const origIds = new Set(group.members.map(m => m.userId));
@@ -299,6 +302,18 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
                   </svg>
                   Add new person
                 </button>
+              </div>
+
+              {/* Currency */}
+              <div className="field-group">
+                <label className="field-label" htmlFor="egs-currency">Currency</label>
+                <CurrencySelect id="egs-currency" value={currency} onChange={setCurrency} />
+                {currency !== groupCurrency(group) && expenses.some(e => e.groupId === group.id) && (
+                  <p className="egs-currency-note">
+                    Existing amounts keep their numbers and are relabelled as {currency}; they aren't converted.
+                    Use this to fix the currency, not to change it partway through.
+                  </p>
+                )}
               </div>
 
               {/* Custom categories */}

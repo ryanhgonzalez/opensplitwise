@@ -1,18 +1,31 @@
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-  }).format(Math.abs(amount));
+const formatters = new Map<string, Intl.NumberFormat>();
+
+/**
+ * "$12.50", "€12.50", "¥1,250": always unsigned. Each currency uses its own
+ * number of decimals (yen has none). Defaults to US dollars, the currency of
+ * data from before groups had one.
+ */
+export function formatCurrency(amount: number, currency = 'USD'): string {
+  let fmt = formatters.get(currency);
+  if (!fmt) {
+    try {
+      fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency });
+    } catch {
+      // An unknown code in imported data: fall back to dollars rather than fail.
+      fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+    }
+    formatters.set(currency, fmt);
+  }
+  return fmt.format(Math.abs(amount));
 }
 
 /**
  * Currency with an explicit direction: "+$12.50" or "−$12.50" (a true minus
  * sign, so figures line up in mono columns). Zero gets no sign.
  */
-export function formatSigned(amount: number): string {
-  if (Math.abs(amount) < 0.005) return formatCurrency(0);
-  return `${amount > 0 ? '+' : '−'}${formatCurrency(amount)}`;
+export function formatSigned(amount: number, currency = 'USD'): string {
+  if (Math.abs(amount) < 0.005) return formatCurrency(0, currency);
+  return `${amount > 0 ? '+' : '−'}${formatCurrency(amount, currency)}`;
 }
 
 /** "SEP 15" — the compact date used down the left edge of ledger rows. */

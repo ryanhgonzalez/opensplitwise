@@ -4,6 +4,7 @@ import Avatar from './Avatar';
 import { useStore, selectCurrentUser } from '../store';
 import { round } from '../lib/calculations';
 import { formatCurrency } from '../utils';
+import { currencySymbol } from '../lib/currency';
 import type { PaymentMethod } from '../types';
 import './SettleModal.css';
 
@@ -27,6 +28,8 @@ interface SettleModalProps {
   toUserId: string;
   /** Outstanding balance between them — the default and maximum amount. */
   amount: number;
+  /** What `amount` and the payment are in. */
+  currency: string;
   mode: SettleMode;
   /** Shown as context when settling inside a group. */
   groupLabel?: string;
@@ -38,6 +41,7 @@ export default function SettleModal({
   fromUserId,
   toUserId,
   amount,
+  currency,
   mode,
   groupLabel,
   onClose,
@@ -90,14 +94,14 @@ export default function SettleModal({
 
   const subtitle =
     iAmPayer
-      ? `You owe ${otherName} ${formatCurrency(amount)}`
+      ? `You owe ${otherName} ${formatCurrency(amount, currency)}`
       : iAmRecipient
-        ? `${otherName} owes you ${formatCurrency(amount)}`
-        : `${payer.name.split(' ')[0]} owes ${recipient.name.split(' ')[0]} ${formatCurrency(amount)}`;
+        ? `${otherName} owes you ${formatCurrency(amount, currency)}`
+        : `${payer.name.split(' ')[0]} owes ${recipient.name.split(' ')[0]} ${formatCurrency(amount, currency)}`;
 
   // With an unusable amount the button is disabled, so it drops the figure rather
   // than advertising a $0.00 payment.
-  const sum = validAmount ? ` ${formatCurrency(parsed)}` : '';
+  const sum = validAmount ? ` ${formatCurrency(parsed, currency)}` : '';
   const confirmLabel =
     isRemind ? 'Send Reminder'
     : iAmPayer ? `Pay${sum}`
@@ -117,8 +121,8 @@ export default function SettleModal({
     isRemind
       ? `You'll be notified when ${otherName} pays`
       : settlesUp
-        ? `${formatCurrency(paidAmount)} settled — ${settledWith}`
-        : `${formatCurrency(paidAmount)} recorded · ${formatCurrency(remaining)} still outstanding`;
+        ? `${formatCurrency(paidAmount, currency)} settled — ${settledWith}`
+        : `${formatCurrency(paidAmount, currency)} recorded · ${formatCurrency(remaining, currency)} still outstanding`;
 
   return (
     <motion.div
@@ -179,13 +183,13 @@ export default function SettleModal({
 
               {isRemind ? (
                 <div className="modal-amount">
-                  <span className="amount-currency">$</span>
+                  <span className="amount-currency">{currencySymbol(currency)}</span>
                   <span className="amount-value">{amount.toFixed(2)}</span>
                 </div>
               ) : (
                 <div className="modal-amount-field">
                   <div className="modal-amount">
-                    <span className="amount-currency">$</span>
+                    <span className="amount-currency">{currencySymbol(currency)}</span>
                     <input
                       className="amount-input"
                       value={rawAmount}
@@ -199,7 +203,7 @@ export default function SettleModal({
                   <div className="amount-hint">
                     {overMax ? (
                       <span className="text-red text-xs">
-                        Only {formatCurrency(amount)} is outstanding
+                        Only {formatCurrency(amount, currency)} is outstanding
                       </span>
                     ) : !validAmount ? (
                       <span className="text-red text-xs">Enter an amount</span>
@@ -208,7 +212,7 @@ export default function SettleModal({
                     ) : (
                       <>
                         <span className="text-xs text-secondary">
-                          Partial · {formatCurrency(remaining)} will remain
+                          Partial · {formatCurrency(remaining, currency)} will remain
                         </span>
                         <button className="amount-full-btn" onClick={() => setRawAmount(amount.toFixed(2))}>
                           Full amount

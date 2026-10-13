@@ -93,30 +93,55 @@ const NO_TOTALS: GroupTotals = { yourBalance: 0, totalSpent: 0 };
 export const selectTotalsForGroup = (groupId: string) => (s: AppStore): GroupTotals =>
   selectDerivedTotals(s).groupTotals[groupId] ?? NO_TOTALS;
 
+/** currency → userId → net balance with the current user. */
+export const selectFriendBalancesByCurrency = (s: AppStore): Record<string, Record<string, number>> =>
+  selectDerivedTotals(s).friendBalancesByCurrency;
+
 // Memoized on the derived totals it reads, so the arrays it builds stay stable.
 let _overallSource: DerivedTotals | undefined;
-let _overallBalance: OverallBalance | undefined;
+let _overallBalances: OverallBalance[] | undefined;
 
-export const selectOverallBalance = (s: AppStore): OverallBalance => {
+/**
+ * The overall position, one entry per currency that has an unsettled
+ * balance, largest first. Empty when everything is settled.
+ */
+export const selectOverallBalances = (s: AppStore): OverallBalance[] => {
   const totals = selectDerivedTotals(s);
-  if (_overallSource === totals && _overallBalance) return _overallBalance;
+  if (_overallSource === totals && _overallBalances) return _overallBalances;
 
-  const owedByFriend = Object.entries(totals.friendBalances)
-    .filter(([, amount]) => amount > 0.005)
-    .map(([userId, amount]) => ({ userId, amount }))
-    .sort((a, b) => b.amount - a.amount);
-
-  const oweToFriend = Object.entries(totals.friendBalances)
-    .filter(([, amount]) => amount < -0.005)
-    .map(([userId, amount]) => ({ userId, amount: Math.abs(amount) }))
-    .sort((a, b) => b.amount - a.amount);
-
-  const totalOwed = owedByFriend.reduce((sum, b) => sum + b.amount, 0);
-  const totalOwe = oweToFriend.reduce((sum, b) => sum + b.amount, 0);
+  const result = Object.entries(totals.friendBalancesByCurrency)
+    .map(([currency, balances]): OverallBalance => {
+      const owedByFriend = Object.entries(balances)
+        .filter(([, amount]) => amount > 0.005)
+        .map(([userId, amount]) => ({ userId, amount }))
+        .sort((a, b) => b.amount - a.amount);
+      const oweToFriend = Object.entries(balances)
+        .filter(([, amount]) => amount < -0.005)
+        .map(([userId, amount]) => ({ userId, amount: Math.abs(amount) }))
+        .sort((a, b) => b.amount - a.amount);
+      const totalOwed = owedByFriend.reduce((sum, b) => sum + b.amount, 0);
+      const totalOwe = oweToFriend.reduce((sum, b) => sum + b.amount, 0);
+      return { currency, net: totalOwed - totalOwe, totalOwed, totalOwe, owedByFriend, oweToFriend };
+    })
+    .filter((b) => b.owedByFriend.length > 0 || b.oweToFriend.length > 0)
+    .sort((a, b) => b.totalOwed + b.totalOwe - (a.totalOwed + a.totalOwe));
 
   _overallSource = totals;
-  _overallBalance = { net: totalOwed - totalOwe, totalOwed, totalOwe, owedByFriend, oweToFriend };
-  return _overallBalance;
+  _overallBalances = result;
+  return result;
+};
+
+let _currencySource: AppStore['groups'] | undefined;
+let _mainCurrency = 'USD';
+
+/** The currency most groups use: what to show a zero balance in. US dollars with no groups. */
+export const selectMainCurrency = (s: AppStore): string => {
+  if (_currencySource === s.groups) return _mainCurrency;
+  const counts = new Map<string, number>();
+  for (const g of s.groups) counts.set(g.currency || 'USD', (counts.get(g.currency || 'USD') ?? 0) + 1);
+  _mainCurrency = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'USD';
+  _currencySource = s.groups;
+  return _mainCurrency;
 };
 
 export const selectGroupBalance = (groupId: string) => (s: AppStore) =>
