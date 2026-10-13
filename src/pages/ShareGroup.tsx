@@ -1,0 +1,208 @@
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useStore } from '../store';
+import GroupTile from '../components/GroupTile';
+import { buildBundle, type GroupBundle } from '../lib/groupSync';
+import { compressBundle, sendBundleFile, toFrames } from '../lib/groupShare';
+import { formatBytes, photosFor } from '../lib/receiptPhotos';
+import { CloseIcon, PartsBar } from './sharingParts';
+import './Sharing.css';
+
+/** How long each frame of the code stays on screen. */
+const FRAME_MS = 300;
+
+/** The code's size: as large as fits a phone, larger on a computer screen. */
+const qrSize = () => (window.matchMedia('(min-width: 1024px)').matches ? 400 : Math.min(320, window.innerWidth - 56));
+
+/**
+ * Sends a group to someone's phone: as a cycling QR code they scan in the app
+ * (together, no internet needed), or as a file through the share sheet.
+ */
+export default function ShareGroup() {
+  const { id = '' } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const group = useStore((s) => s.groups.find((g) => g.id === id));
+
+  const [bundle, setBundle] = useState<GroupBundle | null>(null);
+  const [frames, setFrames] = useState<Uint8Array[]>([]);
+  const [frameIndex, setFrameIndex] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+  // Photos only travel in the file, and only if asked: they can make it many times larger.
+  const [includePhotos, setIncludePhotos] = useState(false);
+  const [sending, setSending] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!group) navigate('/groups', { replace: true });
+  }, [group, navigate]);
+
+  // Pack the group as it is when the page opens.
+  useEffect(() => {
+    let live = true;
+    const s = useStore.getState();
+    const b = buildBundle(
+      {
+        currentUserId: s.currentUserId,
+        users: s.users,
+        groups: s.groups,
+        expenses: s.expenses,
+        settlements: s.settlements,
+        activities: s.activities,
+        tombstones: s.tombstones,
+        userAliases: s.userAliases,
+        groupSyncedAt: s.groupSyncedAt,
+        recurring: s.recurring,
+      },
+      id,
+    );
+    setBundle(b);
+    if (b) {
+      compressBundle(b)
+        .then((payload) => live && setFrames(toFrames(payload)))
+        .catch((err: Error) => live && setError(err.message));
+    }
+    return () => {
+      live = false;
+    };
+  }, [id]);
+
+  // Cycle through the frames.
+  useEffect(() => {
+    if (frames.length < 2) return;
+    const timer = setInterval(() => setFrameIndex((i) => (i + 1) % frames.length), FRAME_MS);
+    return () => clearInterval(timer);
+  }, [frames]);
+
+  // Draw the current frame.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const frame = frames[frameIndex % Math.max(frames.length, 1)];
+    if (!canvas || !frame) return;
+    let live = true;
+    import('qrcode').then((QR) => {
+      if (!live) return;
+      QR.toCanvas(canvas, [{ data: frame, mode: 'byte' }], {
+        errorCorrectionLevel: 'L',
+        margin: 2,
+        width: qrSize(),
+        color: { dark: '#000000', light: '#ffffff' },
+      }).catch((err: Error) => setError(err.message));
+    });
+    return () => {
+      live = false;
+    };
+  }, [frames, frameIndex]);
+
+  if (!group) return null;
+
+  const withPhotos = bundle?.expenses.filter((e) => e.receipt) ?? [];
+  const photoBytes = withPhotos.reduce((n, e) => n + (e.receipt?.bytes ?? 0), 0);
+  const expenseCount = bundle?.expenses.length ?? 0;
+  const peopleCount = group.members.length;
+
+  const sendFile = async () => {
+    if (!bundle) return;
+    setSending(true);
+    try {
+      const receipts = includePhotos && withPhotos.length ? await photosFor(withPhotos.map((e) => e.id)) : undefined;
+      if (await sendBundleFile({ ...bundle, receipts })) setSent(true);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="page-content sharing-scroll">
+      <div className="sharing-page">
+        {/* Phones: a title bar with close. Desktop: breadcrumb and Done. */}
+        <div className="sharing-topbar">
+          <span className="sharing-topbar-title">Share group</span>
+          <Link to={`/groups/${id}`} className="sharing-close" aria-label="Close">
+            <CloseIcon />
+          </Link>
+        </div>
+        <header className="sharing-header">
+          <span className="sharing-crumb">
+            <Link to="/groups">Groups</Link> / <Link to={`/groups/${id}`}>{group.name}</Link> /
+          </span>
+          <h1 className="sharing-title">Share group</h1>
+          <Link to={`/groups/${id}`} className="btn btn-secondary sharing-done">Done</Link>
+        </header>
+
+        <div className="share-layout">
+          <div className="share-code">
+            <div className="share-code-heading">
+              <span className="share-group-name">{group.name}</span>
+              <span className="text-secondary">Hold this up to their camera</span>
+            </div>
+            <div className="share-qr-wrap">
+              <canvas ref={canvasRef} className="share-qr" aria-label="Group code, changing several times a second" />
+            </div>
+            <div className="share-parts">
+              <PartsBar parts={frames.map((_, i) => i === frameIndex)} />
+              <span className="num share-parts-text">
+                {frames.length > 1
+                  ? `Part ${frameIndex + 1} of ${frames.length} · changes on its own`
+                  : frames.length
+                    ? 'One part'
+                    : 'Preparing…'}
+              </span>
+            </div>
+          </div>
+
+          <div className="share-side">
+            <div className="share-side-group">
+              <GroupTile group={group} size={44} />
+              <span>
+                <span className="share-side-name">{group.name}</span>
+                <span className="text-sm text-secondary">
+                  {expenseCount} {expenseCount === 1 ? 'expense' : 'expenses'} · {peopleCount}{' '}
+                  {peopleCount === 1 ? 'person' : 'people'}
+                </span>
+              </span>
+            </div>
+            <span className="share-side-lead">Hold their phone up to this screen</span>
+
+            {error && <p className="gs-error">{error}</p>}
+
+            <ol className="sharing-steps">
+              <li>
+                On their phone, open <strong>Groups</strong> and tap <strong>Receive</strong>.
+              </li>
+              <li>Point the camera here until their phone says it's done.</li>
+              <li className="sharing-step-wide">They check the changes and merge.</li>
+            </ol>
+            <span className="sharing-meta">
+              <span className="sharing-narrow">
+                {expenseCount} {expenseCount === 1 ? 'expense' : 'expenses'} · {peopleCount}{' '}
+                {peopleCount === 1 ? 'person' : 'people'} ·{' '}
+              </span>
+              No internet needed. Turn your brightness up if it's slow to read. Sharing again later sends what's new.
+            </span>
+
+            <div className="share-file">
+              <span className="share-file-title">Not together?</span>
+              <span className="sharing-wide text-sm text-secondary">
+                Send a file with AirDrop, Messages or email. They open it from Receive.
+              </span>
+              {withPhotos.length > 0 && (
+                <label className="gs-photos">
+                  <input type="checkbox" checked={includePhotos} onChange={(e) => setIncludePhotos(e.target.checked)} />
+                  <span>
+                    Include {withPhotos.length} receipt {withPhotos.length === 1 ? 'photo' : 'photos'} (+
+                    {formatBytes(photoBytes)})
+                  </span>
+                </label>
+              )}
+              <button className="btn btn-secondary share-file-btn" onClick={sendFile} disabled={!bundle || sending}>
+                {sending ? 'Preparing…' : 'Send as a file instead'}
+              </button>
+              {sent && <p className="sharing-meta">Sent. When they open it, your changes are merged into their copy.</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

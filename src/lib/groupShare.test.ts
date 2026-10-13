@@ -52,6 +52,14 @@ describe('code frames', () => {
     expect(await decompressBundle(c.payload())).toEqual(b);
   });
 
+  it('says which parts have arrived, for the progress bar', async () => {
+    const frames = toFrames(await compressBundle(bundle(150)), 7);
+    const c = new FrameCollector();
+    c.add(frames[2]);
+    c.add(frames[0]);
+    expect(c.arrived).toEqual(frames.map((_, i) => i === 0 || i === 2));
+  });
+
   it('ignores stray QR codes and starts over when another share appears', async () => {
     const c = new FrameCollector();
     expect(c.add(new TextEncoder().encode('https://example.com'))).toBe(false);

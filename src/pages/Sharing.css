@@ -1,0 +1,702 @@
+/* Share a group (ShareGroup) and receive one (ReceiveGroup).
+   Phones: full screen with a close button, no tab bar. Desktop: pages beside the sidebar. */
+
+.sharing-scroll {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+}
+
+.sharing-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: env(safe-area-inset-top, 0px) 20px 4px;
+}
+
+.sharing-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 56px;
+  margin-right: -12px;
+}
+
+.sharing-topbar-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.sharing-topbar-muted {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.sharing-close {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  color: inherit;
+}
+
+.sharing-header,
+.sharing-wide,
+.sharing-step-wide {
+  display: none;
+}
+
+.sharing-steps {
+  margin: 0;
+  padding: 14px 16px 14px 34px;
+  border-radius: 10px;
+  background: var(--panel);
+  font-size: 14px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sharing-meta {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.gs-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--owe-tint);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.gs-photos {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.gs-photos input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--ink);
+}
+
+/* One segment per part of the code */
+.parts-bar {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.parts-bar-dense {
+  gap: 2px;
+}
+
+.parts-bar > span,
+.parts-bar-empty {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.parts-bar > span.on {
+  background: var(--ink);
+}
+
+/* ── Share ─────────────────────────────────────────────────────────────── */
+
+.share-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.share-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.share-code-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.share-group-name {
+  font-size: 24px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* The code is black on white in either theme, so cameras read it */
+.share-qr-wrap {
+  padding: 10px;
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.share-qr {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.share-parts {
+  width: 100%;
+  max-width: 342px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.share-parts-text {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.share-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.share-side-group,
+.share-side-lead {
+  display: none;
+}
+
+.share-file {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+
+.share-file-title {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.share-file-btn {
+  width: 100%;
+}
+
+/* ── Receive: scanning ─────────────────────────────────────────────────── */
+
+/* Phones: a dark camera screen */
+.receive-scan {
+  background: #111214;
+  color: #ffffff;
+}
+
+.receive-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.receive-camera {
+  position: relative;
+  margin: 0 -20px;
+  height: min(56vh, 480px);
+  background: #2a2c31;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.receive-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.receive-guide {
+  position: relative;
+  width: min(70%, 290px);
+  aspect-ratio: 1;
+  border: 3px solid #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.3);
+}
+
+.receive-camera-msg {
+  position: relative;
+  max-width: 300px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  font-size: 14px;
+  color: #e4e4df;
+}
+
+.receive-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 20px;
+}
+
+/* Phones: the code's own screen says what to do; the steps are for desktop */
+.receive-steps {
+  display: none;
+}
+
+.receive-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.receive-scan .parts-bar > span,
+.receive-scan .parts-bar-empty {
+  height: 6px;
+  border-radius: 3px;
+  background: #5b606a;
+}
+
+.receive-scan .parts-bar > span.on {
+  background: #ffffff;
+}
+
+.receive-progress-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.receive-progress-text {
+  font-size: 13px;
+  color: #cfcfc8;
+}
+
+.receive-file {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid #2a2c31;
+}
+
+.receive-file-title {
+  font-size: 13px;
+  color: #cfcfc8;
+}
+
+.receive-file-btn {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #5b606a;
+  background: transparent;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.receive-scan.dragging .receive-camera {
+  outline: 3px dashed var(--owed);
+  outline-offset: -3px;
+}
+
+/* ── Receive: review & merge ───────────────────────────────────────────── */
+
+.review-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 4px;
+}
+
+.review-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+/* On phones the second column runs on to the bottom, where Merge sits */
+.review-col:last-child {
+  flex: 1;
+}
+
+.review-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.review-group > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.review-group-name {
+  font-size: 22px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.review-label {
+  display: block;
+  padding-bottom: 8px;
+}
+
+.review-changes {
+  border-top: 2px solid var(--ink);
+}
+
+.review-change {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 14px;
+}
+
+.review-change-mark {
+  width: 36px;
+  flex-shrink: 0;
+  display: flex;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.review-note {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.review-note-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.review-people {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.review-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.review-person-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-person-name {
+  font-size: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.review-person-select {
+  flex: 0 1 60%;
+  min-width: 0;
+  max-width: 220px;
+}
+
+.review-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-merge {
+  width: 100%;
+  min-height: 52px;
+}
+
+.review-cancel {
+  display: none;
+}
+
+.review-actions-note {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ── Desktop ───────────────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .sharing-scroll {
+    padding-bottom: 48px;
+  }
+
+  .sharing-page {
+    max-width: 1120px;
+    padding: 32px 40px 32px;
+    gap: 28px;
+  }
+
+  .sharing-topbar,
+  .sharing-narrow {
+    display: none;
+  }
+
+  .sharing-wide {
+    display: block;
+  }
+
+  .sharing-step-wide {
+    display: list-item;
+  }
+
+  .sharing-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 8px 16px;
+  }
+
+  .sharing-crumb {
+    grid-column: 1;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .sharing-crumb a {
+    color: var(--owed);
+    text-decoration: none;
+  }
+
+  .sharing-crumb a:hover {
+    text-decoration: underline;
+  }
+
+  .sharing-title {
+    grid-column: 1;
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .sharing-done {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: end;
+  }
+
+  .sharing-header-sub {
+    grid-column: 1 / -1;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .sharing-meta {
+    text-align: left;
+  }
+
+  /* Share: the code on the left, how-to and the file on the right */
+  .share-layout {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 48px;
+  }
+
+  .share-code-heading {
+    display: none;
+  }
+
+  .share-parts {
+    max-width: 422px;
+  }
+
+  .share-side {
+    flex: 1 1 280px;
+    max-width: 440px;
+    gap: 18px;
+    padding-top: 8px;
+  }
+
+  .share-side-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .share-side-group > span {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .share-side-name {
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  .share-side-lead {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .share-file {
+    margin-top: 0;
+    padding-top: 18px;
+  }
+
+  .share-file-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .share-file-btn {
+    width: auto;
+    align-self: flex-start;
+    border-color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* Receive: a light page with the webcam on the left */
+  .receive-scan {
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  .receive-layout {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 40px;
+  }
+
+  .receive-camera {
+    flex: 1 1 420px;
+    max-width: 600px;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    margin: 0;
+    border-radius: 14px;
+  }
+
+  .receive-side {
+    flex: 1 1 280px;
+    max-width: 380px;
+    gap: 18px;
+    padding-top: 8px;
+  }
+
+  .receive-scan .parts-bar > span,
+  .receive-scan .parts-bar-empty {
+    background: var(--rule);
+  }
+
+  .receive-scan .parts-bar > span.on {
+    background: var(--ink);
+  }
+
+  .receive-steps {
+    display: flex;
+  }
+
+  .receive-progress-title {
+    font-size: 18px;
+  }
+
+  .receive-progress-text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  .receive-file {
+    margin-top: 0;
+    padding-top: 18px;
+    border-top-color: var(--rule);
+  }
+
+  .receive-file-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .receive-file-btn {
+    width: auto;
+    align-self: flex-start;
+    min-height: 40px;
+    border-color: var(--ink);
+    background: var(--paper);
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* Review: what changes on the left; checks and Merge on the right */
+  .review-layout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 40px;
+    max-width: 900px;
+    padding-top: 0;
+  }
+
+  .review-group-name {
+    font-size: 20px;
+  }
+
+  .review-actions {
+    margin-top: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .review-merge {
+    flex: 1;
+    width: auto;
+    min-height: 44px;
+  }
+
+  .review-cancel {
+    display: inline-flex;
+  }
+
+  .review-actions-note {
+    flex-basis: 100%;
+    text-align: left;
+  }
+}

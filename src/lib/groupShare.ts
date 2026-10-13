@@ -141,6 +141,11 @@ export class FrameCollector {
     return this.parts.length;
   }
 
+  /** For each part, in order, whether it has arrived. */
+  get arrived(): boolean[] {
+    return this.parts.map(Boolean);
+  }
+
   get complete() {
     return this.total > 0 && this.received === this.total;
   }

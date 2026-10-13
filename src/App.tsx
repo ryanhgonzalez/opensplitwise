@@ -12,6 +12,8 @@ import Insights from './pages/Insights';
 import People from './pages/People';
 import Person from './pages/Person';
 import Settings from './pages/Settings';
+import ShareGroup from './pages/ShareGroup';
+import ReceiveGroup from './pages/ReceiveGroup';
 import Onboarding from './pages/Onboarding';
 import IdentityPicker from './components/IdentityPicker';
 import InstallGuide from './components/InstallGuide';
@@ -42,6 +44,8 @@ function AnimatedRoutes() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/groups" element={<Groups />} />
           <Route path="/groups/:id" element={<GroupDetail />} />
+          <Route path="/groups/:id/share" element={<ShareGroup />} />
+          <Route path="/receive" element={<ReceiveGroup />} />
           <Route path="/activity" element={<Activity />} />
           {/* Settling moved to Home and each group; keep old links working */}
           <Route path="/settle" element={<Navigate to="/" replace />} />

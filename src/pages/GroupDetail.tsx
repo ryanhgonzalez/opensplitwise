@@ -11,7 +11,6 @@ import Avatar from '../components/Avatar';
 import GroupTile from '../components/GroupTile';
 import AddExpenseSheet from '../components/AddExpenseSheet';
 import EditGroupSheet from '../components/EditGroupSheet';
-import ShareGroupSheet from '../components/ShareGroupSheet';
 import ReceiptViewer from '../components/ReceiptViewer';
 import { showToast } from '../lib/toast';
 import { FREQUENCY_LABELS, nextOccurrence, ruleIdOf } from '../lib/recurring';
@@ -57,7 +56,6 @@ export default function GroupDetail() {
   const [duplicating, setDuplicating] = useState<Expense | null>(null);
   const [expenseMenuId, setExpenseMenuId] = useState<string | null>(null);
   const [showEditGroup, setShowEditGroup] = useState(false);
-  const [showShare, setShowShare] = useState(false);
   const [viewingReceipt, setViewingReceipt] = useState<{ id: string; title: string } | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [settling, setSettling] = useState<{ from: string; to: string; amount: number } | null>(null);
@@ -220,7 +218,7 @@ export default function GroupDetail() {
                 <GroupTile group={group} size={40} />
                 <h1 className="gd-title">{group.name}</h1>
                 {/* Phones only: desktop has labelled buttons */}
-                <button className="gd-icon-btn gd-settings-mobile gd-share-mobile" onClick={() => setShowShare(true)} aria-label="Share group">
+                <button className="gd-icon-btn gd-settings-mobile gd-share-mobile" onClick={() => navigate(`/groups/${group.id}/share`)} aria-label="Share group">
                   {SHARE_ICON}
                 </button>
                 <button className="gd-icon-btn gd-settings-mobile" onClick={() => setShowEditGroup(true)} aria-label="Group settings">
@@ -232,7 +230,7 @@ export default function GroupDetail() {
               </p>
             </div>
             <div className="gd-header-actions">
-              <button className="btn btn-secondary" onClick={() => setShowShare(true)}>Share</button>
+              <button className="btn btn-secondary" onClick={() => navigate(`/groups/${group.id}/share`)}>Share</button>
               <button className="btn btn-secondary" onClick={() => setShowEditGroup(true)}>Settings</button>
               <button className="btn btn-primary" onClick={openAddExpense}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -591,7 +589,6 @@ export default function GroupDetail() {
             onClose={() => setViewingReceipt(null)}
           />
         )}
-        {showShare && <ShareGroupSheet open={showShare} onClose={() => setShowShare(false)} groupId={group.id} />}
         {showEditGroup && (
           <EditGroupSheet
             open={showEditGroup}

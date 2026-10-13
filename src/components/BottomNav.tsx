@@ -1,10 +1,14 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useMatch } from 'react-router-dom';
 import { NAV_ITEMS, NavIcon } from './navItems';
 import { useAddExpense } from './useAddExpense';
 import './BottomNav.css';
 
 export default function BottomNav() {
   const { openAddExpense, addExpenseSheet } = useAddExpense();
+  // Sharing and receiving take the whole screen on phones.
+  const sharing = useMatch('/groups/:id/share');
+  const receiving = useMatch('/receive');
+  if (sharing || receiving) return null;
 
   const tab = (item: (typeof NAV_ITEMS)[number]) => (
     <NavLink
