@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { useStore, selectCurrentUser, selectFriendBalancesByCurrency } from '../store';
 import { groupCurrency } from '../lib/currency';
 import Avatar from './Avatar';
@@ -137,6 +138,13 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
                   )}
                 </div>
               </div>
+
+              {/* From inside a group: everything with this person is on their page */}
+              {group && !isSelf && (
+                <Link to={`/people/${userId}`} className="ps-page-link">
+                  Everything with {firstName} →
+                </Link>
+              )}
 
               {/* Name */}
               <div className="field-group">

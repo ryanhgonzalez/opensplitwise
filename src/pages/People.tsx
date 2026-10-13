@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useStore, selectCurrentUser, selectFriendBalancesByCurrency, selectOverallBalances } from '../store';
 import Avatar from '../components/Avatar';
 import PersonSheet from '../components/PersonSheet';
@@ -14,7 +15,9 @@ export default function People() {
   const overall = useStore(selectOverallBalances);
   const addUser = useStore(s => s.addUser);
 
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const navigate = useNavigate();
+  // Only your own row opens the sheet; everyone else has a page.
+  const [editingSelf, setEditingSelf] = useState(false);
   const [newName, setNewName] = useState('');
 
   const others = users.filter(u => u.id !== currentUser.id);
@@ -77,7 +80,7 @@ export default function People() {
         {/* You */}
         <section>
           <h2 className="cap people-section-label">You</h2>
-          <button className="people-row" onClick={() => setSelectedUserId(currentUser.id)}>
+          <button className="people-row" onClick={() => setEditingSelf(true)}>
             <Avatar user={currentUser} size="md" />
             <span className="people-row-info">
               <span className="people-row-name">{currentUser.name}</span>
@@ -106,7 +109,7 @@ export default function People() {
               const settled = balances.length === 0;
               const shared = sharedGroupNames(user.id);
               return (
-                <button key={user.id} className="people-row" onClick={() => setSelectedUserId(user.id)}>
+                <button key={user.id} className="people-row" onClick={() => navigate(`/people/${user.id}`)}>
                   <Avatar user={user} size="md" />
                   <span className="people-row-info">
                     <span className="people-row-name">{user.name}</span>
@@ -141,12 +144,8 @@ export default function People() {
       </div>
 
       <AnimatePresence>
-        {selectedUserId && (
-          <PersonSheet
-            open={!!selectedUserId}
-            onClose={() => setSelectedUserId(null)}
-            userId={selectedUserId}
-          />
+        {editingSelf && (
+          <PersonSheet open={editingSelf} onClose={() => setEditingSelf(false)} userId={currentUser.id} />
         )}
       </AnimatePresence>
     </div>

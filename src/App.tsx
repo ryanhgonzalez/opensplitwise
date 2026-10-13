@@ -10,6 +10,7 @@ import GroupDetail from './pages/GroupDetail';
 import Activity from './pages/Activity';
 import Insights from './pages/Insights';
 import People from './pages/People';
+import Person from './pages/Person';
 import Settings from './pages/Settings';
 import Onboarding from './pages/Onboarding';
 import IdentityPicker from './components/IdentityPicker';
@@ -46,6 +47,7 @@ function AnimatedRoutes() {
           <Route path="/settle" element={<Navigate to="/" replace />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/people" element={<People />} />
+          <Route path="/people/:id" element={<Person />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </motion.div>
