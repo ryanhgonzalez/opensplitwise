@@ -6,7 +6,8 @@ import type { Group, Expense, User, Settlement, PaymentMethod } from '../types';
 import { categoryLabel } from './categories';
 import { groupCurrency } from './currency';
 import { formatCurrency } from '../utils/format';
-import { calculateBalances, calculateSettlements } from './calculations';
+import { calculateBalances, calculateSettlements, signedAmount } from './calculations';
+import { getShareForUser } from '../utils/expense';
 import plexSansRegularUrl from '../assets/fonts/IBMPlexSans-Regular.ttf?url';
 import plexSansSemiBoldUrl from '../assets/fonts/IBMPlexSans-SemiBold.ttf?url';
 import plexMonoRegularUrl from '../assets/fonts/IBMPlexMono-Regular.ttf?url';
@@ -165,7 +166,8 @@ export async function generateGroupReport(
   const balances = calculateBalances({ expenses, memberIds, settlements: payments });
   const transfers = calculateSettlements({ expenses, memberIds, settlements: payments });
 
-  const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
+  // Refunds come off what was spent.
+  const totalSpent = expenses.reduce((s, e) => s + signedAmount(e), 0);
   const outstanding = transfers.reduce((s, t) => s + t.amount, 0);
   const times = expenses.map((e) => e.date.getTime());
   const first = times.length ? new Date(Math.min(...times)) : null;
@@ -340,8 +342,9 @@ export async function generateGroupReport(
   y = section('Balances', y);
   const rows = group.members.map((m) => {
     const id = m.userId;
-    const paid = expenses.filter((e) => e.paidBy === id).reduce((s, e) => s + e.amount, 0);
-    const share = expenses.reduce((s, e) => s + (e.split.entries.find((en) => en.userId === id)?.amount ?? 0), 0);
+    // A refund received counts against what someone paid; their part of it against their share.
+    const paid = expenses.filter((e) => e.paidBy === id).reduce((s, e) => s + signedAmount(e), 0);
+    const share = expenses.reduce((s, e) => s + getShareForUser(e, id), 0);
     // Money handed over already: sending moves you up, receiving moves you down.
     const settled = payments.reduce(
       (s, p) => s + (p.fromUserId === id ? p.amount : 0) - (p.toUserId === id ? p.amount : 0),
@@ -449,13 +452,15 @@ export async function generateGroupReport(
         { content: ledgerDate(e.date), styles: { font: f.mono, textColor: C.muted, fontSize: 7.5 } },
         {
           // Paid in another currency: show what was actually paid next to the name.
-          content: `${stripEmoji(e.description) || 'Expense'}${e.original && e.original.currency !== cur ? ` (${fmtMoney(e.original.amount, e.original.currency)})` : ''}`,
+          content: `${e.refund ? 'Refund: ' : ''}${stripEmoji(e.description) || 'Expense'}${e.original && e.original.currency !== cur ? ` (${fmtMoney(e.original.amount, e.original.currency)})` : ''}`,
           styles: { fontStyle: 'bold' },
         },
         { content: stripEmoji(categoryLabel(e.category, group)) || 'Other', styles: { textColor: C.soft, fontSize: 7.5 } },
-        nameOf(e.paidBy),
+        // For a refund, who received it.
+        e.refund ? `${nameOf(e.paidBy)} (got back)` : nameOf(e.paidBy),
         { content: splitLabel(e), styles: { textColor: C.soft, fontSize: 7.5 } },
-        money(e.amount),
+        // A refund reads as money coming off: "−€60.00".
+        e.refund ? { ...money(e.amount), content: `−${fmtMoney(e.amount, cur)}` } : money(e.amount),
       ]),
       {
         0: { cellWidth: 16 },

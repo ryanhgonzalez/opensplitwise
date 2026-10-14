@@ -29,7 +29,8 @@ export function getActivityDescription(
     }
     case 'expense_added': {
       const expense = getExpense(activity.expenseId);
-      return `${actorName} added "${expense?.description ?? 'an expense'}"`;
+      const what = `"${expense?.description ?? 'an expense'}"`;
+      return expense?.refund ? `${actorName} added a refund: ${what}` : `${actorName} added ${what}`;
     }
     case 'expense_updated': {
       const expense = getExpense(activity.expenseId);

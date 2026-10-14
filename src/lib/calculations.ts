@@ -25,6 +25,14 @@ export interface GroupSnapshot {
   settlements?: Settlement[];
 }
 
+// ─── Refunds ──────────────────────────────────────────────────────────────────
+
+/** +1 for money spent, −1 for a refund: money coming back runs every way round. */
+export const moneySign = (expense: Pick<Expense, 'refund'>): 1 | -1 => (expense.refund ? -1 : 1);
+
+/** The amount as spending: a refund counts against it. */
+export const signedAmount = (expense: Pick<Expense, 'refund' | 'amount'>): number => moneySign(expense) * expense.amount;
+
 // ─── Currency arithmetic ──────────────────────────────────────────────────────
 
 /** Round to the nearest cent. Use this for every balance mutation to prevent float drift. */
@@ -195,10 +203,11 @@ export function validateSplit(expense: Expense): boolean {
  */
 export function netForUserOnExpense(expense: Expense, userId: string): number {
   const share = expense.split.entries.find((e) => e.userId === userId)?.amount ?? 0;
-  if (expense.paidBy === userId) return round(expense.amount - share);
+  const sign = moneySign(expense);
   // Guard the sign of zero: `-0` renders as "-$0.00" and compares unequal to 0
   // under Object.is, which is a confusing thing to leak into a balance.
-  return share === 0 ? 0 : -share;
+  if (expense.paidBy === userId) return round(expense.amount - share) * sign || 0;
+  return share === 0 ? 0 : -share * sign;
 }
 
 /** Net amount for `userId` summed across multiple expenses. */
@@ -234,18 +243,20 @@ export function calculateBalances({
   for (const id of memberIds) balances[id] = 0;
 
   for (const expense of expenses) {
+    // A refund runs the other way: whoever received it owes the others their shares.
+    const sign = moneySign(expense);
     const payerShare =
       expense.split.entries.find((e) => e.userId === expense.paidBy)?.amount ?? 0;
 
     // Credit payer for what they fronted on behalf of everyone else.
     balances[expense.paidBy] = round(
-      (balances[expense.paidBy] ?? 0) + expense.amount - payerShare,
+      (balances[expense.paidBy] ?? 0) + sign * (expense.amount - payerShare),
     );
 
     // Debit each non-paying participant their share.
     for (const entry of expense.split.entries) {
       if (entry.userId !== expense.paidBy) {
-        balances[entry.userId] = round((balances[entry.userId] ?? 0) - entry.amount);
+        balances[entry.userId] = round((balances[entry.userId] ?? 0) - sign * entry.amount);
       }
     }
   }
@@ -381,21 +392,23 @@ export function deriveTotals(
   for (const expense of expenses) {
     currency = expense.currency || 'USD';
     const myShare = expense.split.entries.find((e) => e.userId === currentUserId)?.amount ?? 0;
+    const sign = moneySign(expense);
 
     if (expense.paidBy === currentUserId) {
       // I fronted it, so every other participant owes me their share.
+      // (A refund I received: I owe each of them theirs.)
       for (const entry of expense.split.entries) {
-        if (entry.userId !== currentUserId) bump(entry.userId, entry.amount);
+        if (entry.userId !== currentUserId) bump(entry.userId, sign * entry.amount);
       }
     } else if (myShare > 0) {
       // Somebody else fronted it and I was in the split, so I owe them.
-      bump(expense.paidBy, -myShare);
+      bump(expense.paidBy, -sign * myShare);
     }
 
     const totals = totalsFor(expense.groupId);
     if (totals) {
       totals.yourBalance += netForUserOnExpense(expense, currentUserId);
-      totals.totalSpent += expense.amount;
+      totals.totalSpent += signedAmount(expense);
     }
   }
 
@@ -471,8 +484,9 @@ export function outstandingByGroup(
     const shareOf = (userId: string) =>
       expense.split.entries.find((e) => e.userId === userId)?.amount ?? 0;
 
-    if (expense.paidBy === creditorId) bump(expense.groupId, shareOf(debtorId));
-    else if (expense.paidBy === debtorId) bump(expense.groupId, -shareOf(creditorId));
+    const sign = moneySign(expense);
+    if (expense.paidBy === creditorId) bump(expense.groupId, sign * shareOf(debtorId));
+    else if (expense.paidBy === debtorId) bump(expense.groupId, -sign * shareOf(creditorId));
   }
 
   for (const settlement of settlements) {

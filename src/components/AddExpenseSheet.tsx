@@ -49,6 +49,8 @@ interface AddExpenseSheetProps {
   editExpense?: Expense;
   /** Duplicate: start a new expense from this one's details (not its date or photo). */
   template?: Expense;
+  /** Refund this expense: same group, people and split, money coming back. */
+  refundOf?: Expense;
 }
 
 // ─── Date-input helpers (local, timezone-safe) ────────────────────────────────
@@ -66,7 +68,21 @@ function fromDateInputValue(str: string): Date {
 let itemSeq = 0;
 const newItemId = () => `item-${Date.now()}-${itemSeq++}`;
 
-export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExpense, template }: AddExpenseSheetProps) {
+/**
+ * A refund starts out shared like the expense it refunds: equal stays equal;
+ * anything else becomes the same percentages, so any amount splits alike.
+ */
+function refundPercentages(original: Expense): Record<string, string> {
+  const total = original.amount;
+  if (total <= 0) return {};
+  const entries = original.split.entries.filter(e => e.amount > 0);
+  const pct = entries.map(e => Math.round((e.amount / total) * 10000) / 100);
+  const diff = Math.round((100 - pct.reduce((a, b) => a + b, 0)) * 100) / 100;
+  if (pct.length) pct[pct.length - 1] = Math.round((pct[pct.length - 1] + diff) * 100) / 100;
+  return Object.fromEntries(entries.map((e, i) => [e.userId, String(pct[i])]));
+}
+
+export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExpense, template, refundOf }: AddExpenseSheetProps) {
   const isEditing = !!editExpense;
   // Where the form's starting values come from: the expense being edited, or the one being duplicated.
   const source = editExpense ?? template;
@@ -91,20 +107,26 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
       ? source.original
       : undefined;
 
-  const [description, setDescription] = useState(source?.description ?? '');
+  const [description, setDescription] = useState(source?.description ?? refundOf?.description ?? '');
+  /** Money coming back rather than spent. */
+  const [isRefund, setIsRefund] = useState(!!source?.refund || !!refundOf);
+  const refundEqual = !!refundOf && refundOf.split.type === 'equal' && !refundOf.items?.length;
   const [amountStr, setAmountStr] = useState(source ? String(sourceForeign?.amount ?? source.amount) : '');
   /** The currency the amount is entered in; null = the group's. */
   const [entryCurrency, setEntryCurrency] = useState<string | null>(sourceForeign?.currency ?? null);
   /** Group currency per 1 unit of the entry currency, as typed. */
   const [rateStr, setRateStr] = useState(sourceForeign ? String(sourceForeign.rate) : '');
-  const [category, setCategory] = useState<CategoryId>(source?.category ?? 'food');
+  const [category, setCategory] = useState<CategoryId>(source?.category ?? refundOf?.category ?? 'food');
   // Inline "+ New" category entry; null while closed.
   const [newCategory, setNewCategory] = useState<string | null>(null);
   const [newCategoryHint, setNewCategoryHint] = useState<string | null>(null);
   const [dateStr, setDateStr] = useState(editExpense ? toDateInputValue(editExpense.date) : '');
-  const [groupId, setGroupId] = useState(source?.groupId ?? defaultGroupId ?? '');
-  const [paidBy, setPaidBy] = useState(source?.paidBy ?? currentUser.id);
-  const [splitType, setSplitType] = useState<SplitMode>(initSplitType(source));
+  const [groupId, setGroupId] = useState(source?.groupId ?? refundOf?.groupId ?? defaultGroupId ?? '');
+  // For a refund: who received it; usually whoever paid, back on their card.
+  const [paidBy, setPaidBy] = useState(source?.paidBy ?? refundOf?.paidBy ?? currentUser.id);
+  const [splitType, setSplitType] = useState<SplitMode>(
+    refundOf ? (refundEqual ? 'equal' : 'percentage') : initSplitType(source),
+  );
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [lineItems, setLineItems] = useState<ItemRow[]>([]);
 
@@ -230,6 +252,15 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
             checked: !!entry,
             value: entry && eSplitType !== 'equal' ? String(entry.amount) : '',
           };
+        })
+      );
+    } else if (refundOf && refundOf.groupId === selectedGroup.id) {
+      const pct = refundPercentages(refundOf);
+      setSplitType(refundEqual ? 'equal' : 'percentage');
+      setParticipants(
+        selectedGroup.members.map(m => {
+          const inIt = refundOf.split.entries.some(e => e.userId === m.userId && e.amount > 0);
+          return { userId: m.userId, checked: inIt, value: refundEqual || !inIt ? '' : pct[m.userId] ?? '' };
         })
       );
     } else {
@@ -462,9 +493,10 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         original,
         receipt,
         items,
+        refund: isRefund ? { of: editExpense.refund?.of } : undefined,
       });
       if (newPhoto) void savePhoto(editExpense.id, newPhoto.blob);
-    } else if (repeat && groupId) {
+    } else if (repeat && groupId && !isRefund) {
       // Repeating: the rule adds this one (if its date has come) and the rest as they're due.
       const start = new Date(expenseDate.getFullYear(), expenseDate.getMonth(), expenseDate.getDate());
       const { rule, added: repeats } = addRecurring({
@@ -492,6 +524,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         category,
         receipt,
         items,
+        ...(isRefund && { refund: { of: refundOf?.id ?? template?.refund?.of } }),
       });
       // Saved under the new expense's id, which exists only now.
       if (newPhoto) void savePhoto(added.id, newPhoto.blob);
@@ -507,17 +540,18 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     setRemoveExisting(false);
     setViewingPhoto(false);
     setPhotoError(null);
-    setDescription(source?.description ?? '');
+    setDescription(source?.description ?? refundOf?.description ?? '');
+    setIsRefund(!!source?.refund || !!refundOf);
     setAmountStr(source ? String(sourceForeign?.amount ?? source.amount) : '');
     setEntryCurrency(sourceForeign?.currency ?? null);
     setRateStr(sourceForeign ? String(sourceForeign.rate) : '');
-    setCategory(source?.category ?? 'food');
+    setCategory(source?.category ?? refundOf?.category ?? 'food');
     setNewCategory(null);
     setNewCategoryHint(null);
     setDateStr(editExpense ? toDateInputValue(editExpense.date) : '');
-    setGroupId(source?.groupId ?? defaultGroupId ?? '');
-    setPaidBy(source?.paidBy ?? currentUser.id);
-    setSplitType(initSplitType(source));
+    setGroupId(source?.groupId ?? refundOf?.groupId ?? defaultGroupId ?? '');
+    setPaidBy(source?.paidBy ?? refundOf?.paidBy ?? currentUser.id);
+    setSplitType(refundOf ? (refundEqual ? 'equal' : 'percentage') : initSplitType(source));
     setParticipants([]);
     setLineItems([]);
     setScanning(false);
@@ -550,7 +584,9 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
           >
             <div className="sheet-handle" />
             <div className="sheet-header">
-              <span className="sheet-title">{isEditing ? 'Edit Expense' : template ? 'Duplicate Expense' : 'Add Expense'}</span>
+              <span className="sheet-title">{isRefund
+                  ? isEditing ? 'Edit Refund' : refundOf ? `Refund “${refundOf.description}”` : 'Add Refund'
+                  : isEditing ? 'Edit Expense' : template ? 'Duplicate Expense' : 'Add Expense'}</span>
               <button className="sheet-close" onClick={handleClose} aria-label="Close">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -757,6 +793,23 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                 />
               </div>
 
+              {/* Money coming back: the same form, counted the other way */}
+              <label className={`aes-refund-toggle ${isRefund ? 'on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={isRefund}
+                  onChange={e => { setIsRefund(e.target.checked); if (e.target.checked) setRepeat(''); }}
+                />
+                <span className="aes-refund-text">
+                  <span className="aes-refund-title">This is a refund</span>
+                  <span className="aes-refund-sub">
+                    {isRefund
+                      ? 'Money that came back. Whoever received it owes the others their share.'
+                      : 'Money that came back, like a returned item or a deposit.'}
+                  </span>
+                </span>
+              </label>
+
               {/* Category */}
               <div className="field-group">
                 <div className="field-label">Category</div>
@@ -825,7 +878,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
               </div>
 
               {/* Repeats: rent, bills, subscriptions */}
-              {!isEditing ? (
+              {isRefund ? null : !isEditing ? (
                 <div className="field-group">
                   <label className="field-label" htmlFor="aes-repeat">Repeats</label>
                   <select
@@ -881,7 +934,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
               {/* Paid by */}
               {selectedGroup && (
                 <div className="field-group">
-                  <div className="field-label">Paid by</div>
+                  <div className="field-label">{isRefund ? 'Received by' : 'Paid by'}</div>
                   <div className="aes-paid-by-row">
                     {selectedGroup.members.map(m => {
                       const u = getUserById(m.userId);
@@ -1134,7 +1187,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
             <div className="sheet-footer">
               <button className="sheet-cta" onClick={handleSubmit} disabled={!canSubmit}>
-                {isEditing ? 'Save Changes' : 'Add Expense'}{ctaTotal > 0 ? ` · ${formatCurrency(ctaTotal, cur)}` : ''}
+                {isEditing ? 'Save Changes' : isRefund ? 'Add Refund' : 'Add Expense'}{ctaTotal > 0 ? ` · ${formatCurrency(ctaTotal, cur)}` : ''}
               </button>
             </div>
           </motion.div>

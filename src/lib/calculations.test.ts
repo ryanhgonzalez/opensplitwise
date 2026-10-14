@@ -529,3 +529,49 @@ describe('allocatePayment', () => {
     expect(allocatePayment(0, buckets)).toEqual([]);
   });
 });
+
+// ─── Refunds ──────────────────────────────────────────────────────────────────
+
+describe('refunds', () => {
+  // Ryan paid 416.34 for the three of them; 60 of it came back to Ryan's card.
+  const hotel = expense({
+    id: 'hotel',
+    amount: 416.34,
+    paidBy: 'ryan',
+    split: { type: 'equal', entries: [{ userId: 'ryan', amount: 138.78 }, { userId: 'eddie', amount: 138.78 }, { userId: 'tai', amount: 138.78 }] },
+  });
+  const refund = expense({
+    id: 'refund',
+    amount: 60,
+    paidBy: 'ryan',
+    refund: { of: 'hotel' },
+    split: { type: 'equal', entries: [{ userId: 'ryan', amount: 20 }, { userId: 'eddie', amount: 20 }, { userId: 'tai', amount: 20 }] },
+  });
+
+  it('runs the other way: whoever received it owes the others their shares', () => {
+    expect(netForUserOnExpense(refund, 'ryan')).toBe(-40);
+    expect(netForUserOnExpense(refund, 'eddie')).toBe(20);
+  });
+
+  it('leaves everyone where editing the original down to 356.34 would', () => {
+    const balances = calculateBalances({ expenses: [hotel, refund], memberIds: ['ryan', 'eddie', 'tai'] });
+    expect(balances).toEqual({ ryan: 237.56, eddie: -118.78, tai: -118.78 });
+    expect(calculateSettlements({ expenses: [hotel, refund], memberIds: ['ryan', 'eddie', 'tai'] })).toEqual([
+      { from: 'eddie', to: 'ryan', amount: 118.78 },
+      { from: 'tai', to: 'ryan', amount: 118.78 },
+    ]);
+  });
+
+  it('comes off what was spent, and off the balances between people', () => {
+    const { friendBalances, groupTotals } = deriveTotals([hotel, refund], [], 'eddie');
+    expect(groupTotals.g1).toEqual({ yourBalance: -118.78, totalSpent: 356.34 });
+    expect(friendBalances.ryan).toBe(-118.78);
+    expect(outstandingByGroup([hotel, refund], [], 'eddie', 'ryan')).toEqual([{ groupId: 'g1', outstanding: 118.78 }]);
+  });
+
+  it('can be received by someone who didn’t pay: they pass the others their part', () => {
+    const toTai = { ...refund, paidBy: 'tai' };
+    const balances = calculateBalances({ expenses: [hotel, toTai], memberIds: ['ryan', 'eddie', 'tai'] });
+    expect(balances).toEqual({ ryan: 297.56, eddie: -118.78, tai: -178.78 });
+  });
+});

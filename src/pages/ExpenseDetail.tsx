@@ -77,11 +77,12 @@ export default function ExpenseDetail() {
   const users = useStore((s) => s.users);
   const group = useStore((s) => s.groups.find((g) => g.id === groupId));
   const expense = useStore((s) => s.expenses.find((e) => e.id === expenseId));
+  const allExpenses = useStore((s) => s.expenses);
   const recurring = useStore((s) => s.recurring);
   const deleteExpense = useStore((s) => s.deleteExpense);
   const undoExpenseDelete = useStore((s) => s.undoExpenseDelete);
 
-  const [sheet, setSheet] = useState<'edit' | 'duplicate' | null>(null);
+  const [sheet, setSheet] = useState<'edit' | 'duplicate' | 'refund' | null>(null);
   const [viewingPhoto, setViewingPhoto] = useState(false);
   const [showAllItems, setShowAllItems] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -102,14 +103,28 @@ export default function ExpenseDetail() {
   const payer = firstName(expense.paidBy);
   const myShare = expense.split.entries.find((e) => e.userId === me)?.amount ?? 0;
   const net = round(getNetAmountForUser(expense, me));
-  const position =
-    expense.paidBy === me
+  const isRefund = !!expense.refund;
+  const position = isRefund
+    ? expense.paidBy === me
+      ? net < -0.005
+        ? { text: 'You owe the others their share', amount: net, cls: 'neg' }
+        : { text: 'It was all yours', amount: 0, cls: 'zero' }
+      : myShare > 0.005
+        ? { text: `${payer} owes you your share`, amount: myShare, cls: 'pos' }
+        : { text: 'You weren’t part of this', amount: 0, cls: 'zero' }
+    : expense.paidBy === me
       ? net > 0.005
         ? { text: 'You lent', amount: net, cls: 'pos' }
         : { text: 'Only you were in it', amount: 0, cls: 'zero' }
       : myShare > 0.005
         ? { text: `You owe ${payer}`, amount: -myShare, cls: 'neg' }
         : { text: 'You weren’t part of this', amount: 0, cls: 'zero' };
+
+  // A refund and the expense it refunds point at each other.
+  const refundedExpense = expense.refund?.of ? allExpenses.find((e) => e.id === expense.refund!.of) : undefined;
+  const refunds = isRefund ? [] : allExpenses.filter((e) => e.refund?.of === expense.id);
+  const refundedTotal = round(refunds.reduce((sum, r) => sum + r.amount, 0));
+  const paidWord = isRefund ? 'got back' : 'paid';
 
   const splitWords = expense.items?.length ? 'split by item' : SPLIT_WORDS[expense.split.type];
   const category = categoryLabel(expense.category, group);
@@ -157,6 +172,9 @@ export default function ExpenseDetail() {
   const actions = (
     <>
       <button className="btn btn-secondary" onClick={() => setSheet('duplicate')}>Duplicate</button>
+      {!isRefund && (
+        <button className="btn btn-secondary" onClick={() => setSheet('refund')}>Refund</button>
+      )}
       {confirmDelete ? (
         <span className="xd-confirm">
           <button className="btn btn-secondary" onClick={() => setConfirmDelete(false)}>Keep</button>
@@ -187,21 +205,48 @@ export default function ExpenseDetail() {
             <Link to="/groups">Groups</Link> / <Link to={`/groups/${groupId}`}>{group?.name}</Link> /
           </span>
           <span className="xd-meta">
+            {isRefund && <span className="xd-refund-tag">Refund</span>}
             {category} · {longDate(expense.date)}
           </span>
-          <h1 className="xd-title">{expense.description}</h1>
+          <h1 className="xd-title">
+            {expense.description}
+            {isRefund && <span className="xd-refund-tag xd-wide-tag">Refund</span>}
+          </h1>
           <span className="xd-hero-amount">{amountBlock}</span>
           <span className="xd-sub">
-            {payer} paid · {splitWords}
+            {payer} {paidWord} · {splitWords}
           </span>
           <span className="xd-desk-sub">
-            {category} · {longDate(expense.date)} · {payer} paid · {splitWords}
+            {category} · {longDate(expense.date)} · {payer} {paidWord} · {splitWords}
           </span>
           <span className="xd-header-actions">
             {actions}
             <button className="btn btn-primary" onClick={() => setSheet('edit')}>Edit</button>
           </span>
         </header>
+
+        {/* The refund and its expense, linked both ways */}
+        {refundedExpense && (
+          <Link to={`/groups/${groupId}/expenses/${refundedExpense.id}`} className="xd-link-row">
+            <span>Refund of “{refundedExpense.description}”</span>
+            <span className="num text-secondary">{formatCurrency(refundedExpense.amount, recordCurrency(refundedExpense))}</span>
+          </Link>
+        )}
+        {refunds.length > 0 && (
+          <div className="xd-refunds">
+            <span className="xd-refunds-head">
+              {formatCurrency(refundedTotal, cur)} refunded · net {formatCurrency(round(expense.amount - refundedTotal), cur)}
+            </span>
+            {refunds.map((r) => (
+              <Link key={r.id} to={`/groups/${groupId}/expenses/${r.id}`} className="xd-link-row">
+                <span>
+                  {shortDate(r.date)} · {firstName(r.paidBy)} got back
+                </span>
+                <span className="num">−{formatCurrency(r.amount, cur)}</span>
+              </Link>
+            ))}
+          </div>
+        )}
 
         {/* Phones: one line saying where this leaves you. Desktop: a summary strip. */}
         <div className="xd-position">
@@ -212,11 +257,11 @@ export default function ExpenseDetail() {
         </div>
         <section className="statement xd-statement" aria-label="Summary">
           <div>
-            <span className="cap">Total</span>
+            <span className="cap">{isRefund ? 'Refunded' : 'Total'}</span>
             <span className="num xd-figure">{formatCurrency(expense.amount, cur)}</span>
           </div>
           <div>
-            <span className="cap">Your share</span>
+            <span className="cap">{isRefund ? 'Your share of it' : 'Your share'}</span>
             <span className="num xd-figure">{formatCurrency(myShare, cur)}</span>
           </div>
           <div>
@@ -283,7 +328,7 @@ export default function ExpenseDetail() {
                       {u && <Avatar user={u} size="sm" />}
                       <span className="xd-share-name">
                         {firstName(en.userId)}
-                        {en.userId === expense.paidBy && <span className="text-xs text-secondary"> · paid</span>}
+                        {en.userId === expense.paidBy && <span className="text-xs text-secondary"> · {paidWord}</span>}
                       </span>
                       <span className="num">{formatCurrency(en.amount, cur)}</span>
                     </div>
@@ -341,6 +386,7 @@ export default function ExpenseDetail() {
             onClose={() => setSheet(null)}
             defaultGroupId={groupId}
             editExpense={sheet === 'edit' ? expense : undefined}
+            refundOf={sheet === 'refund' ? expense : undefined}
             template={sheet === 'duplicate' ? expense : undefined}
           />
         )}

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useStore, selectCurrentUser } from '../store';
 import { formatCurrency, formatSigned } from '../utils';
 import { getShareForUser } from '../utils/expense';
+import { signedAmount } from '../lib/calculations';
 import {
   type Period,
   type ViewMode,
@@ -209,7 +210,7 @@ export default function Insights() {
     if (viewMode === 'personal') {
       return filtered.reduce((s, e) => s + getShareForUser(e, currentUser.id), 0);
     }
-    return filtered.reduce((s, e) => s + e.amount, 0);
+    return filtered.reduce((s, e) => s + signedAmount(e), 0);
   }, [filtered, viewMode, currentUser.id]);
 
   const activeMonths = monthlyData.filter((m) => m.total > 0).length;

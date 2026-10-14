@@ -1,9 +1,10 @@
 import { Expense } from '../types';
-import { netForUserOnExpense } from '../lib/calculations';
+import { moneySign, netForUserOnExpense } from '../lib/calculations';
 
+/** A person's share as spending: negative for their part of a refund. */
 export function getShareForUser(expense: Expense, userId: string): number {
   const entry = expense.split.entries.find(e => e.userId === userId);
-  return entry?.amount ?? 0;
+  return (entry?.amount ?? 0) * moneySign(expense) || 0;
 }
 
 export function getParticipantIds(expense: Expense): string[] {

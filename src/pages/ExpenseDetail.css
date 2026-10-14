@@ -227,8 +227,62 @@ button.xd-link:hover,
 
 .xd-bottom-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 8px;
+}
+
+.xd-bottom-actions .btn {
+  padding: 0 8px;
+}
+
+/* Refunds */
+.xd-refund-tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--owed);
+  border-radius: var(--radius-sm);
+  color: var(--owed);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+
+.xd-wide-tag {
+  display: none;
+}
+
+.xd-link-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.xd-link-row:hover {
+  border-color: var(--ink);
+}
+
+.xd-refunds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.xd-refunds-head {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--owed);
 }
 
 .xd-delete {
@@ -320,6 +374,12 @@ button.xd-link:hover,
 
   .xd-title {
     font-size: 30px;
+  }
+
+  .xd-wide-tag {
+    display: inline-block;
+    margin: 0 0 0 10px;
+    vertical-align: 8px;
   }
 
   .xd-desk-sub {

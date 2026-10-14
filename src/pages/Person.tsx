@@ -6,7 +6,7 @@ import Avatar from '../components/Avatar';
 import GroupTile from '../components/GroupTile';
 import PersonSheet from '../components/PersonSheet';
 import SettleModal, { type SettleMode } from '../components/SettleModal';
-import { outstandingByGroup } from '../lib/calculations';
+import { moneySign, outstandingByGroup } from '../lib/calculations';
 import { groupCurrency, recordCurrency } from '../lib/currency';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned } from '../utils';
 import type { PaymentMethod } from '../types';
@@ -116,9 +116,13 @@ export default function Person() {
         id: e.id,
         to: e.groupId ? `/groups/${e.groupId}/expenses/${e.id}` : undefined,
         date: e.date,
-        title: e.description,
-        meta: [theyPaid ? `${person?.name.split(' ')[0]} paid` : 'You paid', groupName(e.groupId)].filter(Boolean).join(' · '),
-        amount: theyPaid ? -shareOf(e, me) : shareOf(e, id),
+        title: e.refund ? `Refund: ${e.description}` : e.description,
+        meta: [
+          `${theyPaid ? person?.name.split(' ')[0] : 'You'} ${e.refund ? 'got back' : 'paid'}`,
+          groupName(e.groupId),
+        ].filter(Boolean).join(' · '),
+        // A refund runs the other way.
+        amount: moneySign(e) * (theyPaid ? -shareOf(e, me) : shareOf(e, id)),
         currency: recordCurrency(e),
         payment: false,
       });

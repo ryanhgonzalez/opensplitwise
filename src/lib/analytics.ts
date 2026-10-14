@@ -1,6 +1,7 @@
 import type { Expense, ExpenseCategory, Group, User } from '../types';
 import { categoryInfo, isCustomCategory } from './categories';
 import { getShareForUser } from '../utils/expense';
+import { signedAmount } from './calculations';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -88,8 +89,9 @@ export function getCategoryBreakdown(
   const totals = new Map<string, { label: string; icon: string; color: string; amount: number }>();
 
   for (const expense of expenses) {
-    const amount = mode === 'personal' ? getShareForUser(expense, userId) : expense.amount;
-    if (amount <= 0) continue;
+    // Refunds count against their category.
+    const amount = mode === 'personal' ? getShareForUser(expense, userId) : signedAmount(expense);
+    if (amount === 0) continue;
 
     const group = expense.groupId ? groupById.get(expense.groupId) : undefined;
     const custom = isCustomCategory(expense.category)
@@ -106,6 +108,8 @@ export function getCategoryBreakdown(
     totals.set(key, entry);
   }
 
+  // A category refunded down to nothing (or below) has no spending to show.
+  for (const [key, t] of totals) if (t.amount < 0.005) totals.delete(key);
   const grandTotal = [...totals.values()].reduce((s, v) => s + v.amount, 0);
 
   return [...totals.entries()]
@@ -140,7 +144,7 @@ export function getMonthlyTrend(
     const d = expense.date;
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     if (points[key]) {
-      points[key].total += expense.amount;
+      points[key].total += signedAmount(expense);
       points[key].yourShare += getShareForUser(expense, userId);
     }
   }
@@ -157,7 +161,7 @@ export function getGroupContributions(
   return groups
     .map(group => {
       const gExp = expenses.filter(e => e.groupId === group.id);
-      const totalSpent = gExp.reduce((s, e) => s + e.amount, 0);
+      const totalSpent = gExp.reduce((s, e) => s + signedAmount(e), 0);
       if (totalSpent === 0) return null;
 
       const members: MemberContribution[] = group.members
@@ -166,7 +170,7 @@ export function getGroupContributions(
           if (!user) return null;
           const paid = gExp
             .filter(e => e.paidBy === m.userId)
-            .reduce((s, e) => s + e.amount, 0);
+            .reduce((s, e) => s + signedAmount(e), 0);
           const share = gExp.reduce((s, e) => s + getShareForUser(e, m.userId), 0);
           return {
             userId: m.userId,

@@ -320,6 +320,10 @@ export function remapForNewGroup(
       split: { ...e.split, entries: e.split.entries.map((en) => ({ ...en, userId: remapId(en.userId) })) },
     };
   });
+  // A refund names the expense it refunds, which has a new id too.
+  for (const e of remappedExpenses) {
+    if (e.refund?.of) e.refund = { of: expIdMap.get(e.refund.of) };
+  }
 
   // Remap settlements.
   const remappedSettlements: Settlement[] = exported.data.settlements.map((s) => ({

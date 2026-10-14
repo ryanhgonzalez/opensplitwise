@@ -560,6 +560,20 @@
   color: var(--muted);
 }
 
+.gd-refund-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--owed);
+  border-radius: var(--radius-sm);
+  color: var(--owed);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+}
+
 .gd-repeat-mark {
   margin-left: 6px;
   font-size: 12px;

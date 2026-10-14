@@ -107,6 +107,13 @@ export interface Expense {
    * (src/lib/receiptPhotos.ts); this just says there is one, and its size.
    */
   receipt?: { bytes: number };
+  /**
+   * Set when this is money coming back (a refund) rather than money spent.
+   * `paidBy` is then who received it, and `split` how it's shared out; the
+   * amounts stay positive and every balance and total counts them the other
+   * way round. `of` is the expense it refunds, when there is one.
+   */
+  refund?: { of?: string };
   createdAt: Date;
   updatedAt: Date;
 }

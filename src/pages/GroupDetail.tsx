@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser, selectTotalsForGroup } from '../store';
-import { calculateBalances, calculateSettlements, round } from '../lib/calculations';
+import { calculateBalances, calculateSettlements, moneySign, round, signedAmount } from '../lib/calculations';
 import { EMPTY_FILTER, categoryOptions, filterExpenses, isFilterActive, type ExpenseFilter } from '../lib/expenseFilter';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned, getNetAmountForUser } from '../utils';
 import { categoryLabel } from '../lib/categories';
@@ -145,8 +145,9 @@ export default function GroupDetail() {
   const paidBy: Record<string, number> = {};
   const shareOf: Record<string, number> = {};
   for (const e of expenses) {
-    paidBy[e.paidBy] = (paidBy[e.paidBy] ?? 0) + e.amount;
-    for (const en of e.split.entries) shareOf[en.userId] = (shareOf[en.userId] ?? 0) + en.amount;
+    // A refund received counts against what someone paid, and their part of it against their share.
+    paidBy[e.paidBy] = (paidBy[e.paidBy] ?? 0) + signedAmount(e);
+    for (const en of e.split.entries) shareOf[en.userId] = (shareOf[en.userId] ?? 0) + moneySign(e) * en.amount;
   }
 
   const openAddExpense = () => setShowAddExpense(true);
@@ -290,6 +291,7 @@ export default function GroupDetail() {
                               <Link to={`/groups/${group.id}/expenses/${expense.id}`} className="gd-desc-link">
                                 {expense.description}
                               </Link>
+                              {expense.refund && <span className="gd-refund-tag">Refund</span>}
                               {ruleIdOf(expense.id) && allRecurring.some(r => r.id === ruleIdOf(expense.id)) && (
                                 <span className="gd-repeat-mark" title="Repeating expense" aria-label="Repeating expense">↻</span>
                               )}
@@ -306,15 +308,19 @@ export default function GroupDetail() {
                             </span>
                             <span className="num gd-cat gd-col-wide-inline">{categoryLabel(expense.category, group)}</span>
                             <span className="text-xs text-secondary gd-meta-mobile">
-                              {nameOf(expense.paidBy)} paid {expenseAmountLabel(expense)}
+                              {nameOf(expense.paidBy)} {expense.refund ? 'got back' : 'paid'} {expenseAmountLabel(expense)}
                             </span>
                           </span>
                           <span role="cell" className="gd-col-wide">{nameOf(expense.paidBy)}</span>
-                          <span role="cell" className="num gd-col-wide gd-right gd-amount">{formatCurrency(expense.amount, cur)}</span>
+                          <span role="cell" className="num gd-col-wide gd-right gd-amount">
+                            {expense.refund ? '−' : ''}{formatCurrency(expense.amount, cur)}
+                          </span>
                           <span role="cell" className="gd-right gd-share">
                             <span className={`num ${signClass(net)}`}>{formatSigned(net, cur)}</span>
                             <span className="gd-share-label">
-                              {net > 0.005 ? 'you lent' : net < -0.005 ? 'you borrowed' : 'not involved'}
+                              {expense.refund
+                                ? net > 0.005 ? 'back to you' : net < -0.005 ? 'you pass on' : 'not involved'
+                                : net > 0.005 ? 'you lent' : net < -0.005 ? 'you borrowed' : 'not involved'}
                             </span>
                           </span>
                         </div>

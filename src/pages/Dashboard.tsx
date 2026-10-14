@@ -252,7 +252,8 @@ export default function Dashboard() {
                         <span className="dash-expense-info">
                           <span className="dash-expense-desc">{expense.description}</span>
                           <span className="text-xs text-secondary">
-                            {isPaidByMe ? 'You' : firstName(expense.paidBy)} paid {expenseAmountLabel(expense)}
+                            {isPaidByMe ? 'You' : firstName(expense.paidBy)} {expense.refund ? 'got back' : 'paid'}{' '}
+                            {expenseAmountLabel(expense)}
                             {group && <span className="dash-narrow-only"> · {group.name}</span>}
                           </span>
                         </span>
