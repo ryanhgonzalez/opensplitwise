@@ -189,7 +189,7 @@ export default function GroupDetail() {
                 <GroupTile group={group} size={40} />
                 <h1 className="gd-title">{group.name}</h1>
                 {/* Phones only: desktop has labelled buttons */}
-                <button className="gd-icon-btn gd-settings-mobile gd-share-mobile" onClick={() => navigate(`/groups/${group.id}/share`)} aria-label="Share group">
+                <button className="gd-icon-btn gd-settings-mobile gd-share-mobile" onClick={() => navigate(`/share?group=${group.id}`)} aria-label="Share group">
                   {SHARE_ICON}
                 </button>
                 <button className="gd-icon-btn gd-settings-mobile" onClick={() => setShowEditGroup(true)} aria-label="Group settings">
@@ -201,7 +201,7 @@ export default function GroupDetail() {
               </p>
             </div>
             <div className="gd-header-actions">
-              <button className="btn btn-secondary" onClick={() => navigate(`/groups/${group.id}/share`)}>Share</button>
+              <button className="btn btn-secondary" onClick={() => navigate(`/share?group=${group.id}`)}>Share</button>
               <button className="btn btn-secondary" onClick={() => setShowEditGroup(true)}>Settings</button>
               <button className="btn btn-primary" onClick={openAddExpense}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>

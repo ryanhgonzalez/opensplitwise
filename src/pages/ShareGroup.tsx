@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../store';
 import GroupTile from '../components/GroupTile';
 import { buildBundle, type GroupBundle } from '../lib/groupSync';
 import { compressBundle, sendBundleFile, toFrames } from '../lib/groupShare';
 import { formatBytes, photosFor } from '../lib/receiptPhotos';
-import { CloseIcon, PartsBar } from './sharingParts';
+import { PartsBar } from './sharingParts';
 import './Sharing.css';
 
 /** How long each frame of the code stays on screen. */
@@ -18,9 +17,7 @@ const qrSize = () => (window.matchMedia('(min-width: 1024px)').matches ? 400 : M
  * Sends a group to someone's phone: as a cycling QR code they scan in the app
  * (together, no internet needed), or as a file through the share sheet.
  */
-export default function ShareGroup() {
-  const { id = '' } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+export function SendPanel({ groupId: id, onChangeGroup }: { groupId: string; onChangeGroup?: () => void }) {
   const group = useStore((s) => s.groups.find((g) => g.id === id));
 
   const [bundle, setBundle] = useState<GroupBundle | null>(null);
@@ -32,10 +29,6 @@ export default function ShareGroup() {
   const [includePhotos, setIncludePhotos] = useState(false);
   const [sending, setSending] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    if (!group) navigate('/groups', { replace: true });
-  }, [group, navigate]);
 
   // Pack the group as it is when the page opens.
   useEffect(() => {
@@ -113,28 +106,17 @@ export default function ShareGroup() {
   };
 
   return (
-    <div className="page-content sharing-scroll">
-      <div className="sharing-page">
-        {/* Phones: a title bar with close. Desktop: breadcrumb and Done. */}
-        <div className="sharing-topbar">
-          <span className="sharing-topbar-title">Share group</span>
-          <Link to={`/groups/${id}`} className="sharing-close" aria-label="Close">
-            <CloseIcon />
-          </Link>
-        </div>
-        <header className="sharing-header">
-          <span className="sharing-crumb">
-            <Link to="/groups">Groups</Link> / <Link to={`/groups/${id}`}>{group.name}</Link> /
-          </span>
-          <h1 className="sharing-title">Share group</h1>
-          <Link to={`/groups/${id}`} className="btn btn-secondary sharing-done">Done</Link>
-        </header>
-
+    <>
         <div className="share-layout">
           <div className="share-code">
             <div className="share-code-heading">
               <span className="share-group-name">{group.name}</span>
               <span className="text-secondary">Hold this up to their camera</span>
+              {onChangeGroup && (
+                <button type="button" className="sharing-link" onClick={onChangeGroup}>
+                  Change group
+                </button>
+              )}
             </div>
             <div className="share-qr-wrap">
               <canvas ref={canvasRef} className="share-qr" aria-label="Group code, changing several times a second" />
@@ -161,6 +143,13 @@ export default function ShareGroup() {
                   {peopleCount === 1 ? 'person' : 'people'}
                 </span>
               </span>
+              {onChangeGroup && (
+                <span className="share-side-change">
+                  <button type="button" className="sharing-link" onClick={onChangeGroup}>
+                    Change group
+                  </button>
+                </span>
+              )}
             </div>
             <span className="share-side-lead">Hold their phone up to this screen</span>
 
@@ -168,7 +157,8 @@ export default function ShareGroup() {
 
             <ol className="sharing-steps">
               <li>
-                On their phone, open <strong>Groups</strong> and tap <strong>Receive</strong>.
+                On their phone, open <strong>Groups</strong>, tap <strong>Share &amp; receive</strong>, then{' '}
+                <strong>Receive</strong>.
               </li>
               <li>Point the camera here until their phone says it's done.</li>
               <li className="sharing-step-wide">They check the changes and merge.</li>
@@ -202,7 +192,6 @@ export default function ShareGroup() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </>
   );
 }

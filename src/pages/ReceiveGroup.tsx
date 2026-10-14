@@ -52,7 +52,15 @@ const RECEIPT_ICON = (
  * starts straight away) or a file they sent. Then shows what would change,
  * asks about anyone it can't match, and merges.
  */
-export default function ReceiveGroup() {
+export function ReceivePanel({
+  closeTo,
+  onReviewChange,
+}: {
+  /** Where Close goes without merging. */
+  closeTo: string;
+  /** Told when the review starts and ends, so the page can make room for it. */
+  onReviewChange?: (reviewing: boolean) => void;
+}) {
   const navigate = useNavigate();
   const applyGroupBundle = useStore((s) => s.applyGroupBundle);
   const users = useStore((s) => s.users);
@@ -151,6 +159,10 @@ export default function ReceiveGroup() {
     };
   }, [scanning, cameraTry]);
 
+  useEffect(() => {
+    onReviewChange?.(!!bundle);
+  }, [bundle, onReviewChange]);
+
   // ── Review ──
   const state = useMemo(() => (bundle ? syncStateOf(useStore.getState()) : null), [bundle]);
   const matches = useMemo(() => (bundle && state ? matchPeople(state, bundle) : []), [bundle, state]);
@@ -231,22 +243,7 @@ export default function ReceiveGroup() {
     const total = arrived.length;
     const got = arrived.filter(Boolean).length;
     return (
-      <div className={`page-content sharing-scroll receive-scan ${dragging ? 'dragging' : ''}`} {...dropProps}>
-        <div className="sharing-page">
-          <div className="sharing-topbar">
-            <span className="sharing-topbar-title">Receive a group</span>
-            <Link to="/groups" className="sharing-close" aria-label="Close">
-              <CloseIcon />
-            </Link>
-          </div>
-          <header className="sharing-header">
-            <span className="sharing-crumb">
-              <Link to="/groups">Groups</Link> /
-            </span>
-            <h1 className="sharing-title">Receive a group</h1>
-            <Link to="/groups" className="btn btn-secondary sharing-done">Cancel</Link>
-          </header>
-
+      <div className={`receive-panel ${dragging ? 'dragging' : ''}`} {...dropProps}>
           <div className="receive-layout">
             <div className="receive-camera">
               <video ref={videoRef} className="receive-video" playsInline muted />
@@ -282,7 +279,7 @@ export default function ReceiveGroup() {
 
               <ol className="sharing-steps receive-steps">
                 <li>
-                  On their phone, open the group and tap <strong>Share</strong>.
+                  On their phone, open the group and tap <strong>Share</strong> (or <strong>Share &amp; receive</strong> in Groups).
                 </li>
                 <li>Hold it up to your camera until every part is in.</li>
               </ol>
@@ -297,7 +294,6 @@ export default function ReceiveGroup() {
               </div>
             </div>
           </div>
-        </div>
       </div>
     );
   }
@@ -325,19 +321,18 @@ export default function ReceiveGroup() {
   ].filter(Boolean) as { key: string; mark?: string; cls?: string; icon?: React.ReactNode; text: string }[];
 
   return (
-    <div className="page-content sharing-scroll">
-      <div className="sharing-page">
+    <>
         <div className="sharing-topbar">
           <span className="sharing-topbar-title sharing-topbar-muted">
             {viaParts ? `Received · all ${viaParts} ${viaParts === 1 ? 'part' : 'parts'}` : 'Received a file'}
           </span>
-          <Link to="/groups" className="sharing-close" aria-label="Close without merging">
+          <Link to={closeTo} className="sharing-close" aria-label="Close without merging">
             <CloseIcon />
           </Link>
         </div>
         <header className="sharing-header">
           <span className="sharing-crumb">
-            <Link to="/groups">Groups</Link> / Receive /
+            <Link to="/groups">Groups</Link> / Share &amp; receive /
           </span>
           <h1 className="sharing-title">Review changes</h1>
           <span className="sharing-header-sub">
@@ -442,12 +437,11 @@ export default function ReceiveGroup() {
               <button className="btn btn-primary review-merge" onClick={merge} disabled={!!problem}>
                 {summary.isNewGroup ? 'Add group' : `Merge into ${summary.groupName}`}
               </button>
-              <Link to="/groups" className="btn btn-secondary review-cancel">Cancel</Link>
+              <Link to={closeTo} className="btn btn-secondary review-cancel">Cancel</Link>
               <span className="review-actions-note">Nothing changes until you merge.</span>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </>
   );
 }

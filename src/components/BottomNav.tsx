@@ -6,9 +6,7 @@ import './BottomNav.css';
 export default function BottomNav() {
   const { openAddExpense, addExpenseSheet } = useAddExpense();
   // Sharing and receiving take the whole screen on phones.
-  const sharing = useMatch('/groups/:id/share');
-  const receiving = useMatch('/receive');
-  if (sharing || receiving) return null;
+  if (useMatch('/share')) return null;
 
   const tab = (item: (typeof NAV_ITEMS)[number]) => (
     <NavLink

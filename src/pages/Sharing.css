@@ -112,6 +112,121 @@
   background: var(--ink);
 }
 
+/* ── Send / Receive tabs ─────────────────────────────────────────────── */
+.hub-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.hub-tabs button {
+  min-height: 40px;
+  border: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.hub-tabs button + button {
+  border-left: 1px solid var(--border);
+}
+
+.hub-tabs button.active {
+  background: var(--ink);
+  color: var(--on-ink);
+  font-weight: 600;
+}
+
+/* On the dark camera screen (phones) */
+.receive-scan .hub-tabs {
+  border-color: #5b606a;
+}
+
+.receive-scan .hub-tabs button {
+  background: transparent;
+  color: #ffffff;
+}
+
+.receive-scan .hub-tabs button + button {
+  border-left-color: #5b606a;
+}
+
+.receive-scan .hub-tabs button.active {
+  background: #ffffff;
+  color: #111214;
+}
+
+.receive-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Send: which group */
+.hub-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hub-pick-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.hub-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+
+.hub-group:hover .hub-group-name {
+  text-decoration: underline;
+}
+
+.hub-group-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.hub-group-name {
+  font-weight: 500;
+}
+
+.hub-chevron {
+  color: var(--muted);
+}
+
+.sharing-link {
+  padding: 0;
+  min-height: 32px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--owed);
+}
+
+.sharing-link:hover {
+  text-decoration: underline;
+}
+
+.share-side-change {
+  display: none;
+}
+
 /* ── Share ─────────────────────────────────────────────────────────────── */
 
 .share-layout {
@@ -318,7 +433,7 @@
   font-weight: 500;
 }
 
-.receive-scan.dragging .receive-camera {
+.receive-panel.dragging .receive-camera {
   outline: 3px dashed var(--owed);
   outline-offset: -3px;
 }
@@ -559,6 +674,24 @@
   .share-side-group > span {
     display: flex;
     flex-direction: column;
+  }
+
+  .share-side-group > .share-side-change {
+    display: block;
+    margin-left: auto;
+  }
+
+  .share-code-heading .sharing-link {
+    display: none;
+  }
+
+  .hub-tabs {
+    max-width: 360px;
+    margin-bottom: 0;
+  }
+
+  .hub-pick {
+    max-width: 560px;
   }
 
   .share-side-name {

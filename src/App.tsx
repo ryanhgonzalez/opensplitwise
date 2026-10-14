@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from './store';
 import BottomNav from './components/BottomNav';
@@ -12,9 +12,8 @@ import Insights from './pages/Insights';
 import People from './pages/People';
 import Person from './pages/Person';
 import Settings from './pages/Settings';
-import ShareGroup from './pages/ShareGroup';
+import ShareHub from './pages/ShareHub';
 import ExpenseDetail from './pages/ExpenseDetail';
-import ReceiveGroup from './pages/ReceiveGroup';
 import Onboarding from './pages/Onboarding';
 import IdentityPicker from './components/IdentityPicker';
 import InstallGuide from './components/InstallGuide';
@@ -27,6 +26,11 @@ const pageVariants = {
   animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] } },
   exit: { opacity: 0, y: -8, transition: { duration: 0.2 } },
 };
+
+function ToShareHub() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/share?group=${id}`} replace />;
+}
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -45,9 +49,11 @@ function AnimatedRoutes() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/groups" element={<Groups />} />
           <Route path="/groups/:id" element={<GroupDetail />} />
-          <Route path="/groups/:id/share" element={<ShareGroup />} />
+          <Route path="/share" element={<ShareHub />} />
+          {/* Older links to sharing and receiving */}
+          <Route path="/groups/:id/share" element={<ToShareHub />} />
           <Route path="/groups/:id/expenses/:expenseId" element={<ExpenseDetail />} />
-          <Route path="/receive" element={<ReceiveGroup />} />
+          <Route path="/receive" element={<Navigate to="/share?tab=receive" replace />} />
           <Route path="/activity" element={<Activity />} />
           {/* Settling moved to Home and each group; keep old links working */}
           <Route path="/settle" element={<Navigate to="/" replace />} />

@@ -56,8 +56,8 @@ export default function Groups() {
         <header className="groups-header">
           <h1 className="page-hero-title">Groups</h1>
           <span className="groups-header-actions">
-            <button className="btn btn-secondary" onClick={() => navigate('/receive')}>
-              Receive
+            <button className="btn btn-secondary" onClick={() => navigate('/share')}>
+              Share &amp; receive
             </button>
             <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
