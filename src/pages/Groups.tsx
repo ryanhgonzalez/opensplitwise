@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import GroupTile from '../components/GroupTile';
 import CreateGroupSheet from '../components/CreateGroupSheet';
@@ -7,6 +7,7 @@ import { useStore, selectGroupTotals } from '../store';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned } from '../utils';
 import { groupCurrency } from '../lib/currency';
 import type { GroupType } from '../types';
+import '../styles/sheet.css';
 import './Groups.css';
 
 const TYPE_LABELS: Record<GroupType, string> = {
@@ -24,6 +25,8 @@ export default function Groups() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  // "Add group" asks first: make a new one, or get one a friend already has.
+  const [showAdd, setShowAdd] = useState(false);
   const groups = useStore((s) => s.groups);
   const users = useStore((s) => s.users);
   const currentUserId = useStore((s) => s.currentUserId);
@@ -55,17 +58,12 @@ export default function Groups() {
       <div className="groups-page">
         <header className="groups-header">
           <h1 className="page-hero-title">Groups</h1>
-          <span className="groups-header-actions">
-            <button className="btn btn-secondary" onClick={() => navigate('/share')}>
-              Share &amp; receive
-            </button>
-            <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-              New group
-            </button>
-          </span>
+          <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            Add group
+          </button>
         </header>
 
         <section className="statement" aria-label="Summary">
@@ -112,7 +110,7 @@ export default function Groups() {
           <div className="empty-box">
             <span className="empty-box-title">No groups yet</span>
             <span className="text-secondary">Groups are where you track expenses with the same set of people.</span>
-            <button className="btn btn-primary" onClick={() => setShowCreate(true)}>New group</button>
+            <button className="btn btn-primary" onClick={() => setShowAdd(true)}>Add group</button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="empty-box">
@@ -167,6 +165,55 @@ export default function Groups() {
         )}
       </div>
 
+
+      <AnimatePresence>
+        {showAdd && (
+          <motion.div
+            className="sheet-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowAdd(false)}
+          >
+            <motion.div
+              className="sheet-panel groups-add-panel"
+              role="dialog"
+              aria-label="Add a group"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 32, stiffness: 340 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sheet-handle" />
+              <div className="sheet-header">
+                <span className="sheet-title">Add a group</span>
+                <button className="sheet-close" onClick={() => setShowAdd(false)} aria-label="Close">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+              <div className="sheet-body groups-add-options">
+                <button
+                  className="groups-add-option"
+                  onClick={() => {
+                    setShowAdd(false);
+                    setShowCreate(true);
+                  }}
+                >
+                  <span className="groups-add-title">Create a new group</span>
+                  <span className="groups-add-sub">Name it and choose who's in it.</span>
+                </button>
+                <button className="groups-add-option" onClick={() => navigate('/share')}>
+                  <span className="groups-add-title">Get one from a friend</span>
+                  <span className="groups-add-sub">Scan the code on their phone, or open a file they sent.</span>
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showCreate && (

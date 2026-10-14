@@ -279,7 +279,7 @@ export function ReceivePanel({
 
               <ol className="sharing-steps receive-steps">
                 <li>
-                  On their phone, open the group and tap <strong>Share</strong> (or <strong>Share &amp; receive</strong> in Groups).
+                  On their phone, open the group and tap <strong>Share</strong>.
                 </li>
                 <li>Hold it up to your camera until every part is in.</li>
               </ol>
@@ -332,7 +332,7 @@ export function ReceivePanel({
         </div>
         <header className="sharing-header">
           <span className="sharing-crumb">
-            <Link to="/groups">Groups</Link> / Share &amp; receive /
+            <Link to="/groups">Groups</Link> /
           </span>
           <h1 className="sharing-title">Review changes</h1>
           <span className="sharing-header-sub">

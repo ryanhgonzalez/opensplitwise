@@ -17,7 +17,7 @@ const qrSize = () => (window.matchMedia('(min-width: 1024px)').matches ? 400 : M
  * Sends a group to someone's phone: as a cycling QR code they scan in the app
  * (together, no internet needed), or as a file through the share sheet.
  */
-export function SendPanel({ groupId: id, onChangeGroup }: { groupId: string; onChangeGroup?: () => void }) {
+export function SendPanel({ groupId: id }: { groupId: string }) {
   const group = useStore((s) => s.groups.find((g) => g.id === id));
 
   const [bundle, setBundle] = useState<GroupBundle | null>(null);
@@ -112,11 +112,6 @@ export function SendPanel({ groupId: id, onChangeGroup }: { groupId: string; onC
             <div className="share-code-heading">
               <span className="share-group-name">{group.name}</span>
               <span className="text-secondary">Hold this up to their camera</span>
-              {onChangeGroup && (
-                <button type="button" className="sharing-link" onClick={onChangeGroup}>
-                  Change group
-                </button>
-              )}
             </div>
             <div className="share-qr-wrap">
               <canvas ref={canvasRef} className="share-qr" aria-label="Group code, changing several times a second" />
@@ -143,13 +138,6 @@ export function SendPanel({ groupId: id, onChangeGroup }: { groupId: string; onC
                   {peopleCount === 1 ? 'person' : 'people'}
                 </span>
               </span>
-              {onChangeGroup && (
-                <span className="share-side-change">
-                  <button type="button" className="sharing-link" onClick={onChangeGroup}>
-                    Change group
-                  </button>
-                </span>
-              )}
             </div>
             <span className="share-side-lead">Hold their phone up to this screen</span>
 
@@ -157,8 +145,8 @@ export function SendPanel({ groupId: id, onChangeGroup }: { groupId: string; onC
 
             <ol className="sharing-steps">
               <li>
-                On their phone, open <strong>Groups</strong>, tap <strong>Share &amp; receive</strong>, then{' '}
-                <strong>Receive</strong>.
+                On their phone, open this group and tap <strong>Share</strong>, then <strong>Get their changes</strong>.
+                Don't have it yet? <strong>Add group</strong>, then <strong>Get one from a friend</strong>.
               </li>
               <li>Point the camera here until their phone says it's done.</li>
               <li className="sharing-step-wide">They check the changes and merge.</li>

@@ -12,9 +12,44 @@
   gap: 16px;
 }
 
-.groups-header-actions {
+.groups-add-options {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.groups-add-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+}
+
+.groups-add-option:hover {
+  border-color: var(--ink);
+}
+
+.groups-add-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.groups-add-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Short: it holds just the two choices */
+.groups-add-panel {
+  max-height: none;
 }
 
 .groups-figure {
