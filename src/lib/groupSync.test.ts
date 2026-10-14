@@ -100,6 +100,24 @@ describe('first share', () => {
     expect(state.activities[0]).toMatchObject({ type: 'group_synced', fromName: 'Ana', actorId: 'a2', added: 1 });
   });
 
+  it('adds you to the group when you aren’t any of its people, and the sender learns of you on the way back', () => {
+    // Ana shares with Elvira, who isn't in the group.
+    const bundle = buildBundle(anasPhone(), 'trip', T(10))!;
+    const elvira = user('e1', 'Elvira');
+    const elvirasPhone = phone(elvira, []);
+    const matches = matchPeople(elvirasPhone, bundle);
+    expect(needsSelfChoice(elvirasPhone, matches)).toBe(true);
+    const { state } = mergeBundle(elvirasPhone, bundle, defaultChoice(matches), T(10), undefined, { addMe: true });
+    expect(state.groups[0].members.map((m) => m.userId)).toEqual(['a1', 'b1', 'e1']);
+
+    // She shares back: Ana's phone gets Elvira as a new member.
+    const back = buildBundle(state, 'trip', T(20))!;
+    const anas = anasPhone();
+    const merged = mergeBundle(anas, back, defaultChoice(matchPeople(anas, back)), T(20));
+    expect(merged.state.groups[0].members.map((m) => m.userId)).toEqual(['a1', 'b1', 'e1']);
+    expect(merged.summary.membersAdded).toEqual(['Elvira']);
+  });
+
   it('adds people this phone doesn’t have', () => {
     const bundle = buildBundle(anasPhone(), 'trip', T(10))!;
     const bens = phone(ben, []);

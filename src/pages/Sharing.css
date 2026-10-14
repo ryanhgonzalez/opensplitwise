@@ -483,6 +483,34 @@
   overflow-wrap: anywhere;
 }
 
+.review-not-me {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.review-not-me:has(input:checked) {
+  border-color: var(--ink);
+}
+
+.review-not-me input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--ink);
+}
+
+.review-not-me-text {
+  display: flex;
+  flex-direction: column;
+}
+
 .review-person-select {
   flex: 0 1 60%;
   min-width: 0;

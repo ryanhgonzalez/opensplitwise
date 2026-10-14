@@ -179,12 +179,22 @@ export interface MergeResult {
 /** Same expense, same edit: nothing to do. */
 const sameEdit = (a: Expense, b: Expense) => a.updatedAt.getTime() === b.updatedAt.getTime();
 
+export interface MergeOptions {
+  /**
+   * The person on this phone isn't any of the group's people (it was shared
+   * with someone new): add them to it. Sharing back then adds them on the
+   * sender's phone too.
+   */
+  addMe?: boolean;
+}
+
 export function mergeBundle(
   state: SyncState,
   bundle: GroupBundle,
   choice: PeopleChoice,
   now = new Date(),
   newId: () => string = () => crypto.randomUUID(),
+  options: MergeOptions = {},
 ): MergeResult {
   // ── People: decide each incoming person's id on this phone.
   const aliases = { ...state.userAliases };
@@ -278,6 +288,9 @@ export function mergeBundle(
       updatedAt: theirsNewer ? editedAt(bundle.group) : editedAt(local),
       lastActivity: bundle.group.lastActivity > local.lastActivity ? bundle.group.lastActivity : local.lastActivity,
     };
+  }
+  if (options.addMe && !group.members.some((m) => m.userId === state.currentUserId)) {
+    group = { ...group, members: [...group.members, { userId: state.currentUserId, role: 'member', joinedAt: now }] };
   }
   const currency = group.currency || 'USD';
 

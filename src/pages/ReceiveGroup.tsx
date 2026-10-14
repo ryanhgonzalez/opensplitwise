@@ -71,6 +71,8 @@ export function ReceivePanel({
   /** How it arrived: the number of code parts, or 0 for a file. */
   const [viaParts, setViaParts] = useState(0);
   const [choice, setChoice] = useState<PeopleChoice>({});
+  /** None of the group's people is the person here: add them to it on merge. */
+  const [addMe, setAddMe] = useState(false);
   const [arrived, setArrived] = useState<boolean[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -84,6 +86,7 @@ export function ReceivePanel({
     setBundle(b);
     setViaParts(parts);
     setChoice(defaultChoice(matchPeople(state, b)));
+    setAddMe(false);
   };
 
   const openFile = async (file: File) => {
@@ -181,19 +184,19 @@ export function ReceivePanel({
   }, [choice, users]);
 
   const summary = useMemo(
-    () => (bundle && state ? mergeBundle(state, bundle, choice).summary : null),
-    [bundle, state, choice],
+    () => (bundle && state ? mergeBundle(state, bundle, choice, undefined, undefined, { addMe }).summary : null),
+    [bundle, state, choice, addMe],
   );
   const problem =
-    askSelf && !selfIncoming
-      ? 'Choose which of these people is you.'
+    askSelf && !selfIncoming && !addMe
+      ? 'Choose which of these people you are, or tick “I’m not in this group”.'
       : chosenTwice.length
         ? `Two people are matched to ${chosenTwice.join(', ')}.`
         : null;
 
   const merge = async () => {
     if (!bundle || problem) return;
-    const result = applyGroupBundle(bundle, choice);
+    const result = applyGroupBundle(bundle, choice, { addMe });
     // Photos that came with the file: for expenses taken from them, and any
     // this phone has no photo for. A newer photo here is never overwritten.
     if (bundle.receipts) {
@@ -313,6 +316,7 @@ export function ReceivePanel({
     },
     ...summary.membersAdded.map((name) => ({ key: `in-${name}`, icon: PERSON_ICON, text: `${name} joins the group` })),
     ...summary.membersRemoved.map((name) => ({ key: `out-${name}`, icon: PERSON_ICON, text: `${name} removed from the group` })),
+    addMe && { key: 'me', icon: PERSON_ICON, text: 'You join the group' },
     photoCount > 0 && {
       key: 'photos',
       icon: RECEIPT_ICON,
@@ -390,7 +394,7 @@ export function ReceivePanel({
               <section aria-labelledby="review-people">
                 <h2 id="review-people" className="cap review-label">
                   {askSelf
-                    ? 'Which one is you?'
+                    ? 'Which one are you?'
                     : toCheck.length === 1
                       ? 'One person to check'
                       : `${toCheck.length} people to check`}
@@ -408,7 +412,11 @@ export function ReceivePanel({
                         className="field-input review-person-select"
                         aria-label={`Who is ${m.incoming.name} on this device`}
                         value={choice[m.incoming.id] ?? NEW_PERSON}
-                        onChange={(e) => setChoice((c) => ({ ...c, [m.incoming.id]: e.target.value }))}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setChoice((c) => ({ ...c, [m.incoming.id]: v }));
+                          if (v === currentUserId) setAddMe(false);
+                        }}
                       >
                         <option value={currentUserId}>This is me</option>
                         {users
@@ -423,6 +431,28 @@ export function ReceivePanel({
                     </label>
                   ))}
                 </div>
+                {askSelf && (
+                  <label className="review-not-me">
+                    <input
+                      type="checkbox"
+                      checked={addMe}
+                      onChange={(e) => {
+                        const on = e.target.checked;
+                        setAddMe(on);
+                        // Nobody here is me after all.
+                        if (on) {
+                          setChoice((c) =>
+                            Object.fromEntries(Object.entries(c).map(([k, v]) => [k, v === currentUserId ? NEW_PERSON : v])),
+                          );
+                        }
+                      }}
+                    />
+                    <span className="review-not-me-text">
+                      <span className="review-person-name">I'm not in this group</span>
+                      <span className="text-xs text-secondary">Add me to it as a new member</span>
+                    </span>
+                  </label>
+                )}
                 {matchedNames.length > 0 && (
                   <span className="text-xs text-secondary">
                     {matchedNames.join(', ').replace(/, ([^,]*)$/, ' and $1')} {matchedNames.length === 1 ? 'is' : 'are'}{' '}

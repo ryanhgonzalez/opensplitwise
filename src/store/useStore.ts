@@ -21,7 +21,7 @@ import type {
   RepeatFrequency,
 } from '../types';
 import { dueRepeats, ruleIdOf } from '../lib/recurring';
-import { mergeBundle, type GroupBundle, type MergeSummary, type PeopleChoice } from '../lib/groupSync';
+import { mergeBundle, type GroupBundle, type MergeOptions, type MergeSummary, type PeopleChoice } from '../lib/groupSync';
 import type { ExportPayload, ImportStats } from '../lib/dataExport';
 import { cleanCategoryName, findCategoryByName } from '../lib/categories';
 import { round, outstandingByGroup, allocatePayment } from '../lib/calculations';
@@ -167,7 +167,7 @@ export interface AppStore {
 
   // ── Sharing ──
   /** Merges a group received from another phone; returns what changed. */
-  applyGroupBundle: (bundle: GroupBundle, people: PeopleChoice) => MergeSummary;
+  applyGroupBundle: (bundle: GroupBundle, people: PeopleChoice, options?: MergeOptions) => MergeSummary;
 
   // ── Danger zone ──
   wipeAllData: () => void;
@@ -908,7 +908,7 @@ export const useStore = create<AppStore>()(
 
         // ── Sharing ────────────────────────────────────────────────────────────
 
-        applyGroupBundle: (bundle, people) => {
+        applyGroupBundle: (bundle, people, options) => {
           const s = get();
           const { state, summary } = mergeBundle(
             {
@@ -925,6 +925,9 @@ export const useStore = create<AppStore>()(
             },
             bundle,
             people,
+            undefined,
+            undefined,
+            options,
           );
           set(
             {
