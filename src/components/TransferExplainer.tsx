@@ -1,22 +1,20 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import Avatar from './Avatar';
-import { useStore } from '../store';
-import type { DirectDebt, SettlementTransaction } from '../lib/calculations';
+import { useStore, selectCurrentUser } from '../store';
+import { calculateSettlements, directDebts, type SettlementTransaction } from '../lib/calculations';
+import { groupCurrency } from '../lib/currency';
 import { formatCurrency } from '../utils';
 import './SettleModal.css';
 import './TransferExplainer.css';
 
 interface TransferExplainerProps {
+  /** The group the payment is suggested in. */
+  groupId: string;
   /** The suggested payment being explained. */
   transfer: SettlementTransaction;
-  /** Every suggested payment in the group, so other legs of the payer's debt can be named. */
-  transfers: SettlementTransaction[];
-  /** Who owes whom directly in the group. */
-  direct: DirectDebt[];
-  currency: string;
-  /** "You" for the current user, otherwise a first name. */
-  nameOf: (userId: string, lower?: boolean) => string;
-  currentUserId: string;
+  /** Shows the group's name, for screens that list payments from several groups. */
+  showGroup?: boolean;
   onClose: () => void;
 }
 
@@ -28,21 +26,38 @@ const listNames = (names: string[]) =>
  * Shows why a suggested payment exists: the payer's direct debts in the group,
  * expense by expense, and how simplifying turned them into this payment.
  */
-export default function TransferExplainer({
-  transfer,
-  transfers,
-  direct,
-  currency,
-  nameOf,
-  currentUserId,
-  onClose,
-}: TransferExplainerProps) {
+export default function TransferExplainer({ groupId, transfer, showGroup = false, onClose }: TransferExplainerProps) {
   const users = useStore((s) => s.users);
+  const group = useStore((s) => s.groups.find((g) => g.id === groupId));
+  const allExpenses = useStore((s) => s.expenses);
+  const allSettlements = useStore((s) => s.settlements);
+  const me = useStore(selectCurrentUser)?.id ?? '';
+
+  // The group's suggested payments and who owes whom directly, as on its screen.
+  const { transfers, direct } = useMemo(() => {
+    const snapshot = {
+      expenses: allExpenses.filter((e) => e.groupId === groupId),
+      settlements: allSettlements.filter((s) => s.groupId === groupId),
+      memberIds: group?.members.map((m) => m.userId) ?? [],
+    };
+    return { transfers: calculateSettlements(snapshot), direct: directDebts(snapshot) };
+  }, [allExpenses, allSettlements, groupId, group]);
+
   const payer = users.find((u) => u.id === transfer.from);
   const recipient = users.find((u) => u.id === transfer.to);
-  if (!payer || !recipient) return null;
+  if (!payer || !recipient || !group) return null;
 
-  const me = currentUserId;
+  const currency = groupCurrency(group);
+  // First names, unless two members share one ("Frank" and "Frank Jr").
+  const firsts = group.members.map((m) => users.find((u) => u.id === m.userId)?.name.split(' ')[0]);
+  const nameOf = (uid: string, lower = false) => {
+    if (uid === me) return lower ? 'you' : 'You';
+    const name = users.find((u) => u.id === uid)?.name;
+    if (!name) return 'Unknown';
+    const first = name.split(' ')[0];
+    return firsts.filter((f) => f === first).length > 1 ? name : first;
+  };
+
   const verb = (uid: string, you: string, other: string) => (uid === me ? you : other);
   const fmt = (n: number) => formatCurrency(n, currency);
 
@@ -75,7 +90,7 @@ export default function TransferExplainer({
       'This is money owed to other people, sent this way to keep the number of payments down.';
   }
 
-  const renderDebt = (d: DirectDebt) => (
+  const renderDebt = (d: (typeof direct)[number]) => (
     <div key={`${d.from}-${d.to}`} className="tx-debt">
       <div className="tx-debt-head">
         <span>
@@ -126,6 +141,7 @@ export default function TransferExplainer({
           </div>
           <h2 className="modal-title">{title}</h2>
           <p className="text-secondary text-sm">{summary}</p>
+          {showGroup && <span className="modal-group-chip">{group.name}</span>}
         </div>
 
         <div className="tx-debts">

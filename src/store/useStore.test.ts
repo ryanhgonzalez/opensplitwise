@@ -137,7 +137,7 @@ describe('deleteUser', () => {
       fromUserId: bob.id, toUserId: me.id, amount: 30, currency: 'USD',
       groupId: group.id, date: new Date(), paymentMethod: 'venmo',
     });
-    expect(friendBalances()[bob.id]).toBe(0);
+    expect(friendBalances()[bob.id] ?? 0).toBe(0);
 
     state().deleteUser(alice.id);
 
@@ -238,7 +238,7 @@ describe('settleWithUser', () => {
       fromUserId: me.id, toUserId: alice.id, amount: 100, currency: 'USD', date: new Date(),
     });
 
-    expect(friendBalances()[alice.id]).toBe(0);
+    expect(friendBalances()[alice.id] ?? 0).toBe(0);
     expect(balanceIn(trip.id)).toBe(0);
     expect(balanceIn(home.id)).toBe(0);
   });
@@ -253,7 +253,7 @@ describe('settleWithUser', () => {
       fromUserId: alice.id, toUserId: me.id, amount: 50, currency: 'USD', date: new Date(),
     });
 
-    expect(friendBalances()[alice.id]).toBe(0);
+    expect(friendBalances()[alice.id] ?? 0).toBe(0);
     expect(balanceIn(group.id)).toBe(0);
   });
 
@@ -415,7 +415,7 @@ describe('currencies', () => {
 
     const created = state().settleWithUser({ fromUserId: alice.id, toUserId: me.id, amount: 40, currency: 'EUR', date: new Date() });
     expect(created.map((s) => [s.groupId, s.amount, s.currency])).toEqual([[paris.id, 40, 'EUR']]);
-    expect(selectFriendBalancesByCurrency(state())).toEqual({ USD: { [alice.id]: 25 }, EUR: { [alice.id]: 0 } });
+    expect(selectFriendBalancesByCurrency(state())).toEqual({ USD: { [alice.id]: 25 } });
   });
 
   it('relabels a group’s amounts when its currency changes, without converting them', () => {

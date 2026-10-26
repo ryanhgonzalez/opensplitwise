@@ -423,6 +423,53 @@ export function isSimplified(transfers: SettlementTransaction[], direct: DirectD
   );
 }
 
+// ─── Suggested debts (what everyone sees as owed) ─────────────────────────────
+
+/** One payment the app suggests, in the ledger it belongs to. */
+export interface SuggestedDebt {
+  /** Undefined for expenses and payments that belong to no group. */
+  groupId?: string;
+  currency: string;
+  from: string;
+  to: string;
+  amount: number;
+}
+
+/**
+ * Every payment still needed to settle up, across all groups.
+ *
+ * Inside a group these are the simplified transfers from `calculateSettlements`,
+ * the same ones the group screen lists, so "Frank owes you" means the same
+ * thing on every screen and settling the group clears it everywhere. Records
+ * with no group aren't simplified: each pair's direct debt stands on its own.
+ *
+ * Each group and currency is its own ledger: a debt in one never offsets another.
+ */
+export function suggestedDebts(expenses: Expense[], settlements: Settlement[]): SuggestedDebt[] {
+  const ledgers = new Map<string, { groupId?: string; currency: string; expenses: Expense[]; settlements: Settlement[] }>();
+  const ledgerOf = (groupId: string | undefined, currency: string | undefined) => {
+    // Records from before groups had a currency are US dollars.
+    const cur = currency || 'USD';
+    const key = `${groupId ?? ''}|${cur}`;
+    let ledger = ledgers.get(key);
+    if (!ledger) {
+      ledger = { groupId, currency: cur, expenses: [], settlements: [] };
+      ledgers.set(key, ledger);
+    }
+    return ledger;
+  };
+  for (const e of expenses) ledgerOf(e.groupId, e.currency).expenses.push(e);
+  for (const s of settlements) ledgerOf(s.groupId, s.currency).settlements.push(s);
+
+  const debts: SuggestedDebt[] = [];
+  for (const { groupId, currency, expenses: ex, settlements: st } of ledgers.values()) {
+    const snapshot = { expenses: ex, settlements: st, memberIds: [] };
+    const pairs = groupId ? calculateSettlements(snapshot) : directDebts(snapshot);
+    for (const { from, to, amount } of pairs) debts.push({ groupId, currency, from, to, amount });
+  }
+  return debts;
+}
+
 // ─── Core: deriveTotals ───────────────────────────────────────────────────────
 
 /** Per-group running totals from the current user's perspective. */
@@ -433,7 +480,8 @@ export interface GroupTotals {
 
 export interface DerivedTotals {
   /**
-   * userId → net balance with the current user, summed across every group.
+   * userId → what they owe the current user, summed across every group, from
+   * the suggested payments (see `suggestedDebts`).
    * Positive → they owe the current user. Negative → the current user owes them.
    * Only meaningful when everything is in one currency; kept for the export
    * file's format. Screens use `friendBalancesByCurrency`.
@@ -463,13 +511,16 @@ export function deriveTotals(
   const friendBalancesByCurrency: Record<string, BalanceMap> = {};
   const groupTotals: Record<string, GroupTotals> = {};
 
-  // Records from before groups had a currency are US dollars.
-  let currency = 'USD';
-  const bump = (userId: string, delta: number) => {
+  const bump = (userId: string, currency: string, delta: number) => {
     friendBalances[userId] = (friendBalances[userId] ?? 0) + delta;
     const inCurrency = (friendBalancesByCurrency[currency] ??= {});
     inCurrency[userId] = (inCurrency[userId] ?? 0) + delta;
   };
+
+  for (const debt of suggestedDebts(expenses, settlements)) {
+    if (debt.to === currentUserId) bump(debt.from, debt.currency, debt.amount);
+    else if (debt.from === currentUserId) bump(debt.to, debt.currency, -debt.amount);
+  }
 
   const totalsFor = (groupId?: string): GroupTotals | undefined => {
     if (!groupId) return undefined;
@@ -482,21 +533,6 @@ export function deriveTotals(
   };
 
   for (const expense of expenses) {
-    currency = expense.currency || 'USD';
-    const myShare = expense.split.entries.find((e) => e.userId === currentUserId)?.amount ?? 0;
-    const sign = moneySign(expense);
-
-    if (expense.paidBy === currentUserId) {
-      // I fronted it, so every other participant owes me their share.
-      // (A refund I received: I owe each of them theirs.)
-      for (const entry of expense.split.entries) {
-        if (entry.userId !== currentUserId) bump(entry.userId, sign * entry.amount);
-      }
-    } else if (myShare > 0) {
-      // Somebody else fronted it and I was in the split, so I owe them.
-      bump(expense.paidBy, -sign * myShare);
-    }
-
     const totals = totalsFor(expense.groupId);
     if (totals) {
       totals.yourBalance += netForUserOnExpense(expense, currentUserId);
@@ -505,16 +541,10 @@ export function deriveTotals(
   }
 
   for (const settlement of settlements) {
-    currency = settlement.currency || 'USD';
     const totals = totalsFor(settlement.groupId);
-
-    if (settlement.fromUserId === currentUserId) {
-      bump(settlement.toUserId, settlement.amount);
-      if (totals) totals.yourBalance += settlement.amount;
-    } else if (settlement.toUserId === currentUserId) {
-      bump(settlement.fromUserId, -settlement.amount);
-      if (totals) totals.yourBalance -= settlement.amount;
-    }
+    if (!totals) continue;
+    if (settlement.fromUserId === currentUserId) totals.yourBalance += settlement.amount;
+    else if (settlement.toUserId === currentUserId) totals.yourBalance -= settlement.amount;
   }
 
   for (const userId of Object.keys(friendBalances)) {
@@ -547,9 +577,10 @@ export interface PaymentAllocation {
 
 /**
  * How much `debtorId` owes `creditorId`, broken down by the group each part of
- * the debt sits in. Only buckets where the debt runs in that direction are
- * returned — a group where the money flows the other way cannot be paid down by
- * this transfer. Expenses with no group collapse into a single `undefined` bucket.
+ * the debt sits in, from the suggested payments (see `suggestedDebts`). Only
+ * buckets where the debt runs in that direction are returned — a group where
+ * the money flows the other way cannot be paid down by this transfer. Expenses
+ * with no group collapse into a single `undefined` bucket.
  *
  * With `currency`, only records in that currency count: a payment in euros
  * can only pay down debts in euros.
@@ -563,31 +594,13 @@ export function outstandingByGroup(
   creditorId: string,
   currency?: string,
 ): OutstandingBucket[] {
-  const inCurrency = (r: { currency?: string }) => !currency || (r.currency || 'USD') === currency;
-  const UNGROUPED = ' ungrouped';
+  const UNGROUPED = ' ungrouped';
   const owed: Record<string, number> = {};
-  const bump = (groupId: string | undefined, delta: number) => {
-    const key = groupId ?? UNGROUPED;
-    owed[key] = (owed[key] ?? 0) + delta;
-  };
-
-  for (const expense of expenses) {
-    if (!inCurrency(expense)) continue;
-    const shareOf = (userId: string) =>
-      expense.split.entries.find((e) => e.userId === userId)?.amount ?? 0;
-
-    const sign = moneySign(expense);
-    if (expense.paidBy === creditorId) bump(expense.groupId, sign * shareOf(debtorId));
-    else if (expense.paidBy === debtorId) bump(expense.groupId, -sign * shareOf(creditorId));
-  }
-
-  for (const settlement of settlements) {
-    if (!inCurrency(settlement)) continue;
-    if (settlement.fromUserId === debtorId && settlement.toUserId === creditorId) {
-      bump(settlement.groupId, -settlement.amount);
-    } else if (settlement.fromUserId === creditorId && settlement.toUserId === debtorId) {
-      bump(settlement.groupId, settlement.amount);
-    }
+  for (const debt of suggestedDebts(expenses, settlements)) {
+    if (currency && debt.currency !== currency) continue;
+    if (debt.from !== debtorId || debt.to !== creditorId) continue;
+    const key = debt.groupId ?? UNGROUPED;
+    owed[key] = (owed[key] ?? 0) + debt.amount;
   }
 
   return Object.entries(owed)

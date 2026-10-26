@@ -5,8 +5,9 @@ import Avatar from '../components/Avatar';
 import GroupTile from '../components/GroupTile';
 import BackupReminder from '../components/BackupReminder';
 import SettleModal, { type SettleMode } from '../components/SettleModal';
+import TransferExplainer from '../components/TransferExplainer';
 import { useStore, selectCurrentUser, selectMainCurrency, selectOverallBalances, selectRecentExpenses, selectGroupTotals } from '../store';
-import { calculateSettlements } from '../lib/calculations';
+import { calculateSettlements, directDebts } from '../lib/calculations';
 import { expenseAmountLabel, groupCurrency, recordCurrency } from '../lib/currency';
 import { nextOccurrence } from '../lib/recurring';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned, getNetAmountForUser } from '../utils';
@@ -20,6 +21,8 @@ interface ToSettle {
   to: string;
   amount: number;
   currency: string;
+  /** Not a direct debt: simplifying sent it this way, so it gets a "Why?". */
+  rerouted: boolean;
 }
 
 interface Settling extends ToSettle {
@@ -38,6 +41,7 @@ const COMING_UP = 4;
 export default function Dashboard() {
   const navigate = useNavigate();
   const [settling, setSettling] = useState<Settling | null>(null);
+  const [explaining, setExplaining] = useState<ToSettle | null>(null);
 
   const currentUser = useStore(selectCurrentUser)!;
   const balances = useStore(selectOverallBalances);
@@ -53,7 +57,13 @@ export default function Dashboard() {
 
   const getUserById = (id: string) => users.find((u) => u.id === id);
   const getGroupById = (id?: string) => (id ? groups.find((g) => g.id === id) : undefined);
-  const firstName = (id: string) => getUserById(id)?.name.split(' ')[0] ?? 'Someone';
+  // First name, unless someone else has the same one ("Frank" and "Frank Jr").
+  const firstName = (id: string) => {
+    const name = getUserById(id)?.name;
+    if (!name) return 'Someone';
+    const first = name.split(' ')[0];
+    return users.filter((u) => u.name.split(' ')[0] === first).length > 1 ? name : first;
+  };
   const balanceOf = (groupId: string) => groupTotals[groupId]?.yourBalance ?? 0;
   const myGroups = groups.filter((g) => g.members.some((m) => m.userId === currentUser.id));
 
@@ -75,9 +85,16 @@ export default function Dashboard() {
       const groupExpenses = expenses.filter((e) => e.groupId === g.id);
       if (groupExpenses.length === 0) return [];
       const groupPayments = payments.filter((p) => p.groupId === g.id);
-      return calculateSettlements({ expenses: groupExpenses, memberIds, settlements: groupPayments })
+      const snapshot = { expenses: groupExpenses, memberIds, settlements: groupPayments };
+      const direct = directDebts(snapshot);
+      return calculateSettlements(snapshot)
         .filter((t) => t.from === currentUser.id || t.to === currentUser.id)
-        .map((t) => ({ ...t, groupId: g.id, currency: groupCurrency(g) }));
+        .map((t) => ({
+          ...t,
+          groupId: g.id,
+          currency: groupCurrency(g),
+          rerouted: !direct.some((d) => d.from === t.from && d.to === t.to && Math.abs(d.amount - t.amount) < 0.005),
+        }));
     });
     // Money coming to you first, then what you owe; largest first within each.
     return rows.sort((a, b) => Number(a.from === currentUser.id) - Number(b.from === currentUser.id) || b.amount - a.amount);
@@ -186,9 +203,16 @@ export default function Dashboard() {
                           <span className="dash-settle-who">
                             {theyOwe ? `${firstName(other)} owes you` : `You owe ${firstName(other)}`}
                           </span>
-                          <Link to={`/groups/${t.groupId}`} className="dash-settle-group">
-                            {group?.name}
-                          </Link>
+                          <span className="dash-settle-meta">
+                            <Link to={`/groups/${t.groupId}`} className="dash-settle-group">
+                              {group?.name}
+                            </Link>
+                            {t.rerouted && (
+                              <button className="dash-settle-why" onClick={() => setExplaining(t)}>
+                                Why?
+                              </button>
+                            )}
+                          </span>
                         </span>
                         <span className={`num dash-settle-amount ${theyOwe ? 'pos' : 'neg'}`}>
                           {formatCurrency(t.amount, t.currency)}
@@ -307,6 +331,17 @@ export default function Dashboard() {
           </aside>
         </div>
       </div>
+
+      <AnimatePresence>
+        {explaining && (
+          <TransferExplainer
+            groupId={explaining.groupId}
+            transfer={explaining}
+            showGroup
+            onClose={() => setExplaining(null)}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {settling && (

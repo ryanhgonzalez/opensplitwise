@@ -6,7 +6,8 @@ import Avatar from '../components/Avatar';
 import GroupTile from '../components/GroupTile';
 import PersonSheet from '../components/PersonSheet';
 import SettleModal, { type SettleMode } from '../components/SettleModal';
-import { moneySign, outstandingByGroup } from '../lib/calculations';
+import TransferExplainer from '../components/TransferExplainer';
+import { directDebts, moneySign, outstandingByGroup, type SettlementTransaction } from '../lib/calculations';
 import { groupCurrency, recordCurrency } from '../lib/currency';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned } from '../utils';
 import type { PaymentMethod } from '../types';
@@ -62,6 +63,7 @@ export default function Person() {
   const [editing, setEditing] = useState(false);
   const [settling, setSettling] = useState<{ currency: string; amount: number; theyOwe: boolean; mode: SettleMode } | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [explaining, setExplaining] = useState<{ groupId: string; transfer: SettlementTransaction } | null>(null);
 
   const person = users.find((u) => u.id === id);
   const me = currentUser.id;
@@ -85,7 +87,19 @@ export default function Person() {
           buckets.find((b) => b.groupId === g.id)?.outstanding ?? 0;
         const theyOwe = inGroup(outstandingByGroup(expenses, payments, id, me, currency));
         const iOwe = inGroup(outstandingByGroup(expenses, payments, me, id, currency));
-        return { group: g, currency, net: theyOwe - iOwe };
+        const net = theyOwe - iOwe;
+        // The group's suggested payment between you two, if there is one.
+        const transfer: SettlementTransaction | undefined =
+          Math.abs(net) < 0.005 ? undefined : { from: net > 0 ? id : me, to: net > 0 ? me : id, amount: Math.abs(net) };
+        // Rerouted when it isn't simply what one of you owes the other directly.
+        const rerouted =
+          !!transfer &&
+          !directDebts({
+            expenses: expenses.filter((e) => e.groupId === g.id),
+            settlements: payments.filter((p) => p.groupId === g.id),
+            memberIds: [],
+          }).some((d) => d.from === transfer.from && d.to === transfer.to && Math.abs(d.amount - transfer.amount) < 0.005);
+        return { group: g, currency, net, transfer, rerouted };
       }),
     [sharedGroups, expenses, payments, id, me],
   );
@@ -109,8 +123,9 @@ export default function Person() {
       e.split.entries.find((en) => en.userId === uid)?.amount ?? 0;
     const rows: HistoryRow[] = [];
     for (const e of expenses) {
-      const theyPaid = e.paidBy === id && e.split.entries.some((en) => en.userId === me);
-      const iPaid = e.paidBy === me && e.split.entries.some((en) => en.userId === id);
+      // Only expenses that moved money between you: a $0 share in the split doesn't count.
+      const theyPaid = e.paidBy === id && shareOf(e, me) > 0;
+      const iPaid = e.paidBy === me && shareOf(e, id) > 0;
       if (!theyPaid && !iPaid) continue;
       rows.push({
         id: e.id,
@@ -227,6 +242,19 @@ export default function Person() {
                   ))
                 )}
               </div>
+              {perGroup
+                .filter((p) => p.rerouted && p.transfer)
+                .map((p) => (
+                  <p key={p.group.id} className="text-xs text-secondary person-note">
+                    In {p.group.name}, this includes money owed to other people, sent this way to keep payments down.{' '}
+                    <button
+                      className="person-why"
+                      onClick={() => setExplaining({ groupId: p.group.id, transfer: p.transfer! })}
+                    >
+                      Why?
+                    </button>
+                  </p>
+                ))}
               {between.length > 0 && (
                 <p className="text-xs text-secondary person-note">
                   Settle up records a payment {between.length > 1 ? 'in one currency at a time' : 'either way'}. It's
@@ -284,6 +312,17 @@ export default function Person() {
 
       <AnimatePresence>
         {editing && <PersonSheet open={editing} onClose={() => setEditing(false)} userId={id} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {explaining && (
+          <TransferExplainer
+            groupId={explaining.groupId}
+            transfer={explaining.transfer}
+            showGroup
+            onClose={() => setExplaining(null)}
+          />
+        )}
       </AnimatePresence>
 
       <AnimatePresence>

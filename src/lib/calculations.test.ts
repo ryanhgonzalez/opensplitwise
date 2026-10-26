@@ -17,6 +17,7 @@ import {
   allocatePayment,
   directDebts,
   isSimplified,
+  suggestedDebts,
 } from './calculations';
 import type { Expense, Settlement, SplitEntry } from '../types';
 
@@ -351,7 +352,8 @@ describe('deriveTotals', () => {
 
   it('applies settlements to both the friend balance and the group', () => {
     const { friendBalances, groupTotals } = deriveTotals([dinner], [settlement('bob', 'me', 30, 'trip')], 'me');
-    expect(friendBalances).toEqual({ alice: 30, bob: 0 });
+    // Bob is square, so he drops out; settled people have no balance.
+    expect(friendBalances).toEqual({ alice: 30 });
     expect(groupTotals.trip.yourBalance).toBe(30);
     // A payment is not spending — it must not inflate the group's total.
     expect(groupTotals.trip.totalSpent).toBe(90);
@@ -630,5 +632,47 @@ describe('isSimplified', () => {
     expect(transfers).toContainEqual({ from: 'frank', to: 'ryan', amount: 14.17 });
     expect(directDebts(snap).some((d) => d.from === 'frank' && d.to === 'ryan')).toBe(false);
     expect(isSimplified(transfers, directDebts(snap))).toBe(true);
+  });
+});
+
+// ─── Person balances follow the group's suggested payments ────────────────────
+
+describe('person balances match the group screen', () => {
+  // The cruise case: Ryan fronts a lot for Jr; Frank owes Jr a little.
+  const big = expense({ id: 'big', amount: 100, paidBy: 'ryan', split: { type: 'exact', entries: [{ userId: 'jr', amount: 100 }] } });
+  const small = expense({ id: 'small', amount: 14.17, paidBy: 'jr', split: { type: 'exact', entries: [{ userId: 'frank', amount: 14.17 }] } });
+
+  it('shows a rerouted payment as owed to the person it goes to', () => {
+    const { friendBalances } = deriveTotals([big, small], [], 'ryan');
+    expect(friendBalances).toEqual({ frank: 14.17, jr: 85.83 });
+  });
+
+  it('clears every person once the suggested payments are made', () => {
+    const plan = calculateSettlements({ expenses: [big, small], memberIds: [] });
+    const paid = plan.map((t) => settlement(t.from, t.to, t.amount));
+    expect(deriveTotals([big, small], paid, 'ryan').friendBalances).toEqual({});
+    expect(deriveTotals([big, small], paid, 'frank').friendBalances).toEqual({});
+  });
+
+  it('settles up with a person by paying down what the group suggests', () => {
+    expect(outstandingByGroup([big, small], [], 'frank', 'ryan')).toEqual([{ groupId: 'g1', outstanding: 14.17 }]);
+    // Frank owes Jr nothing on the plan: the debt goes to Ryan instead.
+    expect(outstandingByGroup([big, small], [], 'frank', 'jr')).toEqual([]);
+  });
+
+  it('leaves expenses outside any group as direct debts', () => {
+    const loose = { ...small, groupId: undefined };
+    const looseBig = { ...big, groupId: undefined };
+    expect(suggestedDebts([looseBig, loose], [])).toEqual([
+      { groupId: undefined, currency: 'USD', from: 'jr', to: 'ryan', amount: 100 },
+      { groupId: undefined, currency: 'USD', from: 'frank', to: 'jr', amount: 14.17 },
+    ]);
+  });
+
+  it('keeps each currency in a group separate', () => {
+    const eur = { ...small, id: 'eur', currency: 'EUR' };
+    const debts = suggestedDebts([big, eur], []);
+    expect(debts).toContainEqual({ groupId: 'g1', currency: 'EUR', from: 'frank', to: 'jr', amount: 14.17 });
+    expect(debts).toContainEqual({ groupId: 'g1', currency: 'USD', from: 'jr', to: 'ryan', amount: 100 });
   });
 });

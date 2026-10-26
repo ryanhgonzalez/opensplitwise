@@ -572,15 +572,7 @@ export default function GroupDetail() {
       {/* Why a suggested payment exists */}
       <AnimatePresence>
         {explaining && (
-          <TransferExplainer
-            transfer={explaining}
-            transfers={settlements}
-            direct={direct}
-            currency={cur}
-            nameOf={nameOf}
-            currentUserId={currentUser.id}
-            onClose={() => setExplaining(null)}
-          />
+          <TransferExplainer groupId={group.id} transfer={explaining} onClose={() => setExplaining(null)} />
         )}
       </AnimatePresence>
 

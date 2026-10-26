@@ -124,7 +124,7 @@ export default function People() {
                       balances.map((b) => (
                         <span key={b.currency} className="people-row-line">
                           <span className={`num people-row-amount ${b.amount > 0 ? 'pos' : 'neg'}`}>
-                            {formatCurrency(b.amount, b.currency)}
+                            {formatCurrency(Math.abs(b.amount), b.currency)}
                           </span>
                           <span className="text-xs text-secondary">{b.amount > 0 ? 'owes you' : 'you owe'}</span>
                         </span>

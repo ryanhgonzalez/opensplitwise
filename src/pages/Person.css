@@ -247,3 +247,15 @@ section.person-col {
     flex-basis: auto;
   }
 }
+
+/* Opens the explanation for a balance simplifying sent this way */
+.person-why {
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: var(--ink);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
