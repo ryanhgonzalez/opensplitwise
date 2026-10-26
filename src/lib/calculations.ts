@@ -331,6 +331,98 @@ export function settleBalances(balances: BalanceMap): SettlementTransaction[] {
   return transactions;
 }
 
+// ─── Direct debts (the unsimplified view) ─────────────────────────────────────
+
+/** One expense or payment's part in a direct debt. Positive adds to the debt. */
+export interface DirectDebtItem {
+  /** The expense or settlement id. */
+  id: string;
+  kind: 'expense' | 'payment';
+  /** The expense description; empty for payments. */
+  description: string;
+  amount: number;
+}
+
+/** What `from` owes `to` from the expenses between just the two of them. */
+export interface DirectDebt {
+  from: string;
+  to: string;
+  amount: number;
+  items: DirectDebtItem[];
+}
+
+/**
+ * Who owes whom before any simplifying: for every expense, each participant owes
+ * the payer their share, and payments count against what the payer owed.
+ * Each pair appears at most once, oriented so `amount` is positive.
+ *
+ * This is the "why" behind `calculateSettlements`, which only looks at each
+ * person's net and so may have someone pay a person they owe nothing directly.
+ */
+export function directDebts({ expenses, settlements = [] }: GroupSnapshot): DirectDebt[] {
+  // Keyed by the pair in sorted order; a positive amount means `a` owes `b`.
+  const pairs = new Map<string, { a: string; b: string; amount: number; items: DirectDebtItem[] }>();
+
+  const add = (debtor: string, creditor: string, amount: number, item: Omit<DirectDebtItem, 'amount'>) => {
+    if (debtor === creditor || Math.abs(amount) < EPSILON) return;
+    const [a, b] = debtor < creditor ? [debtor, creditor] : [creditor, debtor];
+    const signed = debtor === a ? amount : -amount;
+    const key = `${a}|${b}`;
+    let pair = pairs.get(key);
+    if (!pair) {
+      pair = { a, b, amount: 0, items: [] };
+      pairs.set(key, pair);
+    }
+    pair.amount += signed;
+    pair.items.push({ ...item, amount: signed });
+  };
+
+  for (const expense of expenses) {
+    const sign = moneySign(expense);
+    for (const entry of expense.split.entries) {
+      add(entry.userId, expense.paidBy, sign * entry.amount, {
+        id: expense.id,
+        kind: 'expense',
+        description: expense.description,
+      });
+    }
+  }
+
+  for (const settlement of settlements) {
+    // Paying someone takes that much off what you owe them.
+    add(settlement.fromUserId, settlement.toUserId, -settlement.amount, {
+      id: settlement.id,
+      kind: 'payment',
+      description: '',
+    });
+  }
+
+  const debts: DirectDebt[] = [];
+  for (const { a, b, amount, items } of pairs.values()) {
+    const net = round(amount);
+    if (Math.abs(net) < EPSILON) continue;
+    const flip = net < 0;
+    debts.push({
+      from: flip ? b : a,
+      to: flip ? a : b,
+      amount: Math.abs(net),
+      items: items.map((i) => ({ ...i, amount: round(flip ? -i.amount : i.amount) })),
+    });
+  }
+  return debts.sort((x, y) => y.amount - x.amount);
+}
+
+/**
+ * True when the suggested transfers are not just the direct debts, i.e. some
+ * transfer reroutes money through a third person or nets several debts together.
+ */
+export function isSimplified(transfers: SettlementTransaction[], direct: DirectDebt[]): boolean {
+  if (transfers.length !== direct.length) return true;
+  return transfers.some(
+    (t) => !direct.some((d) => d.from === t.from && d.to === t.to && Math.abs(d.amount - t.amount) < EPSILON),
+  );
+}
+
 // ─── Core: deriveTotals ───────────────────────────────────────────────────────
 
 /** Per-group running totals from the current user's perspective. */

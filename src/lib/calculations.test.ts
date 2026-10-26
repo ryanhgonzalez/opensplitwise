@@ -15,6 +15,8 @@ import {
   deriveTotals,
   outstandingByGroup,
   allocatePayment,
+  directDebts,
+  isSimplified,
 } from './calculations';
 import type { Expense, Settlement, SplitEntry } from '../types';
 
@@ -573,5 +575,60 @@ describe('refunds', () => {
     const toTai = { ...refund, paidBy: 'tai' };
     const balances = calculateBalances({ expenses: [hotel, toTai], memberIds: ['ryan', 'eddie', 'tai'] });
     expect(balances).toEqual({ ryan: 297.56, eddie: -118.78, tai: -178.78 });
+  });
+});
+
+// ─── Direct debts ─────────────────────────────────────────────────────────────
+
+describe('directDebts', () => {
+  it('has each participant owe the payer their share', () => {
+    const e = expense({
+      id: 'dinner',
+      description: 'Dinner',
+      amount: 90,
+      paidBy: 'a',
+      split: { type: 'equal', entries: [{ userId: 'a', amount: 30 }, { userId: 'b', amount: 30 }, { userId: 'c', amount: 30 }] },
+    });
+    const debts = directDebts({ expenses: [e], memberIds: ['a', 'b', 'c'] });
+    expect(debts).toHaveLength(2);
+    expect(debts.find((d) => d.from === 'b')).toMatchObject({ to: 'a', amount: 30 });
+    expect(debts[0].items).toEqual([{ id: 'dinner', kind: 'expense', description: 'Dinner', amount: 30 }]);
+  });
+
+  it('nets debts both ways between a pair and orients the result', () => {
+    const e1 = expense({ id: 'x', amount: 20, paidBy: 'a', split: { type: 'exact', entries: [{ userId: 'b', amount: 20 }] } });
+    const e2 = expense({ id: 'y', amount: 50, paidBy: 'b', split: { type: 'exact', entries: [{ userId: 'a', amount: 50 }] } });
+    const [d] = directDebts({ expenses: [e1, e2], memberIds: ['a', 'b'] });
+    expect(d).toMatchObject({ from: 'a', to: 'b', amount: 30 });
+    expect(d.items.map((i) => i.amount)).toEqual([-20, 50]);
+  });
+
+  it('counts payments against the debt and drops settled pairs', () => {
+    const e = expense({ amount: 40, paidBy: 'a', split: { type: 'exact', entries: [{ userId: 'b', amount: 40 }] } });
+    expect(directDebts({ expenses: [e], memberIds: ['a', 'b'], settlements: [settlement('b', 'a', 40)] })).toEqual([]);
+  });
+
+  it('runs a refund the other way', () => {
+    const r = expense({ amount: 10, paidBy: 'a', refund: {}, split: { type: 'exact', entries: [{ userId: 'b', amount: 10 }] } });
+    expect(directDebts({ expenses: [r], memberIds: ['a', 'b'] })[0]).toMatchObject({ from: 'a', to: 'b', amount: 10 });
+  });
+});
+
+describe('isSimplified', () => {
+  it('is false when the transfers are just the direct debts', () => {
+    const e = expense({ amount: 30, paidBy: 'a', split: { type: 'exact', entries: [{ userId: 'b', amount: 30 }] } });
+    const snap = { expenses: [e], memberIds: ['a', 'b'] };
+    expect(isSimplified(calculateSettlements(snap), directDebts(snap))).toBe(false);
+  });
+
+  it('is true when someone pays a person they owe nothing directly', () => {
+    // Ryan fronts a lot for Jr; Frank owes Jr a little. Simplified: Frank pays Ryan.
+    const big = expense({ id: 'big', amount: 100, paidBy: 'ryan', split: { type: 'exact', entries: [{ userId: 'jr', amount: 100 }] } });
+    const small = expense({ id: 'small', amount: 14.17, paidBy: 'jr', split: { type: 'exact', entries: [{ userId: 'frank', amount: 14.17 }] } });
+    const snap = { expenses: [big, small], memberIds: ['ryan', 'jr', 'frank'] };
+    const transfers = calculateSettlements(snap);
+    expect(transfers).toContainEqual({ from: 'frank', to: 'ryan', amount: 14.17 });
+    expect(directDebts(snap).some((d) => d.from === 'frank' && d.to === 'ryan')).toBe(false);
+    expect(isSimplified(transfers, directDebts(snap))).toBe(true);
   });
 });

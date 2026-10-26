@@ -154,6 +154,29 @@
 .gd-transfer-text {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: 8px 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Marks a transfer that isn't a direct debt; the whole text opens the explanation */
+.gd-transfer-why {
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.gd-simplified-note {
+  margin: 10px 0 14px;
 }
 
 .gd-transfer-text strong,

@@ -1,0 +1,60 @@
+/* "Why does X pay Y?" sheet. Shell styles come from SettleModal.css. */
+.tx-debts {
+  display: flex;
+  flex-direction: column;
+  border-top: 2px solid var(--ink);
+}
+
+.tx-debt {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tx-debt-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 500;
+}
+
+.tx-debt-amount {
+  font-weight: 600;
+}
+
+.tx-items {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tx-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.tx-item-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tx-item-amount {
+  flex-shrink: 0;
+}
+
+.tx-explain {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.tx-close {
+  width: 100%;
+  margin-top: 20px;
+}

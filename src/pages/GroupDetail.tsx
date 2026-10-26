@@ -2,7 +2,16 @@ import { useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser, selectTotalsForGroup } from '../store';
-import { calculateBalances, calculateSettlements, moneySign, round, signedAmount } from '../lib/calculations';
+import {
+  calculateBalances,
+  calculateSettlements,
+  directDebts,
+  isSimplified,
+  moneySign,
+  round,
+  signedAmount,
+  type SettlementTransaction,
+} from '../lib/calculations';
 import { EMPTY_FILTER, categoryOptions, filterExpenses, isFilterActive, type ExpenseFilter } from '../lib/expenseFilter';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned, getNetAmountForUser } from '../utils';
 import { categoryLabel } from '../lib/categories';
@@ -17,6 +26,7 @@ import { FREQUENCY_LABELS, nextOccurrence, ruleIdOf } from '../lib/recurring';
 import PersonSheet from '../components/PersonSheet';
 import ExpenseFilterBar from '../components/ExpenseFilterBar';
 import SettleModal from '../components/SettleModal';
+import TransferExplainer from '../components/TransferExplainer';
 import { expenseAmountLabel, groupCurrency } from '../lib/currency';
 import './GroupDetail.css';
 
@@ -56,6 +66,7 @@ export default function GroupDetail() {
   const [viewingReceipt, setViewingReceipt] = useState<{ id: string; title: string } | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [settling, setSettling] = useState<{ from: string; to: string; amount: number } | null>(null);
+  const [explaining, setExplaining] = useState<SettlementTransaction | null>(null);
   const [undoPaymentId, setUndoPaymentId] = useState<string | null>(null);
   const [expenseFilter, setExpenseFilter] = useState<ExpenseFilter>(EMPTY_FILTER);
   const [showAllExpenses, setShowAllExpenses] = useState(false);
@@ -119,8 +130,19 @@ export default function GroupDetail() {
   );
 
   const getUserById = (uid: string) => users.find(u => u.id === uid);
-  const nameOf = (uid: string, lower = false) =>
-    uid === currentUser.id ? (lower ? 'you' : 'You') : getUserById(uid)?.name.split(' ')[0] ?? 'Unknown';
+  // First names, unless two members share one ("Frank" and "Frank Jr").
+  const firstNameCounts: Record<string, number> = {};
+  for (const m of group?.members ?? []) {
+    const first = getUserById(m.userId)?.name.split(' ')[0];
+    if (first) firstNameCounts[first] = (firstNameCounts[first] ?? 0) + 1;
+  }
+  const nameOf = (uid: string, lower = false) => {
+    if (uid === currentUser.id) return lower ? 'you' : 'You';
+    const name = getUserById(uid)?.name;
+    if (!name) return 'Unknown';
+    const first = name.split(' ')[0];
+    return firstNameCounts[first] > 1 ? name : first;
+  };
 
   // When the group is deleted from the store, navigate away instead of flashing a blank state.
   useEffect(() => {
@@ -134,6 +156,11 @@ export default function GroupDetail() {
   // suggested transfers below both reflect what is actually still outstanding.
   const balances = calculateBalances({ expenses, memberIds, settlements: groupSettlements });
   const settlements = calculateSettlements({ expenses, memberIds, settlements: groupSettlements });
+  // Who owes whom before simplifying, to explain transfers that reroute money.
+  const direct = directDebts({ expenses, memberIds, settlements: groupSettlements });
+  const simplified = isSimplified(settlements, direct);
+  const isDirectTransfer = (t: SettlementTransaction) =>
+    direct.some(d => d.from === t.from && d.to === t.to && Math.abs(d.amount - t.amount) < 0.005);
   const myBalance = balances[currentUser.id] ?? 0;
   const hasExpenses = expenses.length > 0;
   const tomorrow = new Date(Date.now() + 86_400_000);
@@ -351,9 +378,10 @@ export default function GroupDetail() {
                         const isMyCredit = s.to === currentUser.id;
                         return (
                           <div key={i} className="gd-transfer">
-                            <span className="gd-transfer-text">
+                            <button className="gd-transfer-text" onClick={() => setExplaining(s)}>
                               {nameOf(s.from)} {isMyDebt ? 'pay' : 'pays'} {nameOf(s.to, true)}
-                            </span>
+                              {!isDirectTransfer(s) && <span className="gd-transfer-why">Why?</span>}
+                            </button>
                             <span className="num gd-transfer-amount">{formatCurrency(s.amount, cur)}</span>
                             <button
                               className={`btn btn-sm ${isMyDebt ? 'btn-primary' : 'btn-outline'}`}
@@ -365,6 +393,11 @@ export default function GroupDetail() {
                         );
                       })}
                     </div>
+                  )}
+                  {simplified && settlements.length > 0 && (
+                    <p className="gd-simplified-note text-sm text-secondary">
+                      Simplified to fewer payments, so some people pay someone they don't owe directly. Tap a payment to see why.
+                    </p>
                   )}
                   <div className="ruled gd-balances">
                     {group.members.map(m => {
@@ -532,6 +565,21 @@ export default function GroupDetail() {
             onClose={() => setSelectedMemberId(null)}
             userId={selectedMemberId}
             groupId={id!}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Why a suggested payment exists */}
+      <AnimatePresence>
+        {explaining && (
+          <TransferExplainer
+            transfer={explaining}
+            transfers={settlements}
+            direct={direct}
+            currency={cur}
+            nameOf={nameOf}
+            currentUserId={currentUser.id}
+            onClose={() => setExplaining(null)}
           />
         )}
       </AnimatePresence>
