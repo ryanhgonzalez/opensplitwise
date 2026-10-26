@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useGroupReport } from '../components/useGroupReport';
 import { useStore, selectCurrentUser, type ThemeMode } from '../store';
 import Avatar from '../components/Avatar';
 import GroupTile from '../components/GroupTile';
@@ -29,7 +30,6 @@ function Chevron() {
 
 export default function Settings() {
   const currentUser = useStore(selectCurrentUser)!;
-  const users = useStore((s) => s.users);
   const groups = useStore((s) => s.groups);
   const expenses = useStore((s) => s.expenses);
   const settlements = useStore((s) => s.settlements);
@@ -39,7 +39,7 @@ export default function Settings() {
 
   const [showDataSheet, setShowDataSheet] = useState(false);
   const [showIdentityPicker, setShowIdentityPicker] = useState(false);
-  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
+  const { downloadReport: generatePdf, makingId: pdfLoadingId } = useGroupReport();
   const [showWipeConfirm, setShowWipeConfirm] = useState(false);
   const [wipeNameInput, setWipeNameInput] = useState('');
   // Backup times live in localStorage, not the store; bump this to re-read them.
@@ -72,21 +72,6 @@ export default function Settings() {
   const backUp = async () => {
     await downloadFullBackup();
     setTick((t) => t + 1);
-  };
-
-  const generatePdf = async (groupId: string) => {
-    if (pdfLoadingId) return;
-    setPdfLoadingId(groupId);
-    try {
-      const group = groups.find((g) => g.id === groupId)!;
-      const groupExpenses = expenses.filter((e) => e.groupId === groupId);
-      // Completed payments change who still owes what; the report must apply them.
-      const payments = settlements.filter((s) => s.groupId === groupId);
-      const { generateGroupReport } = await import('../lib/groupReport');
-      await generateGroupReport(group, groupExpenses, users, payments);
-    } finally {
-      setPdfLoadingId(null);
-    }
   };
 
   const wipeNameMatches =

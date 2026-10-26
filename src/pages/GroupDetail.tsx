@@ -26,6 +26,7 @@ import { FREQUENCY_LABELS, nextOccurrence, ruleIdOf } from '../lib/recurring';
 import PersonSheet from '../components/PersonSheet';
 import ExpenseFilterBar from '../components/ExpenseFilterBar';
 import SettleModal from '../components/SettleModal';
+import { useGroupReport } from '../components/useGroupReport';
 import TransferExplainer from '../components/TransferExplainer';
 import { expenseAmountLabel, groupCurrency } from '../lib/currency';
 import './GroupDetail.css';
@@ -47,6 +48,13 @@ const RECEIPT_ICON = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
     <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
     <path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
+const REPORT_ICON = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    <path d="M14 3v5h5M12 11v6M9.5 14.5L12 17l2.5-2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
@@ -72,6 +80,7 @@ export default function GroupDetail() {
   const [showAllExpenses, setShowAllExpenses] = useState(false);
   const [showPayments, setShowPayments] = useState(false);
   const [showRepeating, setShowRepeating] = useState(false);
+  const { downloadReport, makingId } = useGroupReport();
 
   const users = useStore(s => s.users);
   const groups = useStore(s => s.groups);
@@ -217,6 +226,16 @@ export default function GroupDetail() {
                 <GroupTile group={group} size={40} />
                 <h1 className="gd-title">{group.name}</h1>
                 {/* Phones only: desktop has labelled buttons */}
+                {hasExpenses && (
+                  <button
+                    className="gd-icon-btn gd-settings-mobile gd-share-mobile"
+                    onClick={() => downloadReport(group.id)}
+                    disabled={!!makingId}
+                    aria-label="Download PDF report"
+                  >
+                    {REPORT_ICON}
+                  </button>
+                )}
                 <button className="gd-icon-btn gd-settings-mobile gd-share-mobile" onClick={() => navigate(`/share?group=${group.id}`)} aria-label="Share group">
                   {SHARE_ICON}
                 </button>
@@ -230,6 +249,11 @@ export default function GroupDetail() {
             </div>
             <div className="gd-header-actions">
               <button className="btn btn-secondary" onClick={() => navigate(`/share?group=${group.id}`)}>Share</button>
+              {hasExpenses && (
+                <button className="btn btn-secondary" onClick={() => downloadReport(group.id)} disabled={!!makingId}>
+                  {makingId === group.id ? 'Making…' : 'PDF report'}
+                </button>
+              )}
               <button className="btn btn-secondary" onClick={() => setShowEditGroup(true)}>Settings</button>
               <button className="btn btn-primary" onClick={openAddExpense}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
