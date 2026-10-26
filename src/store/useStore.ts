@@ -23,6 +23,7 @@ import type {
 import { dueRepeats, ruleIdOf } from '../lib/recurring';
 import { mergeBundle, type GroupBundle, type MergeOptions, type MergeSummary, type PeopleChoice } from '../lib/groupSync';
 import type { ExportPayload, ImportStats } from '../lib/dataExport';
+import { withoutLegacyTotals } from '../lib/dataExport';
 import { cleanCategoryName, findCategoryByName } from '../lib/categories';
 import { round, outstandingByGroup, allocatePayment } from '../lib/calculations';
 
@@ -975,7 +976,7 @@ export const useStore = create<AppStore>()(
         // leave every existing user's saved data behind under the old one.
         name: 'opensplit-v2',
         storage: persistStorage,
-        version: 2,
+        version: 3,
         /**
          * v0/v1 kept `friendBalances` on the state and `yourBalance` / `totalSpent`
          * on each group, maintained by hand as actions ran. They are derived now,
@@ -984,6 +985,10 @@ export const useStore = create<AppStore>()(
          *
          * v1 also let Settle Up record payments against no group, which the group
          * balances could never account for; those get re-attributed here.
+         *
+         * v2 could still pick the stored group totals back up by restoring or
+         * importing an older file, so v3 drops them once more. Files are
+         * cleaned on the way in now (`parseAndValidate`).
          */
         migrate: (persisted, fromVersion) => {
           const state = persisted as Partial<AppStore> & { friendBalances?: unknown };
@@ -1004,6 +1009,10 @@ export const useStore = create<AppStore>()(
               state.expenses ?? [],
               state.settlements ?? [],
             );
+          }
+
+          if (fromVersion < 3) {
+            state.groups = (state.groups ?? []).map(withoutLegacyTotals);
           }
 
           return state as AppStore;

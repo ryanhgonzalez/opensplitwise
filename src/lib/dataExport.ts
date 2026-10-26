@@ -1,4 +1,5 @@
 import type { User, Group, Expense, Settlement, Activity, Tombstone, RecurringExpense } from '../types';
+import { deriveTotals } from './calculations';
 
 // ─── Schema constants ─────────────────────────────────────────────────────────
 
@@ -63,6 +64,21 @@ export interface ImportStats {
 
 export type ImportMode = 'new-group' | 'merge' | 'replace';
 
+// ─── Legacy fields ────────────────────────────────────────────────────────────
+
+/**
+ * Drops the balance and total that older versions stored on each group.
+ * They're worked out from the expenses now, and a stored copy goes stale:
+ * files from before still carry them, and restoring one brought them back.
+ */
+export function withoutLegacyTotals(group: Group): Group {
+  if (!('yourBalance' in group) && !('totalSpent' in group)) return group;
+  const cleaned = { ...group } as Group & { yourBalance?: unknown; totalSpent?: unknown };
+  delete cleaned.yourBalance;
+  delete cleaned.totalSpent;
+  return cleaned;
+}
+
 // ─── Export builders ──────────────────────────────────────────────────────────
 
 export function buildFullExport(state: ExportPayload): AppExport {
@@ -78,7 +94,7 @@ export function buildFullExport(state: ExportPayload): AppExport {
       settlementCount: state.settlements.length,
       activityCount: state.activities.length,
     },
-    data: state,
+    data: { ...state, groups: state.groups.map(withoutLegacyTotals) },
   };
 }
 
@@ -105,12 +121,9 @@ export function buildGroupExport(state: ExportPayload, groupId: string): AppExpo
 
   const users = state.users.filter((u) => memberIds.has(u.id));
 
-  const friendBalances: Record<string, number> = {};
-  for (const uid of memberIds) {
-    if (uid !== state.currentUserId && state.friendBalances[uid] !== undefined) {
-      friendBalances[uid] = state.friendBalances[uid];
-    }
-  }
+  // What each person owes you in this group alone: the app-wide balances
+  // would mix in every other group you share with them.
+  const { friendBalances } = deriveTotals(groupExpenses, groupSettlements, state.currentUserId);
 
   return {
     schema: EXPORT_SCHEMA,
@@ -129,7 +142,7 @@ export function buildGroupExport(state: ExportPayload, groupId: string): AppExpo
     data: {
       currentUserId: state.currentUserId,
       users,
-      groups: [group],
+      groups: [withoutLegacyTotals(group)],
       expenses: groupExpenses,
       settlements: groupSettlements,
       activities: groupActivities,
@@ -253,6 +266,7 @@ export function parseAndValidate(json: string): ParseResult {
 
   // Revive ISO date strings → Date objects.
   const revived = reviveDates(raw) as unknown as AppExport;
+  revived.data.groups = revived.data.groups.map(withoutLegacyTotals);
   return { ok: true, data: revived, warnings, errors: [] };
 }
 
