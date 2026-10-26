@@ -230,6 +230,16 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
                           Remove <strong>{firstName}</strong> from {group.name}?
                           Their expenses in this group will remain.
                         </p>
+                        {Math.abs(groupNet) >= 0.005 && (
+                          // Removing someone doesn't clear their balance: it stays
+                          // in the group's payments, but they drop off the member list.
+                          <p className="ps-confirm-warning">
+                            {firstName} still {groupNet < 0 ? 'owes' : 'is owed'}{' '}
+                            <strong>{formatCurrency(Math.abs(groupNet), groupCur)}</strong> in this group. That stays in
+                            the group's balances after they're removed. Settle up first if you want the group to come
+                            out square.
+                          </p>
+                        )}
                         <div className="ps-confirm-btns">
                           <button className="btn btn-secondary" onClick={() => setConfirmAction(null)}>Cancel</button>
                           <button className="btn btn-danger-solid" onClick={handleRemoveFromGroup}>Remove</button>
