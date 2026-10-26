@@ -291,6 +291,14 @@ export default function Dashboard() {
                 </div>
               </section>
             )}
+            {/* Insights left the tab bar for Activity; this keeps it a tap away */}
+            <Link to="/insights" className="dash-insights">
+              <span className="dash-insights-text">
+                <span className="dash-insights-title">Spending insights</span>
+                <span className="text-xs text-secondary">Where the money went, by category and month</span>
+              </span>
+              <span aria-hidden className="dash-insights-arrow">→</span>
+            </Link>
           </div>
 
           <aside className="dash-side">

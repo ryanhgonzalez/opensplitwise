@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Activity } from '../types';
 import { useStore, selectActivities, selectCurrentUser } from '../store';
 import {
@@ -11,6 +12,15 @@ import {
 } from '../utils';
 import { expenseAmountLabel, groupCurrency } from '../lib/currency';
 import './Activity.css';
+
+/** A feed row: a link to what it's about, or plain when there's nothing to open. */
+function ActivityLine({ to, children }: { to?: string; children: React.ReactNode }) {
+  return to ? (
+    <Link to={to} className="activity-row activity-row-link">{children}</Link>
+  ) : (
+    <div className="activity-row">{children}</div>
+  );
+}
 
 type Filter = 'all' | 'expenses' | 'payments';
 
@@ -107,8 +117,15 @@ export default function ActivityPage() {
                   ? getExpenseById(activity.expenseId)
                   : undefined;
 
+              // An expense opens its page; a payment, or an expense since deleted, opens its group.
+              const to = expense?.groupId
+                ? `/groups/${expense.groupId}/expenses/${expense.id}`
+                : group
+                  ? `/groups/${group.id}`
+                  : undefined;
+
               return (
-                <div key={activity.id} className="activity-row">
+                <ActivityLine key={activity.id} to={to}>
                   <span className={`num activity-kind ${kind.cls}`} title={kind.label} aria-label={kind.label}>
                     {kind.tag}
                   </span>
@@ -132,7 +149,7 @@ export default function ActivityPage() {
                       </span>
                     </span>
                   )}
-                </div>
+                </ActivityLine>
               );
             })}
           </section>

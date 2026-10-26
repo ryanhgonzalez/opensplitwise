@@ -23,9 +23,9 @@ export const NAV_ITEMS: NavItem[] = [
     path: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1-4 4-6 8-6s7 2 8 6',
   },
   {
-    to: '/insights',
-    label: 'Insights',
-    path: 'M5 20V11M11 20V5M17 20v-6M3 20h18',
+    to: '/activity',
+    label: 'Activity',
+    path: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3.5 2',
   },
 ];
 

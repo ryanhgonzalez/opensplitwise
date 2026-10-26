@@ -101,3 +101,13 @@
     font-size: 34px;
   }
 }
+
+/* Rows that open the expense or group they're about */
+.activity-row-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.activity-row-link:hover .activity-content > span:first-child {
+  text-decoration: underline;
+}
