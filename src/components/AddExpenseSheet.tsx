@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser } from '../store';
-import { buildSplit, round, splitByItems } from '../lib/calculations';
+import { buildSplit, round, splitByItems, splitEvenly } from '../lib/calculations';
 import { CATEGORY_LABELS } from '../types';
 import type { CategoryId, Expense, SplitType, ExpenseSplit } from '../types';
 import { BUILT_IN_CATEGORIES, MAX_CATEGORY_NAME, isCustomCategory } from '../lib/categories';
@@ -198,6 +198,12 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const selectedGroup = useMemo(() => groups.find(g => g.id === groupId), [groups, groupId]);
   const groupMemberIds = useMemo(() => selectedGroup?.members.map(m => m.userId) ?? [], [selectedGroup]);
   const getUserById = (id: string) => users.find(u => u.id === id);
+  /** First name, unless someone else in the group shares it ("Frank" and "Frank Jr"). */
+  const shortName = (u: { name: string }) => {
+    const first = u.name.split(' ')[0];
+    const same = (selectedGroup?.members ?? []).filter(m => getUserById(m.userId)?.name.split(' ')[0] === first).length;
+    return same > 1 ? u.name : first;
+  };
 
   // A custom category belongs to one group; moving the expense elsewhere drops it to Other.
   useEffect(() => {
@@ -285,8 +291,11 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const checkedParticipants = participants.filter(p => p.checked);
   const checkedCount = checkedParticipants.length;
 
-  // Computed split preview for equal mode
-  const equalShare = checkedCount > 0 ? round(parsedAmount / checkedCount) : 0;
+  // Equal-split preview: worked out exactly as saving will, so when the amount
+  // doesn't divide evenly the extra cents show on the people who get them.
+  const equalShares = new Map(
+    splitEvenly(parsedAmount, checkedParticipants.map(p => p.userId)).map(e => [e.userId, e.amount]),
+  );
 
   // Running total for exact / percentage modes
   const enteredTotal = useMemo(() => {
@@ -947,7 +956,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                         >
                           <Avatar user={u} size="sm" showRing={paidBy === m.userId} />
                           <span className="aes-payer-name">
-                            {m.userId === currentUser.id ? 'You' : u.name.split(' ')[0]}
+                            {m.userId === currentUser.id ? 'You' : shortName(u)}
                           </span>
                         </button>
                       );
@@ -982,7 +991,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                           if (!u) return null;
                           const isMe = p.userId === currentUser.id;
                           const sharePreview = splitType === 'equal' && parsedAmount > 0 && p.checked
-                            ? `${formatCurrency(equalShare, cur)} each`
+                            ? formatCurrency(equalShares.get(p.userId) ?? 0, cur)
                             : null;
 
                           return (
@@ -1001,7 +1010,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                               </button>
                               <Avatar user={u} size="sm" />
                               <span className="aes-participant-name">
-                                {isMe ? 'You' : u.name.split(' ')[0]}
+                                {isMe ? 'You' : shortName(u)}
                               </span>
 
                               {splitType === 'equal' && (
@@ -1107,7 +1116,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                                     onClick={() => toggleItemAssign(it.id, m.userId)}
                                   >
                                     <Avatar user={u} size="sm" />
-                                    <span>{m.userId === currentUser.id ? 'You' : u.name.split(' ')[0]}</span>
+                                    <span>{m.userId === currentUser.id ? 'You' : shortName(u)}</span>
                                   </button>
                                 );
                               })}
@@ -1155,7 +1164,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                               <div key={id} className="aes-items-person">
                                 <Avatar user={u} size="sm" />
                                 <span className="aes-items-person-name">
-                                  {id === currentUser.id ? 'You' : u.name.split(' ')[0]}
+                                  {id === currentUser.id ? 'You' : shortName(u)}
                                 </span>
                                 <span className="aes-items-person-amt">{formatCurrency(amt, cur)}</span>
                               </div>
