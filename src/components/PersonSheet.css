@@ -93,3 +93,9 @@
 .ps-page-link:hover {
   text-decoration: underline;
 }
+
+/* Their position in the whole group, when it differs from what's between you */
+.ps-group-net {
+  font-size: 12px;
+  color: var(--muted);
+}

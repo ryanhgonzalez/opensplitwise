@@ -5,7 +5,7 @@ import { useStore, selectCurrentUser, selectFriendBalancesByCurrency } from '../
 import { groupCurrency } from '../lib/currency';
 import Avatar from './Avatar';
 import { formatCurrency } from '../utils';
-import { calculateBalances } from '../lib/calculations';
+import { calculateBalances, outstandingByGroup } from '../lib/calculations';
 import '../styles/sheet.css';
 import './PersonSheet.css';
 
@@ -40,21 +40,26 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
   if (!person) return null;
   if (groupId && !group) return null;
 
-  // When in a specific group context, use per-group balance (in its currency).
-  // Otherwise the overall balance, one per currency.
+  // What's between this person and you. Positive: they owe you.
+  // In a group, that's the group's suggested payment between you two (the same
+  // one its Balances & settling list shows); otherwise the overall balance,
+  // one per currency.
+  const me = currentUser.id;
+  const groupCur = group ? groupCurrency(group) : '';
+  const groupExpenses = group ? allExpenses.filter(e => e.groupId === groupId) : [];
+  const groupSettlements = group ? allSettlements.filter(s => s.groupId === groupId) : [];
+  const owedInGroup = (from: string, to: string) =>
+    outstandingByGroup(groupExpenses, groupSettlements, from, to, groupCur).reduce((sum, b) => sum + b.outstanding, 0);
   const balances: { currency: string; amount: number }[] = group
-    ? [{ currency: groupCurrency(group), amount: (() => {
-        const groupExpenses = allExpenses.filter(e => e.groupId === groupId);
-        const groupSettlements = allSettlements.filter(s => s.groupId === groupId);
-        const memberIds = group.members.map(m => m.userId);
-        const balances = calculateBalances({
-          expenses: groupExpenses,
-          memberIds,
-          settlements: groupSettlements,
-        });
-        return balances[userId] ?? 0;
-      })() }]
+    ? [{ currency: groupCur, amount: owedInGroup(userId, me) - owedInGroup(me, userId) }]
     : Object.entries(byCurrency).map(([currency, b]) => ({ currency, amount: b[userId] ?? 0 }));
+
+  // Their standing in the whole group, when it isn't just their debt with you:
+  // e.g. settled with you but still owing someone else.
+  const groupNet = group
+    ? calculateBalances({ expenses: groupExpenses, memberIds: group.members.map(m => m.userId), settlements: groupSettlements })[userId] ?? 0
+    : 0;
+  const showGroupNet = !!group && Math.abs(groupNet + balances[0].amount) >= 0.005 && Math.abs(groupNet) >= 0.005;
   const unsettled = balances.filter(b => Math.abs(b.amount) >= 0.005);
 
   // Groups this person shares with the current user (for global view).
@@ -128,12 +133,17 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
                 <div className="ps-identity-text">
                   <span className="ps-name">{name || person.name}</span>
                   {!isSelf && (
-                    <span className={`ps-balance ${settled ? 'zero' : `num ${lead.amount > 0 ? 'pos' : 'neg'}`}`}>
+                    <span className={`ps-balance ${settled ? 'zero' : lead.amount > 0 ? 'pos' : 'neg'}`}>
                       {settled
-                        ? `Settled up${group ? ` in ${group.name}` : ''}`
+                        ? `Settled up with you${group ? ` in ${group.name}` : ''}`
                         : `${unsettled
-                            .map(b => `${b.amount > 0 ? 'owes you' : 'you owe'} ${formatCurrency(b.amount, b.currency)}`)
+                            .map(b => `${b.amount > 0 ? 'Owes you' : `You owe ${firstName}`} ${formatCurrency(Math.abs(b.amount), b.currency)}`)
                             .join(' · ')}${group ? ` in ${group.name}` : ' overall'}`}
+                    </span>
+                  )}
+                  {!isSelf && showGroupNet && (
+                    <span className="ps-group-net">
+                      {groupNet < 0 ? 'Owes' : 'Is owed'} {formatCurrency(Math.abs(groupNet), groupCur)} in this group overall
                     </span>
                   )}
                 </div>
