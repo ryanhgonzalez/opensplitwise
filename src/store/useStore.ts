@@ -9,6 +9,7 @@ import type {
   PaymentMethod,
   ExpenseAddedActivity,
   ExpenseUpdatedActivity,
+  ExpenseSnapshot,
   ExpenseDeletedActivity,
   PaymentActivity,
   SettledActivity,
@@ -376,11 +377,20 @@ export const useStore = create<AppStore>()(
           const now = new Date();
           const updated: Expense = { ...old, ...updates, id, updatedAt: now };
 
+          const snapshot = (e: Expense): ExpenseSnapshot => ({
+            description: e.description,
+            amount: e.amount,
+            paidBy: e.paidBy,
+            split: e.split,
+            refund: e.refund,
+          });
           const activity: ExpenseUpdatedActivity = {
             id: uid(),
             type: 'expense_updated',
             actorId: currentUserId,
             expenseId: id,
+            before: snapshot(old),
+            after: snapshot(updated),
             groupId: updated.groupId,
             date: now,
           };

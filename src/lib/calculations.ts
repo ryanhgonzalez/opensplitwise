@@ -201,7 +201,10 @@ export function validateSplit(expense: Expense): boolean {
  * short-circuited on a zero share and so dropped those expenses from group
  * balances — the drift the v1 persistence migration exists to repair.
  */
-export function netForUserOnExpense(expense: Expense, userId: string): number {
+export function netForUserOnExpense(
+  expense: Pick<Expense, 'amount' | 'paidBy' | 'split' | 'refund'>,
+  userId: string,
+): number {
   const share = expense.split.entries.find((e) => e.userId === userId)?.amount ?? 0;
   const sign = moneySign(expense);
   // Guard the sign of zero: `-0` renders as "-$0.00" and compares unequal to 0

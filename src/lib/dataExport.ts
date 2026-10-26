@@ -1,4 +1,4 @@
-import type { User, Group, Expense, Settlement, Activity, Tombstone, RecurringExpense } from '../types';
+import type { User, Group, Expense, ExpenseSnapshot, Settlement, Activity, Tombstone, RecurringExpense } from '../types';
 import { deriveTotals } from './calculations';
 
 // ─── Schema constants ─────────────────────────────────────────────────────────
@@ -358,6 +358,17 @@ export function remapForNewGroup(
     };
     if ('expenseId' in a && typeof a.expenseId === 'string') {
       base.expenseId = expIdMap.get(a.expenseId) ?? a.expenseId;
+    }
+    // An edit's before/after copies name the payer and everyone in the split.
+    for (const key of ['before', 'after'] as const) {
+      const snap = (a as Partial<Record<typeof key, ExpenseSnapshot>>)[key];
+      if (snap) {
+        base[key] = {
+          ...snap,
+          paidBy: remapId(snap.paidBy),
+          split: { ...snap.split, entries: snap.split.entries.map((en) => ({ ...en, userId: remapId(en.userId) })) },
+        };
+      }
     }
     if ('fromUserId' in a) base.fromUserId = remapId(a.fromUserId as string);
     if ('toUserId' in a) base.toUserId = remapId(a.toUserId as string);

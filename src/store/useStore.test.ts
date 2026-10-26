@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useStore } from './useStore';
 import { selectFriendBalances, selectFriendBalancesByCurrency, selectGroupTotals, selectOverallBalances } from './selectors';
 import { round } from '../lib/calculations';
-import type { Group, User } from '../types';
+import type { ExpenseUpdatedActivity, Group, User } from '../types';
+import { getEditBalanceChange, getEditSummary } from '../utils/activity';
 
 // ─── Harness ──────────────────────────────────────────────────────────────────
 
@@ -637,5 +638,52 @@ describe('v1 → v2 migration', () => {
     const settlementIds = new Set(state().settlements.map((s) => s.id));
     const activity = state().activities.find((a) => a.id === 'act-1')!;
     expect('settlementId' in activity && settlementIds.has(activity.settlementId)).toBe(true);
+  });
+});
+
+// ─── The feed records what an edit changed ────────────────────────────────────
+
+describe('expense edits in the feed', () => {
+  const lastEdit = () => state().activities.find((a) => a.type === 'expense_updated') as ExpenseUpdatedActivity;
+  const nameOf = (id: string) => state().users.find((u) => u.id === id);
+
+  it('says what changed and what it did to each balance', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const [alice] = others;
+    const expense = addEvenExpense(me.id, [me.id, alice.id], 50, group.id);
+
+    state().updateExpense(expense.id, {
+      amount: 80,
+      split: { type: 'equal', entries: [{ userId: me.id, amount: 40 }, { userId: alice.id, amount: 40 }] },
+    });
+
+    const edit = lastEdit();
+    expect(getEditSummary(edit, me.id, nameOf)).toBe('Amount $50.00 → $80.00');
+    // Alice owed me 25, now 40: +15 for me, −15 for her.
+    expect(getEditBalanceChange(edit, me.id)).toBe(15);
+    expect(getEditBalanceChange(edit, alice.id)).toBe(-15);
+  });
+
+  it('keeps each edit to its own change', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const [alice] = others;
+    const expense = addEvenExpense(me.id, [me.id, alice.id], 50, group.id);
+    state().updateExpense(expense.id, { description: 'Supper' });
+    state().updateExpense(expense.id, { paidBy: alice.id });
+
+    const [second, first] = state().activities.filter((a) => a.type === 'expense_updated') as ExpenseUpdatedActivity[];
+    expect(getEditSummary(first, me.id, nameOf)).toBe('Renamed from "Dinner"');
+    expect(getEditBalanceChange(first, me.id)).toBe(0);
+    expect(getEditSummary(second, me.id, nameOf)).toBe('Paid by You → Alice');
+    // I was owed 25; now I owe 25.
+    expect(getEditBalanceChange(second, me.id)).toBe(-50);
+  });
+
+  it('reports nothing for entries from before edits were recorded', () => {
+    const { me, group } = setup(['Me', 'Alice']);
+    const expense = addEvenExpense(me.id, [me.id], 50, group.id);
+    const old: ExpenseUpdatedActivity = { id: 'x', type: 'expense_updated', actorId: me.id, expenseId: expense.id, date: new Date() };
+    expect(getEditSummary(old, me.id, nameOf)).toBe('');
+    expect(getEditBalanceChange(old, me.id)).toBeUndefined();
   });
 });

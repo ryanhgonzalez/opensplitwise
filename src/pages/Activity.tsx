@@ -9,6 +9,7 @@ import {
   getActivityDescription,
   isActivityPositive,
   getActivityAmount,
+  getEditSummary,
 } from '../utils';
 import { expenseAmountLabel, groupCurrency } from '../lib/currency';
 import './Activity.css';
@@ -112,6 +113,9 @@ export default function ActivityPage() {
               const amount = getActivityAmount(activity, currentUser.id, getExpenseById);
               const isPayment = activity.type === 'payment' || activity.type === 'settled';
               const kind = KIND[activity.type];
+              // An edit says what it changed instead of the expense's total.
+              const editSummary =
+                activity.type === 'expense_updated' ? getEditSummary(activity, currentUser.id, getUserById, cur) : '';
               const expense =
                 activity.type === 'expense_added' || activity.type === 'expense_updated'
                   ? getExpenseById(activity.expenseId)
@@ -133,7 +137,7 @@ export default function ActivityPage() {
                     <span>{description}</span>
                     <span className="text-xs text-secondary">
                       {group ? `${group.name} · ` : ''}
-                      {expense ? `${expenseAmountLabel(expense)} · ` : ''}
+                      {editSummary ? `${editSummary} · ` : expense ? `${expenseAmountLabel(expense)} · ` : ''}
                       {formatTime(activity.date)}
                     </span>
                   </span>
@@ -145,7 +149,9 @@ export default function ActivityPage() {
                       <span className="text-xs text-secondary">
                         {isPayment
                           ? (isPositive ? 'received' : 'paid')
-                          : (isPositive ? 'you lent' : 'you borrowed')}
+                          : activity.type === 'expense_updated'
+                            ? 'balance change'
+                            : (isPositive ? 'you lent' : 'you borrowed')}
                       </span>
                     </span>
                   )}
