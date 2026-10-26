@@ -269,6 +269,9 @@ export default function GroupDetail() {
             <div>
               <span className="cap">Total spent</span>
               <span className="num gd-figure">{formatCurrency(totalSpent, cur)}</span>
+              {hasExpenses && (
+                <Link to={`/insights?group=${group.id}`} className="gd-insights-link">Insights →</Link>
+              )}
             </div>
             <div>
               <span className="cap">

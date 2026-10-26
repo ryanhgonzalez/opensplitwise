@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useStore, selectCurrentUser } from '../store';
-import { formatCurrency, formatSigned } from '../utils';
+import { formatCurrency } from '../utils';
 import { getShareForUser } from '../utils/expense';
 import { signedAmount } from '../lib/calculations';
 import {
@@ -14,7 +15,8 @@ import {
   getMonthlyTrend,
   getGroupContributions,
 } from '../lib/analytics';
-import { currencySymbol, recordCurrency } from '../lib/currency';
+import { currencySymbol, groupCurrency, recordCurrency } from '../lib/currency';
+import '../styles/sheet.css';
 import './Insights.css';
 
 const PERIODS: { label: string; value: Period }[] = [
@@ -23,6 +25,14 @@ const PERIODS: { label: string; value: Period }[] = [
   { label: '6M', value: 6 },
   { label: 'All', value: 0 },
 ];
+
+/**
+ * Like formatCurrency, but keeps a minus: refunds can leave a month, a total or
+ * what someone paid below zero, and "$480.00" would read as money spent.
+ */
+function money(n: number, currency: string): string {
+  return `${n <= -0.005 ? '−' : ''}${formatCurrency(n, currency)}`;
+}
 
 /** Axis labels: "$1.2k", "€80". */
 function fmtShort(v: number, currency: string): string {
@@ -45,13 +55,13 @@ function CategoryBars({ data, currency }: { data: CategoryBreakdown[]; currency:
           key={item.category}
           className="ins-cat-row"
           role="listitem"
-          title={`${item.label}: ${formatCurrency(item.amount, currency)} (${item.percentage.toFixed(1)}%)`}
+          title={`${item.label}: ${money(item.amount, currency)} (${item.percentage.toFixed(1)}%)`}
         >
           <span className="ins-cat-label">{item.label}</span>
           <span className="ins-cat-track" aria-hidden>
             <span className="ins-cat-bar" style={{ width: `${(item.amount / max) * 100}%` }} />
           </span>
-          <span className="num ins-cat-amount">{formatCurrency(item.amount, currency)}</span>
+          <span className="num ins-cat-amount">{money(item.amount, currency)}</span>
           <span className="num ins-cat-pct">{item.percentage.toFixed(1)}%</span>
         </div>
       ))}
@@ -78,20 +88,20 @@ function MonthlyChart({ data, currency }: { data: MonthlyPoint[]; currency: stri
         <div className="num mc-axis" aria-hidden>
           <span>{fmtShort(maxVal, currency)}</span>
           <span>{fmtShort(maxVal / 2, currency)}</span>
-          <span>$0</span>
+          <span>{fmtShort(0, currency)}</span>
         </div>
         <div className="mc-area">
           <div className="mc-grid" style={{ top: 0 }} />
           <div className="mc-grid" style={{ top: '50%' }} />
 
-          {hov && hov.total > 0 && (
+          {hov && Math.abs(hov.total) > 0.005 && (
             <div
               className="mc-tooltip"
               style={hoveredIdx! >= data.length / 2 ? { left: 8 } : { right: 8 }}
             >
-              <p className="mc-tooltip-month">{hov.month}</p>
-              <p><span className="mc-swatch mc-swatch-total" /> Total <strong className="num">{formatCurrency(hov.total, currency)}</strong></p>
-              <p><span className="mc-swatch mc-swatch-share" /> Yours <strong className="num">{formatCurrency(hov.yourShare, currency)}</strong></p>
+              <p className="mc-tooltip-month">{hov.month.replace(' ', " '")}</p>
+              <p><span className="mc-swatch mc-swatch-total" /> Total <strong className="num">{money(hov.total, currency)}</strong></p>
+              <p><span className="mc-swatch mc-swatch-share" /> Yours <strong className="num">{money(hov.yourShare, currency)}</strong></p>
             </div>
           )}
 
@@ -102,7 +112,9 @@ function MonthlyChart({ data, currency }: { data: MonthlyPoint[]; currency: stri
                 className={`mc-col${hoveredIdx === i ? ' hovered' : ''}`}
                 onMouseEnter={() => setHoveredIdx(i)}
                 onMouseLeave={() => setHoveredIdx(null)}
-                title={`${point.month}: total ${formatCurrency(point.total, currency)}, yours ${formatCurrency(point.yourShare, currency)}`}
+                // Phones have no hover: a tap shows the month's figures, a second tap hides them.
+                onClick={() => setHoveredIdx(hoveredIdx === i ? null : i)}
+                title={`${point.month}: total ${money(point.total, currency)}, yours ${money(point.yourShare, currency)}`}
               >
                 <div className="mc-pair">
                   <div className="mc-bar mc-bar-total" style={{ height: `${(point.total / maxVal) * 100}%` }} />
@@ -117,9 +129,19 @@ function MonthlyChart({ data, currency }: { data: MonthlyPoint[]; currency: stri
       </div>
 
       <div className="mc-labels">
-        {data.map((point) => (
-          <span key={point.key}>{point.month.split(' ')[0]}</span>
-        ))}
+        {/* Long ranges label every few months so the labels fit, counting back
+            from this month. Past a year, the oldest label and any January carry
+            the year, so the two Octobers can't be mixed up. */}
+        {(() => {
+          const step = Math.ceil(data.length / 7);
+          const shown = data.map((_, i) => (data.length - 1 - i) % step === 0);
+          const firstShown = shown.indexOf(true);
+          return data.map((point, i) => {
+            const [mon, yr] = point.month.split(' ');
+            const withYear = data.length > 12 && (i === firstShown || mon === 'Jan');
+            return <span key={point.key}>{shown[i] ? (withYear ? `${mon} '${yr}` : mon) : ''}</span>;
+          });
+        })()}
       </div>
     </div>
   );
@@ -134,29 +156,27 @@ function GroupContributionBlock({ group, currency }: { group: GroupContribution;
         <span className="gc-name">
           <span aria-hidden>{group.emoji}</span> {group.name}
         </span>
-        <span className="num text-xs text-secondary">{formatCurrency(group.totalSpent, currency)} total</span>
+        <span className="num text-xs text-secondary">{money(group.totalSpent, currency)} total</span>
       </div>
       <div className="ruled">
         {group.members.map((member) => {
           const paidPct = group.totalSpent > 0 ? (member.paid / group.totalSpent) * 100 : 0;
           const sharePct = group.totalSpent > 0 ? (member.share / group.totalSpent) * 100 : 0;
-          const net = member.paid - member.share;
-          const even = Math.abs(net) < 0.005;
           return (
             <div
               key={member.userId}
               className="gc-row"
-              title={`${member.name}: paid ${formatCurrency(member.paid, currency)}, share ${formatCurrency(member.share, currency)}`}
+              title={`${member.name}: paid ${money(member.paid, currency)}, share ${money(member.share, currency)}`}
             >
               <span className="gc-member">{member.name}</span>
               <span className="gc-track" aria-hidden>
                 <span className="gc-paid" style={{ width: `${paidPct}%` }} />
                 {sharePct > 0 && <span className="gc-share" style={{ left: `${Math.min(sharePct, 100)}%` }} />}
               </span>
-              <span className="num gc-amount">{formatCurrency(member.paid, currency)}</span>
-              <span className={`num gc-net ${even ? 'zero' : net > 0 ? 'pos' : 'neg'}`}>
-                {even ? 'even' : formatSigned(net, currency)}
-              </span>
+              <span className="num gc-amount">{money(member.paid, currency)}</span>
+              {/* Not paid minus share: payments between people aren't spending, so that
+                  difference isn't what anyone owes. Balances are on the group's page. */}
+              <span className="num gc-share-amount">{money(member.share, currency)}</span>
             </div>
           );
         })}
@@ -173,22 +193,40 @@ export default function Insights() {
   const users = useStore((s) => s.users);
   const currentUser = useStore(selectCurrentUser)!;
 
-  const [period, setPeriod] = useState<Period>(3);
+  // One group, or all of them. In the address so a group's page can link here.
+  const [params, setParams] = useSearchParams();
+  const group = groups.find((g) => g.id === params.get('group'));
+  const chooseGroup = (id: string) =>
+    setParams((p) => {
+      if (id) p.set('group', id);
+      else p.delete('group');
+      return p;
+    }, { replace: true });
+  const scoped = useMemo(
+    () => (group ? allExpenses.filter((e) => e.groupId === group.id) : allExpenses),
+    [allExpenses, group],
+  );
+
+  // A trip or event has a clear start and end, so a group opens on all of it.
+  const [period, setPeriod] = useState<Period>(() => (group ? 0 : 3));
   const [viewMode, setViewMode] = useState<ViewMode>('personal');
 
   // Charts can't add euros to dollars, so the page shows one currency at a
   // time; the switch only appears when expenses use more than one.
   const currencies = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const e of allExpenses) counts.set(recordCurrency(e), (counts.get(recordCurrency(e)) ?? 0) + 1);
+    for (const e of scoped) counts.set(recordCurrency(e), (counts.get(recordCurrency(e)) ?? 0) + 1);
     return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c);
-  }, [allExpenses]);
+  }, [scoped]);
   const [chosenCurrency, setChosenCurrency] = useState<string | null>(null);
-  const currency = chosenCurrency && currencies.includes(chosenCurrency) ? chosenCurrency : currencies[0] ?? 'USD';
+  // A group has one currency; across groups, the one chosen or the most used.
+  const currency = group
+    ? groupCurrency(group)
+    : chosenCurrency && currencies.includes(chosenCurrency) ? chosenCurrency : currencies[0] ?? 'USD';
 
   const filtered = useMemo(
-    () => filterByPeriod(allExpenses.filter((e) => recordCurrency(e) === currency), period),
-    [allExpenses, period, currency],
+    () => filterByPeriod(scoped.filter((e) => recordCurrency(e) === currency), period),
+    [scoped, period, currency],
   );
 
   const categoryData = useMemo(
@@ -202,8 +240,8 @@ export default function Insights() {
   );
 
   const groupContributions = useMemo(
-    () => getGroupContributions(filtered, groups, users, currentUser.id),
-    [filtered, groups, users, currentUser.id],
+    () => getGroupContributions(filtered, group ? [group] : groups, users, currentUser.id),
+    [filtered, group, groups, users, currentUser.id],
   );
 
   const totalSpent = useMemo(() => {
@@ -213,8 +251,8 @@ export default function Insights() {
     return filtered.reduce((s, e) => s + signedAmount(e), 0);
   }, [filtered, viewMode, currentUser.id]);
 
-  const activeMonths = monthlyData.filter((m) => m.total > 0).length;
-  const avgMonthly = activeMonths > 0 ? totalSpent / activeMonths : 0;
+  // Over every month the period covers (the chart's months), not just the busy ones.
+  const avgMonthly = monthlyData.length > 0 ? totalSpent / monthlyData.length : 0;
   const expenseCount = filtered.length;
   const topCategory = categoryData[0];
 
@@ -224,9 +262,18 @@ export default function Insights() {
         <header className="ins-header">
           <div>
             <h1 className="page-hero-title">Insights</h1>
-            <p className="text-secondary ins-sub">Your spending overview</p>
+            <p className="text-secondary ins-sub">{group ? group.name : 'Your spending overview'}</p>
           </div>
           <div className="ins-controls">
+            <label className="ins-group-pick">
+              <span className="sr-only">Group</span>
+              <select className="field-input" value={group?.id ?? ''} onChange={(e) => chooseGroup(e.target.value)}>
+                <option value="">All groups</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+            </label>
             <div className="seg" role="group" aria-label="Period">
               {PERIODS.map((p) => (
                 <button key={p.value} aria-pressed={period === p.value} onClick={() => setPeriod(p.value)}>
@@ -234,7 +281,7 @@ export default function Insights() {
                 </button>
               ))}
             </div>
-            {currencies.length > 1 && (
+            {!group && currencies.length > 1 && (
               <div className="seg ins-currency-seg" role="group" aria-label="Currency">
                 {currencies.map((c) => (
                   <button key={c} aria-pressed={currency === c} onClick={() => setChosenCurrency(c)}>
@@ -253,11 +300,11 @@ export default function Insights() {
         <section className="statement" aria-label="Summary">
           <div>
             <span className="cap">Total spent</span>
-            <span className="num ins-figure">{formatCurrency(totalSpent, currency)}</span>
+            <span className="num ins-figure">{money(totalSpent, currency)}</span>
           </div>
           <div>
             <span className="cap">Avg / month</span>
-            <span className="num ins-figure">{formatCurrency(avgMonthly, currency)}</span>
+            <span className="num ins-figure">{money(avgMonthly, currency)}</span>
           </div>
           <div>
             <span className="cap">Expenses</span>

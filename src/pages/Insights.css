@@ -25,6 +25,12 @@
   width: 100%;
 }
 
+/* Phones: the group picker gets the first row to itself */
+.ins-group-pick {
+  order: -1;
+  flex: 1 1 100%;
+}
+
 /* Phones: period and view stay side by side; the currency switch gets its own row */
 .ins-controls .seg.ins-currency-seg {
   order: 3;
@@ -272,8 +278,11 @@
 }
 
 .mc-labels > span {
-  flex: 1;
+  /* Same widths as the bar columns above, so each label sits under its month */
+  flex: 1 1 0;
+  min-width: 0;
   text-align: center;
+  white-space: nowrap;
 }
 
 /* Group contributions */
@@ -324,16 +333,16 @@
 
 .gc-row {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 80px 72px;
+  grid-template-columns: 96px minmax(0, 1fr) 76px 76px;
   align-items: center;
   gap: 10px;
   min-height: 44px;
 }
 
 .gc-member {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Wraps rather than cutting off: "Frank Gonzalez" and "Frank Gonzalez Jr" must stay apart */
+  overflow-wrap: anywhere;
+  line-height: 1.25;
 }
 
 .gc-track {
@@ -359,13 +368,14 @@
 }
 
 .gc-amount,
-.gc-net {
+.gc-share-amount {
   text-align: right;
   font-size: 13px;
 }
 
-.gc-net {
-  font-weight: 600;
+/* Their share, matching the dashed share marker */
+.gc-share-amount {
+  color: var(--owed);
 }
 
 @media (min-width: 1024px) {
@@ -391,6 +401,11 @@
   .ins-controls .seg.ins-currency-seg {
     order: 0;
     flex: none;
+  }
+
+  .ins-group-pick {
+    order: 0;
+    flex: 0 1 220px;
   }
 
   .ins-controls .seg > button {

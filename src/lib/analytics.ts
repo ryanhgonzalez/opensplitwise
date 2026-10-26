@@ -68,11 +68,29 @@ export interface GroupContribution {
 
 // ── Computations ──────────────────────────────────────────────────────────────
 
-export function filterByPeriod(expenses: Expense[], period: Period): Expense[] {
+/**
+ * The first day of the first month a period covers. Periods are whole calendar
+ * months ending with this one, so the totals and the monthly chart always cover
+ * the same expenses. "All" starts at the earliest expense.
+ */
+export function periodStart(expenses: Expense[], period: Period, now = new Date()): Date {
+  if (period === 0) {
+    const first = expenses.reduce<Date | null>((min, e) => (!min || e.date < min ? e.date : min), null);
+    const from = first ?? now;
+    return new Date(from.getFullYear(), from.getMonth(), 1);
+  }
+  return new Date(now.getFullYear(), now.getMonth() - (period - 1), 1);
+}
+
+/** Calendar months from `start` to `now`, inclusive. */
+export function monthsBetween(start: Date, now = new Date()): number {
+  return (now.getFullYear() - start.getFullYear()) * 12 + now.getMonth() - start.getMonth() + 1;
+}
+
+export function filterByPeriod(expenses: Expense[], period: Period, now = new Date()): Expense[] {
   if (period === 0) return expenses;
-  const cutoff = new Date();
-  cutoff.setMonth(cutoff.getMonth() - period);
-  return expenses.filter(e => e.date >= cutoff);
+  const start = periodStart(expenses, period, now);
+  return expenses.filter(e => e.date >= start);
 }
 
 /**
@@ -124,13 +142,17 @@ export function getCategoryBreakdown(
     .sort((a, b) => b.amount - a.amount);
 }
 
+/**
+ * Spending per calendar month across the period. "All" runs from the month of
+ * the earliest expense, so nothing counted in the totals is left off the chart.
+ */
 export function getMonthlyTrend(
   expenses: Expense[],
   userId: string,
   period: Period,
+  now = new Date(),
 ): MonthlyPoint[] {
-  const monthCount = period === 0 ? 12 : period;
-  const now = new Date();
+  const monthCount = monthsBetween(periodStart(expenses, period, now), now);
   const points: Record<string, MonthlyPoint> = {};
 
   for (let i = monthCount - 1; i >= 0; i--) {
@@ -164,6 +186,13 @@ export function getGroupContributions(
       const totalSpent = gExp.reduce((s, e) => s + signedAmount(e), 0);
       if (totalSpent === 0) return null;
 
+      // First names, unless two members share one ("Frank" and "Frank Jr").
+      const firsts = group.members.map(m => users.find(u => u.id === m.userId)?.name.split(' ')[0]);
+      const shortName = (name: string) => {
+        const first = name.split(' ')[0];
+        return firsts.filter(f => f === first).length > 1 ? name : first;
+      };
+
       const members: MemberContribution[] = group.members
         .map(m => {
           const user = users.find(u => u.id === m.userId);
@@ -174,7 +203,7 @@ export function getGroupContributions(
           const share = gExp.reduce((s, e) => s + getShareForUser(e, m.userId), 0);
           return {
             userId: m.userId,
-            name: m.userId === currentUserId ? 'You' : user.name.split(' ')[0],
+            name: m.userId === currentUserId ? 'You' : shortName(user.name),
             initials: user.initials,
             avatarColor: user.avatarColor,
             paid,

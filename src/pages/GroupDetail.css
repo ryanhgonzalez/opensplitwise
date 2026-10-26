@@ -632,3 +632,14 @@
 .gd-repeat-summary + .ruled {
   margin-top: 12px;
 }
+
+/* Under Total spent: this group's spending charts */
+.gd-insights-link {
+  font-size: 12px;
+  color: var(--owed);
+  text-decoration: none;
+}
+
+.gd-insights-link:hover {
+  text-decoration: underline;
+}
