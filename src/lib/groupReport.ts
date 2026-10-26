@@ -219,6 +219,7 @@ export async function generateGroupReport(
     body: RowInput[],
     columnStyles: ColumnStyles,
     foot?: RowInput[],
+    hooks: Pick<UserOptions, 'willDrawCell' | 'didDrawCell'> = {},
   ) => {
     autoTable(doc, {
       startY,
@@ -253,6 +254,7 @@ export async function generateGroupReport(
         lineWidth: { top: 0.35 },
       },
       columnStyles,
+      ...hooks,
       // Right-aligned header labels over right-aligned money columns.
       didParseCell: (data) => {
         const col = columnStyles[data.column.index];
@@ -434,21 +436,40 @@ export async function generateGroupReport(
     hline(y + 1, 0.35, C.ink);
     text('No expenses yet.', margin, y + 8, { size: 9, color: C.muted });
   } else {
-    /** "Equal · 4 people" when everyone paid the same, otherwise each person's amount. */
-    const splitLabel = (e: Expense) => {
-      const amounts = e.split.entries.map((en) => en.amount);
-      const even = amounts.every((a) => Math.abs(a - amounts[0]) <= 0.011);
-      if (even) {
-        const n = e.split.entries.length;
-        return `Equal ${f.dot} ${n} ${n === 1 ? 'person' : 'people'}`;
-      }
-      return e.split.entries.map((en) => `${nameOf(en.userId)} ${fmtMoney(en.amount, cur)}`).join(', ');
+    // The Split column lists everyone with a share, one per line: name on the
+    // left, amount on the right, under a small label saying how it was split.
+    const SPLIT_COL = 4;
+    const SPLIT_SIZE = 7.5;
+    /** Spaces the lines a little more than the text size alone would. */
+    const SPLIT_LINE = 8.6;
+    const SPLIT_LABELS: Record<Expense['split']['type'], string> = {
+      equal: 'Split equally',
+      exact: 'By amount',
+      percentage: 'By percent',
+      shares: 'By shares',
+    };
+    const splitOf = (e: Expense) => {
+      const people = e.split.entries
+        .filter((en) => en.amount > 0.005)
+        .map((en) => ({ name: nameOf(en.userId), amount: fmtMoney(en.amount, cur) }));
+      // One person needs no "how": the line says it all.
+      const label = people.length <= 1 ? undefined : e.items?.length ? 'By item' : SPLIT_LABELS[e.split.type];
+      return { label, people };
+    };
+    const splits = sortedExpenses.map(splitOf);
+
+    /** Shortens a name with an ellipsis so it fits `width` at the current font. */
+    const fit = (str: string, width: number) => {
+      if (doc.getTextWidth(str) <= width) return str;
+      let cut = str;
+      while (cut.length > 1 && doc.getTextWidth(`${cut}…`) > width) cut = cut.slice(0, -1);
+      return `${cut.trimEnd()}…`;
     };
 
     table(
       y,
       ['Date', 'Description', 'Category', 'Paid by', 'Split', 'Amount'],
-      sortedExpenses.map((e) => [
+      sortedExpenses.map((e, i) => [
         { content: ledgerDate(e.date), styles: { font: f.mono, textColor: C.muted, fontSize: 7.5 } },
         {
           // Paid in another currency: show what was actually paid next to the name.
@@ -458,22 +479,58 @@ export async function generateGroupReport(
         { content: stripEmoji(categoryLabel(e.category, group)) || 'Other', styles: { textColor: C.soft, fontSize: 7.5 } },
         // For a refund, who received it.
         e.refund ? `${nameOf(e.paidBy)} (got back)` : nameOf(e.paidBy),
-        { content: splitLabel(e), styles: { textColor: C.soft, fontSize: 7.5 } },
+        {
+          // Drawn by hand in didDrawCell; this text only sets the row's height.
+          content: [splits[i].label, ...splits[i].people.map((p) => p.name)].filter(Boolean).join('\n'),
+          styles: { textColor: C.soft, fontSize: SPLIT_LINE },
+        },
         // A refund reads as money coming off: "−€60.00".
         e.refund ? { ...money(e.amount), content: `−${fmtMoney(e.amount, cur)}` } : money(e.amount),
       ]),
       {
-        0: { cellWidth: 16 },
-        1: { cellWidth: 'auto' },
-        2: { cellWidth: 26 },
-        3: { cellWidth: 22 },
-        4: { cellWidth: 40 },
-        5: { cellWidth: 24, halign: 'right' },
+        // Top-aligned: split lists make some rows tall, and the rest should line up with their first line.
+        0: { cellWidth: 16, valign: 'top' },
+        1: { cellWidth: 'auto', valign: 'top' },
+        2: { cellWidth: 22, valign: 'top' },
+        3: { cellWidth: 28, valign: 'top' },
+        4: { cellWidth: 48, valign: 'top', cellPadding: { top: 2.1, bottom: 2.1, left: 0, right: 5 } },
+        5: { cellWidth: 24, halign: 'right', valign: 'top' },
       },
       [[
         { content: 'Total', colSpan: 5 },
         money(totalSpent, { bold: true }),
       ]],
+      {
+        willDrawCell: (data) => {
+          if (data.section === 'body' && data.column.index === SPLIT_COL) data.cell.text = [];
+        },
+        didDrawCell: (data) => {
+          if (data.section !== 'body' || data.column.index !== SPLIT_COL) return;
+          const { label, people } = splits[data.row.index];
+          const cell = data.cell;
+          const fs = SPLIT_SIZE / doc.internal.scaleFactor;
+          const lineH = (SPLIT_LINE / doc.internal.scaleFactor) * doc.getLineHeightFactor();
+          const left = cell.x + cell.padding('left');
+          const right = cell.x + cell.width - cell.padding('right');
+          // The table library's first baseline for top-aligned text.
+          let baseline = cell.y + cell.padding('top') + fs * (2 - 1.15);
+
+          if (label) {
+            text(label, left, baseline, { size: 6.8, color: C.muted });
+            baseline += lineH;
+          }
+          for (const person of people) {
+            doc.setFont(f.mono, 'normal');
+            doc.setFontSize(SPLIT_SIZE);
+            const amountW = doc.getTextWidth(person.amount);
+            text(person.amount, right, baseline, { font: 'mono', size: SPLIT_SIZE, color: C.soft, align: 'right' });
+            doc.setFont(f.sans, 'normal');
+            doc.setFontSize(SPLIT_SIZE);
+            text(fit(person.name, right - left - amountW - 2), left, baseline, { size: SPLIT_SIZE, color: C.ink });
+            baseline += lineH;
+          }
+        },
+      },
     );
   }
 
