@@ -158,6 +158,69 @@ export async function generateGroupReport(
   const bottomLimit = pageH - 14;
 
   const nameOf = (id: string) => stripEmoji(users.find((u) => u.id === id)?.name ?? 'Unknown');
+
+  // ── People: a short code and colour each, like the app's avatars ───────────
+  //
+  // The expense rows show these instead of names, with a legend up top. Codes
+  // must be unique on paper, where colour may not survive printing: the usual
+  // initials, else first + last word ("FJ" for Frank Gonzalez Jr), else the
+  // first two letters of the first name ("Er", "El"), else a number.
+  const involved = new Set<string>(group.members.map((m) => m.userId));
+  for (const e of expenses) {
+    involved.add(e.paidBy);
+    for (const en of e.split.entries) involved.add(en.userId);
+  }
+  const people = [...involved].map((id) => users.find((u) => u.id === id)).filter((u): u is User => !!u);
+  const codeOf = new Map<string, string>();
+  {
+    const words = (u: User) => stripEmoji(u.name).trim().split(/\s+/).filter(Boolean);
+    const candidates = (u: User): string[] => {
+      const w = words(u);
+      const first = w[0] ?? '?';
+      return [
+        (u.initials || first[0]).toUpperCase().slice(0, 2),
+        (first[0] + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase(),
+        first.slice(0, 1).toUpperCase() + first.slice(1, 2).toLowerCase(),
+      ];
+    };
+    let pending = people;
+    for (let level = 0; level < 3 && pending.length; level++) {
+      const counts = new Map<string, number>();
+      const taken = new Set(codeOf.values());
+      for (const u of pending) {
+        const c = candidates(u)[level];
+        counts.set(c, (counts.get(c) ?? 0) + 1);
+      }
+      const still: User[] = [];
+      for (const u of pending) {
+        const c = candidates(u)[level];
+        if (counts.get(c) === 1 && !taken.has(c)) codeOf.set(u.id, c);
+        else still.push(u);
+      }
+      pending = still;
+    }
+    pending.forEach((u, i) => codeOf.set(u.id, `${candidates(u)[0][0]}${i + 1}`));
+  }
+
+  /** The avatar colour, softened the way the app does (22% over white). */
+  const tintOf = (id: string): RGB => {
+    const hex = users.find((u) => u.id === id)?.avatarColor ?? '#94a3b8';
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+    const n = m ? parseInt(m[1], 16) : 0x94a3b8;
+    const mix = (c: number) => Math.round(c * 0.22 + 255 * 0.78);
+    return [mix((n >> 16) & 255), mix((n >> 8) & 255), mix(n & 255)];
+  };
+
+  const CHIP_R = 2.3;
+  /** A person's chip, centred on (cx, cy). */
+  const chip = (id: string, cx: number, cy: number) => {
+    doc.setFillColor(...tintOf(id));
+    doc.circle(cx, cy, CHIP_R, 'F');
+    doc.setFont(f.sans, 'bold');
+    doc.setFontSize(5.4);
+    doc.setTextColor(...C.ink);
+    doc.text(codeOf.get(id) ?? '?', cx, cy, { align: 'center', baseline: 'middle' });
+  };
   const memberIds = group.members.map((m) => m.userId);
   const sortedExpenses = [...expenses].sort((a, b) => a.date.getTime() - b.date.getTime());
   const sortedPayments = [...payments].sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -219,7 +282,7 @@ export async function generateGroupReport(
     body: RowInput[],
     columnStyles: ColumnStyles,
     foot?: RowInput[],
-    hooks: Pick<UserOptions, 'willDrawCell' | 'didDrawCell'> = {},
+    hooks: Pick<UserOptions, 'willDrawCell' | 'didDrawCell' | 'rowPageBreak'> = {},
   ) => {
     autoTable(doc, {
       startY,
@@ -291,15 +354,36 @@ export async function generateGroupReport(
   y += 12;
   text(groupName, margin, y, { bold: true, size: 22 });
   y += 7;
-  const memberLine = group.members
-    .map((m) => `${nameOf(m.userId)}${m.role === 'owner' ? ' (owner)' : ''}`)
-    .join(', ');
-  // Measure at the size it is drawn at, or it wraps far too early.
-  doc.setFont(f.sans, 'normal');
-  doc.setFontSize(9);
-  const memberLines = doc.splitTextToSize(`Expense report ${f.dot} ${memberLine}`, cw) as string[];
-  text(memberLines, margin, y, { size: 9, color: C.muted });
-  y += memberLines.length * 4.2 + 5;
+  text('Expense report', margin, y, { size: 9, color: C.muted });
+  y += 5;
+
+  // Legend: each person's chip and full name, owner first, wrapping as needed.
+  {
+    const ordered = [...people].sort((a, b) => {
+      const owner = (u: User) => group.members.find((m) => m.userId === u.id)?.role === 'owner';
+      return Number(owner(b)) - Number(owner(a));
+    });
+    const ROW = 6.5;
+    let x = margin;
+    let cy = y + CHIP_R;
+    doc.setFont(f.sans, 'normal');
+    doc.setFontSize(8.5);
+    for (const u of ordered) {
+      const isOwner = group.members.find((m) => m.userId === u.id)?.role === 'owner';
+      const label = `${stripEmoji(u.name)}${isOwner ? ' (owner)' : ''}`;
+      doc.setFont(f.sans, 'normal');
+      doc.setFontSize(8.5);
+      const w = CHIP_R * 2 + 1.8 + doc.getTextWidth(label);
+      if (x > margin && x + w > pageW - margin) {
+        x = margin;
+        cy += ROW;
+      }
+      chip(u.id, x + CHIP_R, cy);
+      text(label, x + CHIP_R * 2 + 1.8, cy + 1.1, { size: 8.5, color: C.soft });
+      x += w + 6;
+    }
+    y = cy + CHIP_R + 7;
+  }
 
   // ── Summary strip ──────────────────────────────────────────────────────────
 
@@ -436,40 +520,63 @@ export async function generateGroupReport(
     hline(y + 1, 0.35, C.ink);
     text('No expenses yet.', margin, y + 8, { size: 9, color: C.muted });
   } else {
-    // The Split column lists everyone with a share, one per line: name on the
-    // left, amount on the right, under a small label saying how it was split.
+    // Paid by shows the payer's chip; Split shows everyone with a share as
+    // chips under a short label. Equal splits give the amount once ("$14.17
+    // each"); other splits pair each chip with its amount. Drawn by hand, so
+    // each cell's height is worked out first and reserved with minCellHeight.
+    const PAID_COL = 3;
     const SPLIT_COL = 4;
-    const SPLIT_SIZE = 7.5;
-    /** Spaces the lines a little more than the text size alone would. */
-    const SPLIT_LINE = 8.6;
+    const SPLIT_W = 64;
+    const PAD_TOP = 2.1;
+    const LABEL_H = 3.6;
+    const CHIP_ROW = 5.6;
+    const AMOUNT_SIZE = 7;
     const SPLIT_LABELS: Record<Expense['split']['type'], string> = {
-      equal: 'Split equally',
+      equal: 'Equally',
       exact: 'By amount',
       percentage: 'By percent',
       shares: 'By shares',
     };
-    const splitOf = (e: Expense) => {
-      const people = e.split.entries
-        .filter((en) => en.amount > 0.005)
-        .map((en) => ({ name: nameOf(en.userId), amount: fmtMoney(en.amount, cur) }));
-      // One person needs no "how": the line says it all.
-      const label = people.length <= 1 ? undefined : e.items?.length ? 'By item' : SPLIT_LABELS[e.split.type];
-      return { label, people };
-    };
-    const splits = sortedExpenses.map(splitOf);
 
-    /** Shortens a name with an ellipsis so it fits `width` at the current font. */
-    const fit = (str: string, width: number) => {
-      if (doc.getTextWidth(str) <= width) return str;
-      let cut = str;
-      while (cut.length > 1 && doc.getTextWidth(`${cut}…`) > width) cut = cut.slice(0, -1);
-      return `${cut.trimEnd()}…`;
+    interface Placed { id: string; amount?: string; x: number; row: number }
+    const layoutSplit = (e: Expense) => {
+      const shares = e.split.entries.filter((en) => en.amount > 0.005);
+      const inner = SPLIT_W - 4;
+      const equal = e.split.type === 'equal' && !e.items?.length && shares.length > 1;
+      let label: string | undefined;
+      if (shares.length > 1) {
+        const how = e.items?.length ? 'By item' : SPLIT_LABELS[e.split.type];
+        if (equal) {
+          const lo = Math.min(...shares.map((x) => x.amount));
+          const hi = Math.max(...shares.map((x) => x.amount));
+          const each = hi - lo < 0.005 ? fmtMoney(hi, cur) : `${fmtMoney(lo, cur)}–${fmtMoney(hi, cur)}`;
+          label = `${how} ${f.dot} ${each} each`;
+        } else {
+          label = how;
+        }
+      }
+      doc.setFont(f.mono, 'normal');
+      doc.setFontSize(AMOUNT_SIZE);
+      const placed: Placed[] = [];
+      let x = 0;
+      let row = 0;
+      for (const sh of shares) {
+        const amount = equal ? undefined : fmtMoney(sh.amount, cur);
+        const w = CHIP_R * 2 + (amount ? 1.2 + doc.getTextWidth(amount) : 0);
+        if (x > 0 && x + w > inner) {
+          x = 0;
+          row++;
+        }
+        placed.push({ id: sh.userId, amount, x, row });
+        x += w + (amount ? 3.5 : 1.2);
+      }
+      const rows = placed.length ? row + 1 : 0;
+      const height = PAD_TOP * 2 + (label ? LABEL_H : 0) + rows * CHIP_ROW;
+      return { label, placed, height };
     };
+    const layouts = sortedExpenses.map(layoutSplit);
 
-    table(
-      y,
-      ['Date', 'Description', 'Category', 'Paid by', 'Split', 'Amount'],
-      sortedExpenses.map((e, i) => [
+    const rows: RowInput[] = sortedExpenses.map((e, i) => [
         { content: ledgerDate(e.date), styles: { font: f.mono, textColor: C.muted, fontSize: 7.5 } },
         {
           // Paid in another currency: show what was actually paid next to the name.
@@ -477,23 +584,25 @@ export async function generateGroupReport(
           styles: { fontStyle: 'bold' },
         },
         { content: stripEmoji(categoryLabel(e.category, group)) || 'Other', styles: { textColor: C.soft, fontSize: 7.5 } },
-        // For a refund, who received it.
-        e.refund ? `${nameOf(e.paidBy)} (got back)` : nameOf(e.paidBy),
-        {
-          // Drawn by hand in didDrawCell; this text only sets the row's height.
-          content: [splits[i].label, ...splits[i].people.map((p) => p.name)].filter(Boolean).join('\n'),
-          styles: { textColor: C.soft, fontSize: SPLIT_LINE },
-        },
+        // Drawn by hand: the payer's chip, and "got back" for a refund they received.
+        { content: '', styles: { minCellHeight: e.refund ? 11 : 0 } },
+        { content: '', styles: { minCellHeight: layouts[i].height } },
         // A refund reads as money coming off: "−€60.00".
         e.refund ? { ...money(e.amount), content: `−${fmtMoney(e.amount, cur)}` } : money(e.amount),
-      ]),
+      ]);
+    const rowIndex = new Map(rows.map((r, i) => [r, i]));
+
+    table(
+      y,
+      ['Date', 'Description', 'Category', 'Paid by', 'Split', 'Amount'],
+      rows,
       {
-        // Top-aligned: split lists make some rows tall, and the rest should line up with their first line.
-        0: { cellWidth: 16, valign: 'top' },
+        // Top-aligned: chip rows make some rows taller, and the rest should line up with their first line.
+        0: { cellWidth: 15, valign: 'top' },
         1: { cellWidth: 'auto', valign: 'top' },
         2: { cellWidth: 22, valign: 'top' },
-        3: { cellWidth: 28, valign: 'top' },
-        4: { cellWidth: 48, valign: 'top', cellPadding: { top: 2.1, bottom: 2.1, left: 0, right: 5 } },
+        3: { cellWidth: 14, valign: 'top' },
+        4: { cellWidth: SPLIT_W, valign: 'top' },
         5: { cellWidth: 24, halign: 'right', valign: 'top' },
       },
       [[
@@ -501,33 +610,37 @@ export async function generateGroupReport(
         money(totalSpent, { bold: true }),
       ]],
       {
-        willDrawCell: (data) => {
-          if (data.section === 'body' && data.column.index === SPLIT_COL) data.cell.text = [];
-        },
+        // A row moves to the next page whole, so its chips are never cut in half.
+        rowPageBreak: 'avoid',
         didDrawCell: (data) => {
-          if (data.section !== 'body' || data.column.index !== SPLIT_COL) return;
-          const { label, people } = splits[data.row.index];
+          if (data.section !== 'body') return;
           const cell = data.cell;
-          const fs = SPLIT_SIZE / doc.internal.scaleFactor;
-          const lineH = (SPLIT_LINE / doc.internal.scaleFactor) * doc.getLineHeightFactor();
-          const left = cell.x + cell.padding('left');
-          const right = cell.x + cell.width - cell.padding('right');
-          // The table library's first baseline for top-aligned text.
-          let baseline = cell.y + cell.padding('top') + fs * (2 - 1.15);
+          const top = cell.y + PAD_TOP;
+          // By the row's own data, not its position: a row being moved to the
+          // next page is drawn from a copy whose index is -1.
+          const i = rowIndex.get(data.row.raw as RowInput);
+          if (i === undefined) return;
+          const e = sortedExpenses[i];
 
-          if (label) {
-            text(label, left, baseline, { size: 6.8, color: C.muted });
-            baseline += lineH;
+          if (data.column.index === PAID_COL) {
+            chip(e.paidBy, cell.x + CHIP_R, top + CHIP_R + 0.3);
+            if (e.refund) text('got back', cell.x, top + CHIP_R * 2 + 3.6, { size: 6.2, color: C.muted });
+            return;
           }
-          for (const person of people) {
-            doc.setFont(f.mono, 'normal');
-            doc.setFontSize(SPLIT_SIZE);
-            const amountW = doc.getTextWidth(person.amount);
-            text(person.amount, right, baseline, { font: 'mono', size: SPLIT_SIZE, color: C.soft, align: 'right' });
-            doc.setFont(f.sans, 'normal');
-            doc.setFontSize(SPLIT_SIZE);
-            text(fit(person.name, right - left - amountW - 2), left, baseline, { size: SPLIT_SIZE, color: C.ink });
-            baseline += lineH;
+          if (data.column.index !== SPLIT_COL) return;
+
+          const { label, placed } = layouts[i];
+          let rowsTop = top;
+          if (label) {
+            text(label, cell.x, top + 2.4, { size: 6.8, color: C.muted });
+            rowsTop += LABEL_H;
+          }
+          for (const p of placed) {
+            const cy = rowsTop + p.row * CHIP_ROW + CHIP_R + 0.3;
+            chip(p.id, cell.x + p.x + CHIP_R, cy);
+            if (p.amount) {
+              text(p.amount, cell.x + p.x + CHIP_R * 2 + 1.2, cy + 1, { font: 'mono', size: AMOUNT_SIZE, color: C.soft });
+            }
           }
         },
       },

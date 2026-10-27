@@ -21,7 +21,8 @@ export function useGroupReport() {
       const payments = settlements.filter((s) => s.groupId === groupId);
       const { generateGroupReport } = await import('../lib/groupReport');
       await generateGroupReport(group, expenses.filter((e) => e.groupId === groupId), users, payments);
-    } catch {
+    } catch (err) {
+      console.error('Group report failed', err);
       showToast({ message: "Couldn't make the report. Try again." });
     } finally {
       setMakingId(null);
