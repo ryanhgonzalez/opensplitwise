@@ -103,13 +103,14 @@
 }
 
 .ins-cat-track {
-  height: 12px;
+  height: 10px;
   display: flex;
+  background: var(--panel);
 }
 
 .ins-cat-bar {
   min-width: 2px;
-  background: var(--owed);
+  background: var(--ink);
   border-radius: 0 4px 4px 0;
 }
 
@@ -124,15 +125,7 @@
   color: var(--muted);
 }
 
-/* Monthly chart */
-.mc {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-top: 1px solid var(--ink);
-  padding-top: 12px;
-}
-
+/* Legends (group contributions) */
 .mc-legend {
   display: flex;
   flex-wrap: wrap;
@@ -147,93 +140,133 @@
   gap: 6px;
 }
 
-.mc-swatch {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-}
-
-.mc-swatch-total { background: var(--border); }
-.mc-swatch-share { background: var(--owed); }
-
-.mc-plot {
+.ins-chart-head {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 10px;
 }
 
-.mc-axis {
-  width: 44px;
-  height: 200px;
+.ins-chart-head .ins-h2 {
+  margin-bottom: 0;
+}
+
+.ins-chart-foot {
+  margin-top: 8px;
+}
+
+/* "vs before" instead of the share, in the right-hand column */
+.ins-cat-compare .ins-cat-pct {
+  white-space: nowrap;
+}
+
+/* Trend: one series of bars, an average line, a readout on hover or tap */
+.tr {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--ink);
+  padding-top: 12px;
+}
+
+.tr-plot {
+  display: flex;
+  gap: 8px;
+}
+
+.tr-axis {
+  width: 48px;
+  height: 190px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   font-size: 11px;
   color: var(--muted);
   text-align: right;
+  white-space: nowrap;
 }
 
-.mc-area {
+.tr-area {
   position: relative;
   flex: 1;
-  height: 200px;
-  border-bottom: 1px solid var(--ink);
+  min-width: 0;
+  height: 190px;
 }
 
-.mc-grid {
+.tr-grid {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1px dashed var(--rule);
+  border-top: 1px solid var(--rule);
 }
 
-.mc-bars {
+.tr-zero {
+  border-top-color: var(--border);
+}
+
+.tr-avg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  border-top: 2px dashed var(--muted);
+  pointer-events: none;
+}
+
+.tr-bars {
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  padding: 0 4px;
-}
-
-.mc-col {
-  flex: 1;
-  height: 100%;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  border-radius: 4px 4px 0 0;
-  cursor: default;
-}
-
-.mc-col.hovered {
-  background: var(--panel);
-}
-
-.mc-pair {
-  height: 100%;
-  width: 100%;
-  max-width: 44px;
-  display: flex;
-  align-items: flex-end;
   gap: 2px;
 }
 
-.mc-bar {
+.tr-col {
+  position: relative;
   flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.tr-col.hovered {
+  background: var(--panel);
+}
+
+.tr-bar {
+  position: absolute;
+  left: 15%;
+  right: 15%;
   min-height: 0;
+  background: var(--ink);
   border-radius: 4px 4px 0 0;
 }
 
-.mc-bar-total { background: var(--border); }
-.mc-bar-share { background: var(--owed); }
+.tr-bar.neg {
+  border-radius: 0 0 4px 4px;
+  background: var(--muted);
+}
 
-.mc-tooltip {
+/* The step still going: striped, so it doesn't read as a drop */
+.tr-col.partial .tr-bar {
+  background: repeating-linear-gradient(45deg, var(--ink) 0 3px, var(--muted) 3px 6px);
+}
+
+.tr-col.hovered .tr-bar {
+  background: var(--owed);
+}
+
+.tr-tooltip {
   position: absolute;
-  top: 8px;
-  z-index: 2;
+  top: 0;
+  z-index: 3;
   min-width: 150px;
-  padding: 10px 12px;
+  max-width: 230px;
+  padding: 8px 10px;
   background: var(--paper);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -241,25 +274,25 @@
   font-size: 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  pointer-events: none;
 }
 
-.mc-tooltip p {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.mc-tooltip strong {
-  margin-left: auto;
+.tr-tooltip p:nth-child(2) {
+  font-family: var(--font-mono);
+  font-size: 14px;
   font-weight: 600;
 }
 
-.mc-tooltip-month {
+.tr-tooltip-title {
   font-weight: 600;
 }
 
-.mc-empty {
+.tr-tooltip-detail {
+  color: var(--muted);
+}
+
+.tr-empty {
   position: absolute;
   inset: 0;
   display: flex;
@@ -269,20 +302,82 @@
   font-size: 13px;
 }
 
-.mc-labels {
+.tr-labels {
   display: flex;
-  gap: 4px;
-  padding: 0 4px 0 58px;
-  font-size: 12px;
+  gap: 2px;
+  padding-left: 56px;
+  font-size: 10px;
   color: var(--muted);
 }
 
-.mc-labels > span {
-  /* Same widths as the bar columns above, so each label sits under its month */
+.tr-labels > span {
+  /* Same widths as the bars, so each label sits under its step */
   flex: 1 1 0;
   min-width: 0;
   text-align: center;
   white-space: nowrap;
+  overflow: visible;
+}
+
+/* Who you share with */
+.ins-who-row {
+  display: grid;
+  grid-template-columns: 28px 80px minmax(0, 1fr) 84px;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+}
+
+/* Largest expenses: a table on desktop, a compact list on phones */
+.ins-big {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--ink);
+}
+
+.ins-big-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 84px;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+a.ins-big-row:hover .ins-big-name {
+  text-decoration: underline;
+}
+
+.ins-big-head {
+  display: none;
+}
+
+.ins-big-wide {
+  display: none;
+}
+
+.ins-big-date {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.ins-big-desc {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ins-big-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ins-right {
+  text-align: right;
 }
 
 /* Group contributions */
@@ -439,5 +534,37 @@
 
   .gc-row {
     grid-template-columns: 110px minmax(0, 1fr) 96px 84px;
+  }
+
+  .tr-axis,
+  .tr-area {
+    height: 220px;
+  }
+
+  .tr-bars {
+    gap: 4px;
+  }
+
+  .tr-labels {
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .ins-big-row {
+    grid-template-columns: 64px minmax(0, 1fr) 180px 110px 110px;
+    min-height: 48px;
+  }
+
+  .ins-big-head {
+    display: grid;
+    min-height: 34px;
+  }
+
+  .ins-big-wide {
+    display: block;
+  }
+
+  .ins-big-narrow {
+    display: none;
   }
 }

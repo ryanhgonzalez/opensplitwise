@@ -41,13 +41,6 @@ export interface CategoryBreakdown {
   color: string;
 }
 
-export interface MonthlyPoint {
-  month: string;
-  key: string;
-  total: number;
-  yourShare: number;
-}
-
 export interface MemberContribution {
   userId: string;
   name: string;
@@ -146,34 +139,6 @@ export function getCategoryBreakdown(
  * Spending per calendar month across the period. "All" runs from the month of
  * the earliest expense, so nothing counted in the totals is left off the chart.
  */
-export function getMonthlyTrend(
-  expenses: Expense[],
-  userId: string,
-  period: Period,
-  now = new Date(),
-): MonthlyPoint[] {
-  const monthCount = monthsBetween(periodStart(expenses, period, now), now);
-  const points: Record<string, MonthlyPoint> = {};
-
-  for (let i = monthCount - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const month = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-    points[key] = { month, key, total: 0, yourShare: 0 };
-  }
-
-  for (const expense of expenses) {
-    const d = expense.date;
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    if (points[key]) {
-      points[key].total += signedAmount(expense);
-      points[key].yourShare += getShareForUser(expense, userId);
-    }
-  }
-
-  return Object.values(points);
-}
-
 export function getGroupContributions(
   expenses: Expense[],
   groups: Group[],
@@ -222,4 +187,132 @@ export function getGroupContributions(
       };
     })
     .filter((g): g is GroupContribution => g !== null);
+}
+
+// ── Trend: the period's spending, by the time step that suits its length ─────
+
+export type Step = 'day' | 'week' | 'month';
+
+/** A span of time; `end` is exclusive. */
+export interface Range {
+  start: Date;
+  end: Date;
+}
+
+export interface TrendPoint {
+  key: string;
+  start: Date;
+  end: Date;
+  /** Spending in the step: your share, or the group total. Refunds count against it. */
+  value: number;
+  expenses: Expense[];
+  /** The step that's still going (this week so far). */
+  partial: boolean;
+}
+
+const DAY_MS = 86_400_000;
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+/** Weeks start on Monday. */
+const startOfWeek = (d: Date) => addDays(startOfDay(d), -((d.getDay() + 6) % 7));
+
+/** How an expense counts: your share of it, or all of it. */
+export const valueOf = (expense: Expense, userId: string, mode: ViewMode): number =>
+  mode === 'personal' ? getShareForUser(expense, userId) : signedAmount(expense);
+
+/**
+ * What the page covers. A period is whole months ending with this one (to
+ * today). "All" of one group runs from its first expense to its last, so a
+ * trip reads as its days; "All" of everything runs to today.
+ */
+export function trendRange(expenses: Expense[], period: Period, oneGroup: boolean, now = new Date()): Range {
+  const tomorrow = addDays(startOfDay(now), 1);
+  if (period === 0 && oneGroup && expenses.length > 0) {
+    const times = expenses.map((e) => e.date.getTime());
+    return { start: startOfDay(new Date(Math.min(...times))), end: addDays(startOfDay(new Date(Math.max(...times))), 1) };
+  }
+  return { start: periodStart(expenses, period, now), end: tomorrow };
+}
+
+/** The period of the same length just before, to compare against. None for "All". */
+export function previousRange(range: Range, period: Period): Range | null {
+  if (period === 0) return null;
+  const s = range.start;
+  return { start: new Date(s.getFullYear(), s.getMonth() - period, 1), end: s };
+}
+
+/** Days for up to about a month, weeks up to about half a year, months beyond. */
+export function chooseStep(range: Range): Step {
+  const days = Math.round((range.end.getTime() - range.start.getTime()) / DAY_MS);
+  if (days <= 35) return 'day';
+  if (days <= 200) return 'week';
+  return 'month';
+}
+
+/** Every step in the range, oldest first, with its spending. */
+export function getTrend(
+  expenses: Expense[],
+  userId: string,
+  mode: ViewMode,
+  range: Range,
+  step: Step,
+  now = new Date(),
+): TrendPoint[] {
+  const next = (d: Date) =>
+    step === 'day' ? addDays(d, 1) : step === 'week' ? addDays(d, 7) : new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  let cursor =
+    step === 'day' ? startOfDay(range.start)
+    : step === 'week' ? startOfWeek(range.start)
+    : new Date(range.start.getFullYear(), range.start.getMonth(), 1);
+  const points: TrendPoint[] = [];
+  while (cursor < range.end) {
+    const end = next(cursor);
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+    points.push({ key, start: cursor, end, value: 0, expenses: [], partial: cursor <= now && now < end && step !== 'day' });
+    cursor = end;
+  }
+  for (const e of expenses) {
+    const point = points.find((p) => e.date >= p.start && e.date < p.end);
+    if (!point) continue;
+    point.value += valueOf(e, userId, mode);
+    point.expenses.push(e);
+  }
+  return points;
+}
+
+export const inRange = (expenses: Expense[], range: Range): Expense[] =>
+  expenses.filter((e) => e.date >= range.start && e.date < range.end);
+
+/** The biggest expenses (not refunds), largest first. */
+export function getLargestExpenses(expenses: Expense[], count = 5): Expense[] {
+  return expenses.filter((e) => !e.refund && e.amount > 0).sort((a, b) => b.amount - a.amount).slice(0, count);
+}
+
+export interface SharedWith {
+  userId: string;
+  /** Your share of the expenses they were part of. */
+  amount: number;
+}
+
+/**
+ * Who you share spending with: for each person, your share of the expenses
+ * they were in (paid for, or had a share of). One expense counts for everyone
+ * in it. Empty when it would say nothing: one other person, or everyone the same.
+ */
+export function getSharedWith(expenses: Expense[], userId: string): SharedWith[] {
+  const totals = new Map<string, number>();
+  for (const e of expenses) {
+    const mine = getShareForUser(e, userId);
+    if (Math.abs(mine) < 0.005) continue;
+    const others = new Set(e.split.entries.filter((en) => en.amount > 0).map((en) => en.userId));
+    others.add(e.paidBy);
+    others.delete(userId);
+    for (const id of others) totals.set(id, (totals.get(id) ?? 0) + mine);
+  }
+  const rows = [...totals.entries()]
+    .map(([id, amount]) => ({ userId: id, amount: Math.round(amount * 100) / 100 }))
+    .filter((r) => r.amount >= 0.005)
+    .sort((a, b) => b.amount - a.amount);
+  if (rows.length < 2 || rows[0].amount - rows[rows.length - 1].amount < 0.01) return [];
+  return rows;
 }

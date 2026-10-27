@@ -1,21 +1,27 @@
 import { useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useStore, selectCurrentUser } from '../store';
+import Avatar from '../components/Avatar';
 import { formatCurrency } from '../utils';
-import { getShareForUser } from '../utils/expense';
-import { signedAmount } from '../lib/calculations';
 import {
   type Period,
   type ViewMode,
   type CategoryBreakdown,
-  type MonthlyPoint,
   type GroupContribution,
-  filterByPeriod,
+  type Step,
+  type TrendPoint,
+  chooseStep,
   getCategoryBreakdown,
-  getMonthlyTrend,
   getGroupContributions,
+  getLargestExpenses,
+  getSharedWith,
+  getTrend,
+  inRange,
+  previousRange,
+  trendRange,
+  valueOf,
 } from '../lib/analytics';
-import { currencySymbol, groupCurrency, recordCurrency } from '../lib/currency';
+import { groupCurrency, recordCurrency } from '../lib/currency';
 import '../styles/sheet.css';
 import './Insights.css';
 
@@ -34,114 +40,175 @@ function money(n: number, currency: string): string {
   return `${n <= -0.005 ? '−' : ''}${formatCurrency(n, currency)}`;
 }
 
-/** Axis labels: "$1.2k", "€80". */
-function fmtShort(v: number, currency: string): string {
-  const sym = currencySymbol(currency);
-  if (v >= 1000) return `${sym}${(v / 1000).toFixed(1)}k`;
-  return `${sym}${Math.round(v)}`;
+/** "▲ 24%", "▼ 8%", "same", "new": how a figure moved against the period before. */
+function change(now: number, before: number | undefined): string | null {
+  if (before === undefined) return null;
+  if (Math.abs(before) < 0.005) return Math.abs(now) < 0.005 ? 'same' : 'new';
+  const pct = ((now - before) / Math.abs(before)) * 100;
+  if (Math.abs(pct) < 0.5) return 'same';
+  return `${pct > 0 ? '▲' : '▼'} ${Math.round(Math.abs(pct))}%`;
 }
+
+const STEP_WORD: Record<Step, string> = { day: 'day', week: 'week', month: 'month' };
+
+const shortDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 // ── Category breakdown: one series, ranked bars ──────────────────────────────
 
-function CategoryBars({ data, currency }: { data: CategoryBreakdown[]; currency: string }) {
+function CategoryBars({
+  data,
+  currency,
+  before,
+}: {
+  data: CategoryBreakdown[];
+  currency: string;
+  /** Each category's spending in the period before, when there is one. */
+  before?: Map<string, number>;
+}) {
   if (data.length === 0) {
     return <p className="ins-empty text-secondary">No expenses in this period</p>;
   }
   const max = Math.max(...data.map((d) => d.amount), 1);
   return (
-    <div className="ruled" role="list">
-      {data.map((item) => (
-        <div
-          key={item.category}
-          className="ins-cat-row"
-          role="listitem"
-          title={`${item.label}: ${money(item.amount, currency)} (${item.percentage.toFixed(1)}%)`}
-        >
-          <span className="ins-cat-label">{item.label}</span>
-          <span className="ins-cat-track" aria-hidden>
-            <span className="ins-cat-bar" style={{ width: `${(item.amount / max) * 100}%` }} />
-          </span>
-          <span className="num ins-cat-amount">{money(item.amount, currency)}</span>
-          <span className="num ins-cat-pct">{item.percentage.toFixed(1)}%</span>
-        </div>
-      ))}
+    <div className={`ruled ${before ? 'ins-cat-compare' : ''}`} role="list">
+      {data.map((item) => {
+        const moved = before ? change(item.amount, before.get(item.category) ?? 0) : null;
+        return (
+          <div
+            key={item.category}
+            className="ins-cat-row"
+            role="listitem"
+            title={`${item.label}: ${money(item.amount, currency)} (${item.percentage.toFixed(1)}%)`}
+          >
+            <span className="ins-cat-label">{item.label}</span>
+            <span className="ins-cat-track" aria-hidden>
+              <span className="ins-cat-bar" style={{ width: `${(item.amount / max) * 100}%` }} />
+            </span>
+            <span className="num ins-cat-amount">{money(item.amount, currency)}</span>
+            <span className="num ins-cat-pct">
+              {moved ? <span aria-label={`${moved} on the period before`}>{moved}</span> : `${item.percentage.toFixed(1)}%`}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-// ── Monthly trend: two series, paired columns with a hover readout ───────────
+// ── Trend: one series, stepped by day, week or month ─────────────────────────
 
-function MonthlyChart({ data, currency }: { data: MonthlyPoint[]; currency: string }) {
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const maxVal = Math.max(...data.map((d) => d.total), 1);
-  const hasData = data.some((d) => d.total > 0);
-  const hov = hoveredIdx !== null ? data[hoveredIdx] : null;
+/** A round axis top: €350, €1.5k. */
+function niceMax(v: number): number {
+  if (v <= 0) return 1;
+  const p = 10 ** Math.floor(Math.log10(v));
+  const n = v / p;
+  return (n <= 1 ? 1 : n <= 1.5 ? 1.5 : n <= 2 ? 2 : n <= 3.5 ? 3.5 : n <= 5 ? 5 : n <= 7.5 ? 7.5 : 10) * p;
+}
+
+function TrendChart({
+  points,
+  step,
+  currency,
+  average,
+  dayNumbers,
+  detail,
+}: {
+  points: TrendPoint[];
+  step: Step;
+  currency: string;
+  average: number;
+  /** A trip: call each day "Day 2". */
+  dayNumbers: boolean;
+  /** What the readout says about a step's expenses. */
+  detail: (p: TrendPoint) => string;
+}) {
+  const [hoverIdx, setHovered] = useState<number | null>(null);
+  const [pinned, setPinned] = useState<number | null>(null);
+  // A hover shows its step; otherwise the one tapped stays up.
+  const hovered = hoverIdx ?? pinned;
+  const values = points.map((p) => p.value);
+  const top = niceMax(Math.max(...values, 0));
+  const bottom = Math.min(0, ...values) < 0 ? -niceMax(-Math.min(...values)) : 0;
+  const span = top - bottom;
+  const y = (v: number) => ((v - bottom) / span) * 100; // % from the bottom
+  const hasData = points.some((p) => Math.abs(p.value) > 0.005);
+  const hov = hovered !== null ? points[hovered] : null;
+
+  const title = (p: TrendPoint, i: number) =>
+    step === 'day'
+      ? `${dayNumbers ? `Day ${i + 1} · ` : ''}${p.start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`
+      : step === 'week'
+        ? `Week of ${shortDate(p.start)}`
+        : p.start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  // About seven labels, counting back from the newest step.
+  const every = Math.ceil(points.length / 7);
+  const label = (p: TrendPoint, i: number) => {
+    if ((points.length - 1 - i) % every !== 0) return '';
+    if (step === 'day') return String(p.start.getDate());
+    if (step === 'week') return shortDate(p.start).toUpperCase();
+    const mon = p.start.toLocaleDateString('en-US', { month: 'short' });
+    return points.length > 12 && (i === 0 || p.start.getMonth() === 0) ? `${mon} '${String(p.start.getFullYear()).slice(2)}` : mon;
+  };
 
   return (
-    <div className="mc">
-      <div className="mc-legend">
-        <span className="mc-legend-item"><span className="mc-swatch mc-swatch-total" />Group total</span>
-        <span className="mc-legend-item"><span className="mc-swatch mc-swatch-share" />Your share</span>
-      </div>
-
-      <div className="mc-plot">
-        <div className="num mc-axis" aria-hidden>
-          <span>{fmtShort(maxVal, currency)}</span>
-          <span>{fmtShort(maxVal / 2, currency)}</span>
-          <span>{fmtShort(0, currency)}</span>
+    <div className="tr">
+      <div className="tr-plot">
+        <div className="num tr-axis" aria-hidden>
+          <span>{money(top, currency).replace(/\.00$/, '')}</span>
+          <span>{money((top + bottom) / 2, currency).replace(/\.00$/, '')}</span>
+          <span>{money(bottom, currency).replace(/\.00$/, '')}</span>
         </div>
-        <div className="mc-area">
-          <div className="mc-grid" style={{ top: 0 }} />
-          <div className="mc-grid" style={{ top: '50%' }} />
+        <div className="tr-area">
+          <div className="tr-grid" style={{ bottom: '100%' }} />
+          <div className="tr-grid" style={{ bottom: '50%' }} />
+          <div className="tr-grid tr-zero" style={{ bottom: `${y(0)}%` }} />
+          {hasData && <div className="tr-avg" style={{ bottom: `${y(average)}%` }} aria-hidden />}
 
-          {hov && Math.abs(hov.total) > 0.005 && (
-            <div
-              className="mc-tooltip"
-              style={hoveredIdx! >= data.length / 2 ? { left: 8 } : { right: 8 }}
-            >
-              <p className="mc-tooltip-month">{hov.month.replace(' ', " '")}</p>
-              <p><span className="mc-swatch mc-swatch-total" /> Total <strong className="num">{money(hov.total, currency)}</strong></p>
-              <p><span className="mc-swatch mc-swatch-share" /> Yours <strong className="num">{money(hov.yourShare, currency)}</strong></p>
+          <div className="tr-bars">
+            {points.map((p, i) => {
+              const h = Math.abs(y(p.value) - y(0));
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  className={`tr-col${hovered === i ? ' hovered' : ''}${p.partial ? ' partial' : ''}`}
+                  // A mouse shows the figures on hover; keyboard focus does too.
+                  onPointerEnter={(e) => e.pointerType === 'mouse' && setHovered(i)}
+                  onPointerLeave={(e) => e.pointerType === 'mouse' && setHovered(null)}
+                  onFocus={(e) => e.currentTarget.matches(':focus-visible') && setHovered(i)}
+                  onBlur={() => setHovered(null)}
+                  // Phones have no hover: a tap pins the step's figures, a second tap hides them.
+                  onClick={() => setPinned(pinned === i ? null : i)}
+                  aria-label={`${title(p, i)}: ${money(p.value, currency)}`}
+                >
+                  <span
+                    className={`tr-bar ${p.value < 0 ? 'neg' : ''}`}
+                    style={p.value < 0 ? { top: `${100 - y(0)}%`, height: `${h}%` } : { bottom: `${y(0)}%`, height: `${h}%` }}
+                  />
+                </button>
+              );
+            })}
+          </div>
+
+          {hov && (
+            <div className="tr-tooltip" style={hovered! >= points.length / 2 ? { right: `${100 - ((hovered! + 1) / points.length) * 100}%` } : { left: `${(hovered! / points.length) * 100}%` }}>
+              <p className="tr-tooltip-title">{title(hov, hovered!)}</p>
+              <p>
+                {money(hov.value, currency)}
+                {hov.partial ? ' so far' : ''}
+              </p>
+              {hov.expenses.length > 0 && <p className="tr-tooltip-detail">{detail(hov)}</p>}
             </div>
           )}
 
-          <div className="mc-bars">
-            {data.map((point, i) => (
-              <div
-                key={point.key}
-                className={`mc-col${hoveredIdx === i ? ' hovered' : ''}`}
-                onMouseEnter={() => setHoveredIdx(i)}
-                onMouseLeave={() => setHoveredIdx(null)}
-                // Phones have no hover: a tap shows the month's figures, a second tap hides them.
-                onClick={() => setHoveredIdx(hoveredIdx === i ? null : i)}
-                title={`${point.month}: total ${money(point.total, currency)}, yours ${money(point.yourShare, currency)}`}
-              >
-                <div className="mc-pair">
-                  <div className="mc-bar mc-bar-total" style={{ height: `${(point.total / maxVal) * 100}%` }} />
-                  <div className="mc-bar mc-bar-share" style={{ height: `${(point.yourShare / maxVal) * 100}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {!hasData && <div className="mc-empty">No spending data for this period</div>}
+          {!hasData && <div className="tr-empty">No spending in this period</div>}
         </div>
       </div>
-
-      <div className="mc-labels">
-        {/* Long ranges label every few months so the labels fit, counting back
-            from this month. Past a year, the oldest label and any January carry
-            the year, so the two Octobers can't be mixed up. */}
-        {(() => {
-          const step = Math.ceil(data.length / 7);
-          const shown = data.map((_, i) => (data.length - 1 - i) % step === 0);
-          const firstShown = shown.indexOf(true);
-          return data.map((point, i) => {
-            const [mon, yr] = point.month.split(' ');
-            const withYear = data.length > 12 && (i === firstShown || mon === 'Jan');
-            return <span key={point.key}>{shown[i] ? (withYear ? `${mon} '${yr}` : mon) : ''}</span>;
-          });
-        })()}
+      <div className="num tr-labels" aria-hidden>
+        {points.map((p, i) => (
+          <span key={p.key}>{label(p, i)}</span>
+        ))}
       </div>
     </div>
   );
@@ -192,6 +259,7 @@ export default function Insights() {
   const groups = useStore((s) => s.groups);
   const users = useStore((s) => s.users);
   const currentUser = useStore(selectCurrentUser)!;
+  const me = currentUser.id;
 
   // One group, or all of them. In the address so a group's page can link here.
   const [params, setParams] = useSearchParams();
@@ -224,37 +292,68 @@ export default function Insights() {
     ? groupCurrency(group)
     : chosenCurrency && currencies.includes(chosenCurrency) ? chosenCurrency : currencies[0] ?? 'USD';
 
-  const filtered = useMemo(
-    () => filterByPeriod(scoped.filter((e) => recordCurrency(e) === currency), period),
-    [scoped, period, currency],
-  );
+  const inCurrency = useMemo(() => scoped.filter((e) => recordCurrency(e) === currency), [scoped, currency]);
+  // What the page covers, and the time step that suits its length.
+  const range = useMemo(() => trendRange(inCurrency, period, !!group), [inCurrency, period, group]);
+  const step = chooseStep(range);
+  const filtered = useMemo(() => inRange(inCurrency, range), [inCurrency, range]);
+  // The same length of time just before, to say what changed. None for "All".
+  const before = useMemo(() => {
+    const prev = previousRange(range, period);
+    return prev ? { range: prev, expenses: inRange(inCurrency, prev) } : null;
+  }, [range, period, inCurrency]);
+
+  const trend = useMemo(() => getTrend(filtered, me, viewMode, range, step), [filtered, me, viewMode, range, step]);
+  const total = filtered.reduce((s, e) => s + valueOf(e, me, viewMode), 0);
+  // Over every step the period covers, not just the busy ones.
+  const average = trend.length > 0 ? total / trend.length : 0;
+  const beforeTotal = before?.expenses.reduce((s, e) => s + valueOf(e, me, viewMode), 0);
+  const beforeSteps = before ? getTrend(before.expenses, me, viewMode, before.range, step).length : 0;
+  const beforeAverage = before && beforeSteps > 0 ? beforeTotal! / beforeSteps : undefined;
 
   const categoryData = useMemo(
-    () => getCategoryBreakdown(filtered, currentUser.id, viewMode, groups),
-    [filtered, currentUser.id, viewMode, groups],
+    () => getCategoryBreakdown(filtered, me, viewMode, groups),
+    [filtered, me, viewMode, groups],
   );
-
-  const monthlyData = useMemo(
-    () => getMonthlyTrend(filtered, currentUser.id, period),
-    [filtered, currentUser.id, period],
+  const categoriesBefore = useMemo(
+    () =>
+      before
+        ? new Map(getCategoryBreakdown(before.expenses, me, viewMode, groups).map((c) => [c.category, c.amount]))
+        : undefined,
+    [before, me, viewMode, groups],
   );
-
+  const largest = useMemo(() => getLargestExpenses(filtered), [filtered]);
+  const sharedWith = useMemo(() => getSharedWith(filtered, me), [filtered, me]);
   const groupContributions = useMemo(
-    () => getGroupContributions(filtered, group ? [group] : groups, users, currentUser.id),
-    [filtered, group, groups, users, currentUser.id],
+    () => getGroupContributions(filtered, group ? [group] : groups, users, me),
+    [filtered, group, groups, users, me],
   );
 
-  const totalSpent = useMemo(() => {
-    if (viewMode === 'personal') {
-      return filtered.reduce((s, e) => s + getShareForUser(e, currentUser.id), 0);
-    }
-    return filtered.reduce((s, e) => s + signedAmount(e), 0);
-  }, [filtered, viewMode, currentUser.id]);
-
-  // Over every month the period covers (the chart's months), not just the busy ones.
-  const avgMonthly = monthlyData.length > 0 ? totalSpent / monthlyData.length : 0;
-  const expenseCount = filtered.length;
+  const userById = (id: string) => users.find((u) => u.id === id);
+  const groupName = (id?: string) => groups.find((g) => g.id === id)?.name ?? '';
+  const isTrip = !!group && period === 0 && step === 'day';
   const topCategory = categoryData[0];
+  const who = viewMode === 'personal' ? 'Your share' : 'Group total';
+  const periodWords = period === 0 ? (group ? 'the whole group' : 'all time') : `last ${period === 1 ? 'month' : `${period} months`}`;
+
+  /** What a step's readout says: the groups it was mostly in, or a trip's expenses. */
+  const detail = (p: TrendPoint) => {
+    const n = p.expenses.length;
+    if (group) {
+      const names = [...p.expenses].sort((a, b) => b.amount - a.amount).slice(0, 3).map((e) => e.description);
+      return `${names.join(', ')}${n > 3 ? ` +${n - 3} more` : ''}`;
+    }
+    const byGroup = new Map<string, number>();
+    for (const e of p.expenses) byGroup.set(e.groupId ?? '', (byGroup.get(e.groupId ?? '') ?? 0) + Math.abs(valueOf(e, me, viewMode)));
+    const topGroup = [...byGroup.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    return `${n} ${n === 1 ? 'expense' : 'expenses'}${topGroup ? ` · mostly ${groupName(topGroup)}` : ''}`;
+  };
+
+  const totalMoved = change(total, beforeTotal);
+  const averageMoved =
+    beforeAverage === undefined || Math.abs(average - beforeAverage) < 0.5
+      ? beforeAverage === undefined ? null : 'about the same'
+      : `${average > beforeAverage ? '▲' : '▼'} ${money(Math.abs(average - beforeAverage), currency).replace(/\.\d\d$/, '')} a ${STEP_WORD[step]}`;
 
   return (
     <div className="page-content">
@@ -262,7 +361,9 @@ export default function Insights() {
         <header className="ins-header">
           <div>
             <h1 className="page-hero-title">Insights</h1>
-            <p className="text-secondary ins-sub">{group ? group.name : 'Your spending overview'}</p>
+            <p className="text-secondary ins-sub">
+              {group ? group.name : 'All groups'} · {periodWords} · {who.toLowerCase()}
+            </p>
           </div>
           <div className="ins-controls">
             <label className="ins-group-pick">
@@ -299,30 +400,115 @@ export default function Insights() {
 
         <section className="statement" aria-label="Summary">
           <div>
-            <span className="cap">Total spent</span>
-            <span className="num ins-figure">{money(totalSpent, currency)}</span>
+            <span className="cap">{who}</span>
+            <span className="num ins-figure">{money(total, currency)}</span>
+            {totalMoved && (
+              <span className="text-xs text-secondary">
+                {totalMoved === 'same' ? 'Same as' : totalMoved === 'new' ? 'Nothing in' : `${totalMoved} vs`} the {period === 1 ? 'month' : `${period} months`} before
+              </span>
+            )}
           </div>
           <div>
-            <span className="cap">Avg / month</span>
-            <span className="num ins-figure">{money(avgMonthly, currency)}</span>
+            <span className="cap">Avg / {STEP_WORD[step]}</span>
+            <span className="num ins-figure">{money(average, currency)}</span>
+            {averageMoved && <span className="text-xs text-secondary">{averageMoved}</span>}
           </div>
           <div>
-            <span className="cap">Expenses</span>
-            <span className="num ins-figure">{expenseCount}</span>
-            {topCategory && <span className="text-xs text-secondary">Top: {topCategory.label}</span>}
+            <span className="cap">{isTrip ? 'Days' : 'Expenses'}</span>
+            <span className="num ins-figure">{isTrip ? trend.length : filtered.length}</span>
+            {!isTrip && topCategory && <span className="text-xs text-secondary">Most on {topCategory.label}</span>}
           </div>
+        </section>
+
+        <section className="ins-chart">
+          <div className="ins-chart-head">
+            <h2 className="ins-h2">{who} by {STEP_WORD[step]}</h2>
+            <span className="text-xs text-secondary">
+              Dashed: average {money(average, currency).replace(/\.\d\d$/, '')}
+              {trend.some((p) => p.partial) ? ` · Striped: this ${STEP_WORD[step]} so far` : ''}
+            </span>
+          </div>
+          <TrendChart points={trend} step={step} currency={currency} average={average} dayNumbers={isTrip} detail={detail} />
+          {step === 'day' && trend.length > 0 && (
+            <p className="text-xs text-secondary ins-chart-foot">
+              {trend[0].start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              {trend[trend.length - 1].start.getMonth() !== trend[0].start.getMonth() &&
+                ` – ${trend[trend.length - 1].start.toLocaleDateString('en-US', { month: 'long' })}`}{' '}
+              · tap a {STEP_WORD[step]} for its expenses
+            </p>
+          )}
         </section>
 
         <div className="ins-charts">
           <section className="ins-chart">
-            <h2 className="ins-h2">Spending by category</h2>
-            <CategoryBars data={categoryData} currency={currency} />
+            <div className="ins-chart-head">
+              <h2 className="ins-h2">By category</h2>
+              {categoriesBefore && <span className="text-xs text-secondary">Right: change on the period before</span>}
+            </div>
+            <CategoryBars data={categoryData} currency={currency} before={categoriesBefore} />
           </section>
-          <section className="ins-chart">
-            <h2 className="ins-h2">Spending trend</h2>
-            <MonthlyChart data={monthlyData} currency={currency} />
-          </section>
+
+          {sharedWith.length > 0 && (
+            <section className="ins-chart">
+              <div className="ins-chart-head">
+                <h2 className="ins-h2">Who you share with</h2>
+                <span className="text-xs text-secondary">Your share of expenses with each</span>
+              </div>
+              <div className="ruled" role="list">
+                {sharedWith.map((r) => {
+                  const u = userById(r.userId);
+                  return (
+                    <div key={r.userId} className="ins-who-row" role="listitem">
+                      {u && <Avatar user={u} size="sm" />}
+                      <span className="ins-cat-label">{u?.name.split(' ')[0] ?? 'Someone'}</span>
+                      <span className="ins-cat-track" aria-hidden>
+                        <span className="ins-cat-bar" style={{ width: `${(r.amount / sharedWith[0].amount) * 100}%` }} />
+                      </span>
+                      <span className="num ins-cat-amount">{money(r.amount, currency)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-secondary ins-chart-foot">
+                An expense with two people counts for both, so these add up to more than your share.
+              </p>
+            </section>
+          )}
         </div>
+
+        {largest.length > 0 && (
+          <section>
+            <h2 className="ins-h2">Largest expenses</h2>
+            <div className="ins-big" role="table" aria-label="Largest expenses">
+              <div className="ins-big-row ins-big-head" role="row">
+                <span role="columnheader" className="cap">Date</span>
+                <span role="columnheader" className="cap">Description</span>
+                <span role="columnheader" className="cap ins-big-wide">Group</span>
+                <span role="columnheader" className="cap ins-right ins-big-wide">Amount</span>
+                <span role="columnheader" className="cap ins-right">Your share</span>
+              </div>
+              {largest.map((e) => (
+                <Link
+                  key={e.id}
+                  to={e.groupId ? `/groups/${e.groupId}/expenses/${e.id}` : '/groups'}
+                  className="ins-big-row"
+                  role="row"
+                >
+                  <span role="cell" className="num ins-big-date">{shortDate(e.date).toUpperCase()}</span>
+                  <span role="cell" className="ins-big-desc">
+                    <span className="ins-big-name">{e.description}</span>
+                    <span className="text-xs text-secondary ins-big-narrow">
+                      {money(e.amount, currency)} total{group ? '' : ` · ${groupName(e.groupId)}`}
+                    </span>
+                  </span>
+                  <span role="cell" className="text-secondary ins-big-wide">{groupName(e.groupId)}</span>
+                  <span role="cell" className="num ins-right ins-big-wide">{money(e.amount, currency)}</span>
+                  <span role="cell" className="num ins-right">{money(valueOf(e, me, 'personal'), currency)}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {groupContributions.length > 0 && (
           <section>
@@ -334,8 +520,8 @@ export default function Insights() {
               </div>
             </div>
             <div className="ins-gc-grid">
-              {groupContributions.map((group) => (
-                <GroupContributionBlock key={group.groupId} group={group} currency={currency} />
+              {groupContributions.map((g) => (
+                <GroupContributionBlock key={g.groupId} group={g} currency={currency} />
               ))}
             </div>
           </section>
