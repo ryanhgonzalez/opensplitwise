@@ -19,6 +19,8 @@ export interface ExportMeta {
   /** Present only on group exports. */
   groupId?: string;
   groupName?: string;
+  /** Set when the file was read from another app's export rather than written by this one. */
+  source?: 'splitwise';
 }
 
 export interface ExportPayload {

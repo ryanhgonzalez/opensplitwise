@@ -9,6 +9,7 @@ import {
   remapForNewGroup,
 } from '../lib/dataExport';
 import type { AppExport, ParseResult, ImportStats, ImportMode } from '../lib/dataExport';
+import { downloadSplitwiseCsv, looksLikeSplitwiseCsv, parseSplitwiseCsv } from '../lib/splitwiseCsv';
 import { lastBackupAt, markBackedUp } from '../lib/dataSafety';
 import { formatBytes, photosFor, savePhotos } from '../lib/receiptPhotos';
 import { formatRelativeDay } from '../utils/format';
@@ -128,6 +129,8 @@ export default function ExportImportSheet({
   const [exportTarget, setExportTarget]   = useState<'full' | 'group'>(defaultGroupId ? 'group' : 'full');
   const [exportGroupId, setExportGroupId] = useState(defaultGroupId ?? groups[0]?.id ?? '');
   const [exportDone, setExportDone]       = useState(false);
+  /** A single group can also go out as Splitwise's spreadsheet. */
+  const [exportFormat, setExportFormat]   = useState<'json' | 'splitwise'>('json');
   // Receipt photos go into full backups unless left out (they can make the file much larger).
   const [includePhotos, setIncludePhotos] = useState(true);
   const withPhotos  = expenses.filter((e) => e.receipt);
@@ -155,6 +158,14 @@ export default function ExportImportSheet({
   // ── Export handlers ──────────────────────────────────────────────────────────
 
   async function handleExport() {
+    if (exportTarget === 'group' && exportFormat === 'splitwise') {
+      const group = groups.find((g) => g.id === exportGroupId);
+      if (!group) return;
+      downloadSplitwiseCsv({ group, users, expenses, settlements });
+      setExportDone(true);
+      setTimeout(() => setExportDone(false), 3000);
+      return;
+    }
     const receipts =
       exportTarget === 'full' && includePhotos && withPhotos.length
         ? await photosFor(withPhotos.map((e) => e.id))
@@ -174,13 +185,18 @@ export default function ExportImportSheet({
   // ── Import handlers ──────────────────────────────────────────────────────────
 
   const handleFile = useCallback((file: File) => {
-    if (!file.name.endsWith('.json') && file.type !== 'application/json') {
-      setParseResult({ ok: false, errors: ['Please upload a .json file.'], warnings: [] });
+    const isJson = /\.json$/i.test(file.name) || file.type === 'application/json';
+    const isCsv = /\.csv$/i.test(file.name) || file.type === 'text/csv';
+    if (!isJson && !isCsv) {
+      setParseResult({ ok: false, errors: ['Please upload an OpenSplitwise .json backup or a Splitwise .csv export.'], warnings: [] });
       return;
     }
     const reader = new FileReader();
     reader.onload = (e) => {
-      const result = parseAndValidate(e.target?.result as string);
+      const text = e.target?.result as string;
+      const result = isCsv || looksLikeSplitwiseCsv(text)
+        ? parseSplitwiseCsv(text, file.name)
+        : parseAndValidate(text);
       setParseResult(result);
       setImportStatus('idle');
       setImportStats(null);
@@ -264,6 +280,8 @@ export default function ExportImportSheet({
   const exportedData = parseResult?.ok ? parseResult.data! : null;
   const isGroupExport = exportedData?.exportType === 'group';
   const isFullExport  = exportedData?.exportType === 'full';
+  // Its people get fresh ids, so there is nothing for a merge to line up with.
+  const isSplitwise   = exportedData?.meta.source === 'splitwise';
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -392,6 +410,21 @@ export default function ExportImportSheet({
                           </p>
                         ) : null;
                       })()}
+                      <label className="field-label" style={{ marginTop: 14 }}>Format</label>
+                      <select
+                        className="field-input eis-select"
+                        value={exportFormat}
+                        onChange={(e) => setExportFormat(e.target.value as 'json' | 'splitwise')}
+                      >
+                        <option value="json">OpenSplitwise backup (.json)</option>
+                        <option value="splitwise">Splitwise spreadsheet (.csv)</option>
+                      </select>
+                      {exportFormat === 'splitwise' && (
+                        <p className="eis-hint">
+                          Same layout as Splitwise&apos;s &ldquo;Export as spreadsheet&rdquo;. It keeps each
+                          person&apos;s balance but not receipts, notes or item splits, so use the .json to restore here.
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -465,14 +498,14 @@ export default function ExportImportSheet({
                           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="eis-dropzone-icon">
                             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
-                          <p className="eis-dropzone-text">Drop a .json file here</p>
+                          <p className="eis-dropzone-text">Drop a .json backup or Splitwise .csv here</p>
                           <p className="eis-dropzone-sub">or click to browse</p>
                         </div>
                       )}
                       <input
                         ref={fileRef}
                         type="file"
-                        accept=".json,application/json"
+                        accept=".json,.csv,application/json,text/csv"
                         style={{ display: 'none' }}
                         onChange={handleFileInput}
                       />
@@ -496,7 +529,9 @@ export default function ExportImportSheet({
                           <div className="eis-preview">
                             <div className="eis-preview-header">
                               <div className="eis-preview-badge">
-                                {isGroupExport ? `Group: ${exportedData.meta.groupName}` : 'Full Backup'}
+                                {isSplitwise
+                                  ? `Splitwise: ${exportedData.meta.groupName}`
+                                  : isGroupExport ? `Group: ${exportedData.meta.groupName}` : 'Full Backup'}
                               </div>
                               <button className="eis-text-btn-sm" onClick={resetImport}>Change file</button>
                             </div>
@@ -514,7 +549,9 @@ export default function ExportImportSheet({
                               ))}
                             </div>
                             <p className="eis-preview-date">
-                              Exported {new Date(exportedData.exportedAt).toLocaleString()} · v{exportedData.version}
+                              {isSplitwise
+                                ? 'From a Splitwise group export. You can rename the group after importing.'
+                                : <>Exported {new Date(exportedData.exportedAt).toLocaleString()} · v{exportedData.version}</>}
                             </p>
                           </div>
 
@@ -566,12 +603,12 @@ export default function ExportImportSheet({
                               </div>
                             )}
 
-                            <ImportModeCard
+                            {!isSplitwise && <ImportModeCard
                               selected={importMode === 'merge'}
                               onSelect={() => setImportMode('merge')}
                               title="Merge with existing data"
                               description="Adds new items from the file, skipping anything that already exists."
-                            />
+                            />}
 
                             {isFullExport && (
                               <>
@@ -616,7 +653,9 @@ export default function ExportImportSheet({
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ marginRight: 7, verticalAlign: 'middle' }}>
                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
-                      Download {exportTarget === 'group' ? 'Group' : 'Full'} Backup
+                      {exportTarget === 'group' && exportFormat === 'splitwise'
+                        ? 'Download Splitwise CSV'
+                        : `Download ${exportTarget === 'group' ? 'Group' : 'Full'} Backup`}
                     </>
                   )}
                 </button>
