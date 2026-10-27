@@ -449,6 +449,7 @@
 
   .gd {
     max-width: 1120px;
+    margin: 0 auto;
     width: 100%;
     padding: 32px 40px 64px;
     gap: 28px;
