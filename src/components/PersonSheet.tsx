@@ -37,6 +37,7 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
 
   const [name, setName] = useState(person?.name ?? '');
   const [avatarColor, setAvatarColor] = useState(person?.avatarColor ?? '#7c3aed');
+  const [phone, setPhone] = useState(person?.phone ?? '');
   const [confirmAction, setConfirmAction] = useState<'remove' | 'delete' | null>(null);
 
   if (!person) return null;
@@ -74,7 +75,7 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
 
   const handleSave = () => {
     const initials = name.trim().split(/\s+/).map(p => p[0]).join('').toUpperCase().slice(0, 2);
-    updateUser(userId, { name: name.trim(), avatarColor, initials });
+    updateUser(userId, { name: name.trim(), avatarColor, initials, ...(isSelf ? {} : { phone: phone.trim() || undefined }) });
     onClose();
   };
 
@@ -170,6 +171,24 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
                   placeholder="Full name"
                 />
               </div>
+
+              {/* Phone, for texting reminders */}
+              {!isSelf && (
+                <div className="field-group">
+                  <label className="field-label" htmlFor="ps-phone">Phone</label>
+                  <input
+                    id="ps-phone"
+                    className="field-input"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="off"
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    placeholder="Optional"
+                  />
+                  <p className="ps-field-note">Lets Remind open Messages addressed to {firstName}. Stays on this device.</p>
+                </div>
+              )}
 
               {/* Avatar colour */}
               <fieldset className="field-group ps-fieldset">

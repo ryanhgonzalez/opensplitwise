@@ -4,13 +4,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 import GroupTile from '../components/GroupTile';
 import BackupReminder from '../components/BackupReminder';
-import SettleModal, { type SettleMode } from '../components/SettleModal';
+import SettleModal from '../components/SettleModal';
+import RemindSheet from '../components/RemindSheet';
 import TransferExplainer from '../components/TransferExplainer';
 import { useStore, selectCurrentUser, selectMainCurrency, selectOverallBalances, selectRecentExpenses, selectGroupTotals } from '../store';
 import { directDebts, groupTransfers, simplifies } from '../lib/calculations';
 import { expenseAmountLabel, groupCurrency, recordCurrency } from '../lib/currency';
 import { nextOccurrence } from '../lib/recurring';
-import { formatCurrency, formatDate, formatLedgerDate, formatSigned, getNetAmountForUser } from '../utils';
+import { lastReminder } from '../lib/reminder';
+import { formatCurrency, formatDate, formatLedgerDate, formatRelativeDay, formatSigned, getNetAmountForUser } from '../utils';
 import type { PaymentMethod, RecurringExpense } from '../types';
 import './Dashboard.css';
 
@@ -25,10 +27,6 @@ interface ToSettle {
   rerouted: boolean;
 }
 
-interface Settling extends ToSettle {
-  mode: SettleMode;
-}
-
 /** "€51.70 · $37.50": the currencies with something in them, or zero in the first. */
 function amountsList(amounts: { amount: number; currency: string }[]): string {
   const some = amounts.filter((a) => a.amount >= 0.005);
@@ -40,7 +38,8 @@ const COMING_UP = 4;
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [settling, setSettling] = useState<Settling | null>(null);
+  const [settling, setSettling] = useState<ToSettle | null>(null);
+  const [reminding, setReminding] = useState<ToSettle | null>(null);
   const [explaining, setExplaining] = useState<ToSettle | null>(null);
 
   const currentUser = useStore(selectCurrentUser)!;
@@ -52,6 +51,7 @@ export default function Dashboard() {
   const expenses = useStore((s) => s.expenses);
   const payments = useStore((s) => s.settlements);
   const recurring = useStore((s) => s.recurring);
+  const activities = useStore((s) => s.activities);
   const groupTotals = useStore(selectGroupTotals);
   const addSettlement = useStore((s) => s.addSettlement);
 
@@ -113,8 +113,16 @@ export default function Dashboard() {
       .slice(0, COMING_UP);
   }, [recurring, myGroups]);
 
+  /** "3 days ago" when you've reminded them since they last paid you. */
+  const reminded = (personId: string): string | undefined => {
+    const last = lastReminder(activities, personId);
+    if (!last) return undefined;
+    const paidSince = payments.some((p) => p.fromUserId === personId && p.toUserId === currentUser.id && p.date > last.date);
+    return paidSince ? undefined : formatRelativeDay(last.date);
+  };
+
   const confirmSettle = (amount: number, method: PaymentMethod) => {
-    if (!settling || settling.mode === 'remind') return;
+    if (!settling) return;
     addSettlement({
       fromUserId: settling.from,
       toUserId: settling.to,
@@ -212,6 +220,9 @@ export default function Dashboard() {
                                 Why?
                               </button>
                             )}
+                            {theyOwe && reminded(other) && (
+                              <span className="dash-settle-reminded">Reminded {reminded(other)}</span>
+                            )}
                           </span>
                         </span>
                         <span className={`num dash-settle-amount ${theyOwe ? 'pos' : 'neg'}`}>
@@ -221,14 +232,14 @@ export default function Dashboard() {
                           {theyOwe && (
                             <button
                               className="btn btn-secondary btn-sm dash-remind"
-                              onClick={() => setSettling({ ...t, mode: 'remind' })}
+                              onClick={() => setReminding(t)}
                             >
                               Remind
                             </button>
                           )}
                           <button
                             className={`btn btn-sm ${theyOwe ? 'btn-outline' : 'btn-primary'}`}
-                            onClick={() => setSettling({ ...t, mode: 'settle' })}
+                            onClick={() => setSettling(t)}
                           >
                             {theyOwe ? (
                               <>
@@ -352,13 +363,24 @@ export default function Dashboard() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {reminding && (
+          <RemindSheet
+            personId={reminding.from}
+            amount={reminding.amount}
+            currency={reminding.currency}
+            groupIds={[reminding.groupId]}
+            onClose={() => setReminding(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {settling && (
           <SettleModal
             fromUserId={settling.from}
             toUserId={settling.to}
             amount={settling.amount}
             currency={settling.currency}
-            mode={settling.mode}
             groupLabel={getGroupById(settling.groupId)?.name}
             onClose={() => setSettling(null)}
             onConfirm={confirmSettle}

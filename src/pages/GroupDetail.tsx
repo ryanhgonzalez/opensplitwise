@@ -613,7 +613,6 @@ export default function GroupDetail() {
             toUserId={settling.to}
             amount={settling.amount}
             currency={cur}
-            mode="settle"
             groupLabel={group.name}
             onClose={() => setSettling(null)}
             onConfirm={handleSettle}

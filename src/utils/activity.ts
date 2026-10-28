@@ -59,6 +59,10 @@ export function getActivityDescription(
       }
       return `${actorName} settled up with ${toName}`;
     }
+    case 'reminder_sent': {
+      const toName = getUser(activity.toUserId)?.name ?? 'someone';
+      return `${actorName} reminded ${toName} about ${formatCurrency(activity.amount, activity.currency)}`;
+    }
   }
 }
 
@@ -125,6 +129,7 @@ export function isActivityPositive(
       return (getEditBalanceChange(activity, currentUserId) ?? 0) >= 0;
     case 'expense_deleted':
     case 'group_synced':
+    case 'reminder_sent':
       return false;
     case 'payment':
     case 'settled':
@@ -152,6 +157,7 @@ export function getActivityAmount(
       return Math.abs(getEditBalanceChange(activity, currentUserId) ?? 0);
     case 'expense_deleted':
     case 'group_synced':
+    case 'reminder_sent': // moves no money; the amount is in its description
       return 0;
     case 'payment':
     case 'settled':

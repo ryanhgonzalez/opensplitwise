@@ -1,6 +1,7 @@
 import type { User, Group, Expense, ExpenseSnapshot, Settlement, Activity, Tombstone, RecurringExpense } from '../types';
 import { deriveTotals } from './calculations';
 import { reviveDates } from './dates';
+import { shareableUser } from '../utils/user';
 
 // ─── Schema constants ─────────────────────────────────────────────────────────
 
@@ -122,7 +123,7 @@ export function buildGroupExport(state: ExportPayload, groupId: string): AppExpo
     memberIds.add(s.toUserId);
   }
 
-  const users = state.users.filter((u) => memberIds.has(u.id));
+  const users = state.users.filter((u) => memberIds.has(u.id)).map(shareableUser);
 
   // What each person owes you in this group alone: the app-wide balances
   // would mix in every other group you share with them.

@@ -777,3 +777,41 @@ describe('expense edits in the feed', () => {
     expect(getEditBalanceChange(old, me.id)).toBeUndefined();
   });
 });
+
+// ─── Reminders ────────────────────────────────────────────────────────────────
+
+describe('logReminder', () => {
+  it('notes the reminder in the feed without touching any balance', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const [alice] = others;
+    addEvenExpense(me.id, [me.id, alice.id], 100, group.id);
+    const before = friendBalances();
+
+    state().logReminder({ toUserId: alice.id, amount: 50, currency: 'USD', groupId: group.id, via: 'text' });
+
+    const [entry] = state().activities;
+    expect(entry).toMatchObject({ type: 'reminder_sent', actorId: me.id, toUserId: alice.id, amount: 50, via: 'text' });
+    expect(friendBalances()).toEqual(before);
+  });
+
+  it('goes when the person is deleted', () => {
+    const { others } = setup(['Me', 'Alice']);
+    state().logReminder({ toUserId: others[0].id, amount: 5, currency: 'USD', via: 'copy' });
+    state().deleteUser(others[0].id);
+    expect(state().activities.some((a) => a.type === 'reminder_sent')).toBe(false);
+  });
+});
+
+describe('private contact details', () => {
+  it('stay out of a shared group', async () => {
+    const { buildBundle } = await import('../lib/groupSync');
+    const { me, others, group } = setup(['Me', 'Alice']);
+    state().updateUser(others[0].id, { phone: '+15550102030' });
+    state().updateUser(me.id, { payHandles: { venmo: 'me' } });
+    addEvenExpense(me.id, [me.id, others[0].id], 10, group.id);
+    const bundle = buildBundle(state(), group.id, new Date())!;
+    expect(bundle.users.every((u) => u.phone === undefined && u.payHandles === undefined)).toBe(true);
+    // Still here on this phone.
+    expect(state().users.find((u) => u.id === others[0].id)?.phone).toBe('+15550102030');
+  });
+});

@@ -13,6 +13,7 @@ import type {
   ExpenseDeletedActivity,
   PaymentActivity,
   SettledActivity,
+  ReminderSentActivity,
   CategoryId,
   CustomCategory,
   CustomCategoryId,
@@ -37,7 +38,7 @@ export type CreateGroupInput = Omit<Group, 'id' | 'createdAt' | 'lastActivity'>;
 export type UpdateGroupInput = Partial<Omit<Group, 'id' | 'createdAt'>>;
 export type AddSettlementInput = Omit<Settlement, 'id' | 'createdAt'>;
 export type AddUserInput = { name: string; email?: string };
-export type UpdateUserInput = Partial<Pick<User, 'name' | 'email' | 'avatarColor' | 'initials'>>;
+export type UpdateUserInput = Partial<Pick<User, 'name' | 'email' | 'avatarColor' | 'initials' | 'phone' | 'payHandles'>>;
 
 /** Everything deleting an expense removed or added, so it can be undone exactly. */
 export interface DeletedExpense {
@@ -140,6 +141,8 @@ export interface AppStore {
    */
   settleWithUser: (input: SettleWithUserInput) => Settlement[];
   deleteSettlement: (id: string) => void;
+  /** Notes in the feed that you reminded someone. Nothing else changes. */
+  logReminder: (input: Pick<ReminderSentActivity, 'toUserId' | 'amount' | 'currency' | 'groupId' | 'via'>) => void;
 
   // ── User actions ──
   addUser: (input: AddUserInput) => User;
@@ -728,6 +731,17 @@ export const useStore = create<AppStore>()(
         },
 
         /** Undo a payment that was marked complete — balances rewind to before it. */
+        logReminder: (input) => {
+          const activity: ReminderSentActivity = {
+            id: uid(),
+            type: 'reminder_sent',
+            date: new Date(),
+            actorId: get().currentUserId,
+            ...input,
+          };
+          set({ activities: [activity, ...get().activities] }, false, 'logReminder');
+        },
+
         deleteSettlement: (id) => {
           const { settlements, activities, tombstones } = get();
           const settlement = settlements.find((s) => s.id === id);
@@ -783,6 +797,7 @@ export const useStore = create<AppStore>()(
             if (a.type === 'payment' || a.type === 'settled') {
               return a.fromUserId !== id && a.toUserId !== id;
             }
+            if (a.type === 'reminder_sent') return a.toUserId !== id;
             if (a.type === 'expense_added' || a.type === 'expense_updated') {
               return !purgedExpenseIds.has(a.expenseId);
             }

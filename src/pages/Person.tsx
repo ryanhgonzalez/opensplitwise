@@ -5,11 +5,13 @@ import { useStore, selectCurrentUser, selectFriendBalancesByCurrency } from '../
 import Avatar from '../components/Avatar';
 import GroupTile from '../components/GroupTile';
 import PersonSheet from '../components/PersonSheet';
-import SettleModal, { type SettleMode } from '../components/SettleModal';
+import SettleModal from '../components/SettleModal';
+import RemindSheet from '../components/RemindSheet';
 import TransferExplainer from '../components/TransferExplainer';
 import { directDebts, moneySign, outstandingByGroup, type SettlementTransaction } from '../lib/calculations';
 import { groupCurrency, recordCurrency } from '../lib/currency';
-import { formatCurrency, formatDate, formatLedgerDate, formatSigned } from '../utils';
+import { lastReminder } from '../lib/reminder';
+import { formatCurrency, formatDate, formatLedgerDate, formatRelativeDay, formatSigned } from '../utils';
 import type { PaymentMethod } from '../types';
 import './Person.css';
 
@@ -59,9 +61,11 @@ export default function Person() {
   const payments = useStore((s) => s.settlements);
   const byCurrency = useStore(selectFriendBalancesByCurrency);
   const settleWithUser = useStore((s) => s.settleWithUser);
+  const activities = useStore((s) => s.activities);
 
   const [editing, setEditing] = useState(false);
-  const [settling, setSettling] = useState<{ currency: string; amount: number; theyOwe: boolean; mode: SettleMode } | null>(null);
+  const [settling, setSettling] = useState<{ currency: string; amount: number; theyOwe: boolean } | null>(null);
+  const [reminding, setReminding] = useState<{ currency: string; amount: number; groupIds: string[] } | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [explaining, setExplaining] = useState<{ groupId: string; transfer: SettlementTransaction } | null>(null);
 
@@ -113,7 +117,7 @@ export default function Person() {
       ...b,
       groups: perGroup
         .filter((p) => p.currency === b.currency && Math.abs(p.net) >= 0.005 && Math.sign(p.net) === Math.sign(b.amount))
-        .map((p) => p.group.name),
+        .map((p) => p.group),
     }));
 
   // Expenses one of you paid with the other in the split, and payments between you.
@@ -166,11 +170,18 @@ export default function Person() {
   // With one currency the header's buttons act on it; with several, each row has its own.
   const single = between.length === 1 ? between[0] : undefined;
 
-  const openSettle = (b: { currency: string; amount: number }, mode: SettleMode) =>
-    setSettling({ currency: b.currency, amount: Math.abs(b.amount), theyOwe: b.amount > 0, mode });
+  const openSettle = (b: { currency: string; amount: number }) =>
+    setSettling({ currency: b.currency, amount: Math.abs(b.amount), theyOwe: b.amount > 0 });
+
+  // The last reminder, unless they've paid you since.
+  const reminder = lastReminder(activities, id);
+  const remindedLine =
+    reminder && !payments.some((p) => p.fromUserId === id && p.toUserId === me && p.date > reminder.date)
+      ? `Last reminded ${formatRelativeDay(reminder.date)}${reminder.via === 'text' ? ' by text' : ''}`
+      : undefined;
 
   const confirmSettle = (amount: number, method: PaymentMethod) => {
-    if (!settling || settling.mode === 'remind') return;
+    if (!settling) return;
     settleWithUser({
       fromUserId: settling.theyOwe ? id : me,
       toUserId: settling.theyOwe ? me : id,
@@ -181,14 +192,17 @@ export default function Person() {
     });
   };
 
-  const actions = (b: { currency: string; amount: number }, small = false) => (
+  const actions = (b: (typeof between)[number], small = false) => (
     <>
       {b.amount > 0 && (
-        <button className={`btn btn-secondary ${small ? 'btn-sm' : ''}`} onClick={() => openSettle(b, 'remind')}>
+        <button
+          className={`btn btn-secondary ${small ? 'btn-sm' : ''}`}
+          onClick={() => setReminding({ currency: b.currency, amount: b.amount, groupIds: b.groups.map((g) => g.id) })}
+        >
           Remind
         </button>
       )}
-      <button className={`btn btn-primary ${small ? 'btn-sm' : ''}`} onClick={() => openSettle(b, 'settle')}>
+      <button className={`btn btn-primary ${small ? 'btn-sm' : ''}`} onClick={() => openSettle(b)}>
         Settle up
       </button>
     </>
@@ -232,7 +246,7 @@ export default function Person() {
                         <span className="person-between-who">
                           {b.amount > 0 ? `${firstName} owes you` : `You owe ${firstName}`}
                         </span>
-                        {b.groups.length > 0 && <span className="text-xs text-secondary">{b.groups.join(', ')}</span>}
+                        {b.groups.length > 0 && <span className="text-xs text-secondary">{b.groups.map((g) => g.name).join(', ')}</span>}
                       </span>
                       <span className={`num person-between-amount ${signClass(b.amount)}`}>
                         {formatCurrency(Math.abs(b.amount), b.currency)}
@@ -255,6 +269,9 @@ export default function Person() {
                     </button>
                   </p>
                 ))}
+              {remindedLine && between.some((b) => b.amount > 0) && (
+                <p className="text-xs text-secondary person-note">{remindedLine}</p>
+              )}
               {between.length > 0 && (
                 <p className="text-xs text-secondary person-note">
                   Settle up records a payment {between.length > 1 ? 'in one currency at a time' : 'either way'}. It's
@@ -326,13 +343,24 @@ export default function Person() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {reminding && (
+          <RemindSheet
+            personId={id}
+            amount={reminding.amount}
+            currency={reminding.currency}
+            groupIds={reminding.groupIds}
+            onClose={() => setReminding(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {settling && (
           <SettleModal
             fromUserId={settling.theyOwe ? id : me}
             toUserId={settling.theyOwe ? me : id}
             amount={settling.amount}
             currency={settling.currency}
-            mode={settling.mode}
             onClose={() => setSettling(null)}
             onConfirm={confirmSettle}
           />

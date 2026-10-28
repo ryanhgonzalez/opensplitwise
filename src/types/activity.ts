@@ -58,8 +58,19 @@ export interface GroupSyncedActivity extends BaseActivity {
   deleted: number;
 }
 
+/** You reminded someone what they owe. Nothing changes hands. */
+export interface ReminderSentActivity extends BaseActivity {
+  type: 'reminder_sent';
+  toUserId: string;
+  amount: number;
+  currency: string;
+  /** How it went out: a text, the share sheet, or copied to paste somewhere. */
+  via: 'text' | 'share' | 'copy';
+}
+
 export type Activity =
   | GroupSyncedActivity
+  | ReminderSentActivity
   | ExpenseAddedActivity
   | ExpenseUpdatedActivity
   | ExpenseDeletedActivity

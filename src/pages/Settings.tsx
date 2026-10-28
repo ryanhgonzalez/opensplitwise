@@ -12,6 +12,8 @@ import { formatBytes } from '../lib/receiptPhotos';
 import { isOcrDownloaded, RECEIPT_OCR } from '../lib/receiptOcr';
 import { shouldOfferInstall, showInstallGuide } from '../lib/pwa';
 import { formatRelativeDay } from '../utils/format';
+import { cleanHandle } from '../lib/reminder';
+import type { PayHandles } from '../types';
 import './Settings.css';
 
 const THEMES: { value: ThemeMode; label: string }[] = [
@@ -25,6 +27,60 @@ function Chevron() {
     <svg className="settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+const PAY_APPS: { key: keyof PayHandles; label: string; prefix: string; placeholder: string }[] = [
+  { key: 'venmo', label: 'Venmo', prefix: '@', placeholder: 'username' },
+  { key: 'cashapp', label: 'Cash App', prefix: '$', placeholder: 'cashtag' },
+  { key: 'paypal', label: 'PayPal', prefix: 'paypal.me/', placeholder: 'name' },
+];
+
+/** Your names on payment apps, so reminders can carry a link that pays you. */
+function GettingPaid() {
+  const currentUser = useStore(selectCurrentUser)!;
+  const updateUser = useStore((s) => s.updateUser);
+  const [draft, setDraft] = useState<PayHandles>(currentUser.payHandles ?? {});
+
+  const save = (key: keyof PayHandles) => {
+    const value = cleanHandle(draft[key] ?? '');
+    const next = { ...(currentUser.payHandles ?? {}), [key]: value || undefined };
+    setDraft((d) => ({ ...d, [key]: value }));
+    updateUser(currentUser.id, { payHandles: next });
+  };
+
+  return (
+    <section className="settings-section" aria-labelledby="settings-paid">
+      <h2 id="settings-paid" className="settings-section-title">Getting paid</h2>
+      <div className="settings-section-body">
+        <p className="settings-section-intro">
+          Reminders include a link that opens a payment to you, amount filled in. Venmo and Cash App only work for
+          dollars. These stay on this device.
+        </p>
+        <div className="settings-rows">
+          {PAY_APPS.map(({ key, label, prefix, placeholder }) => (
+            <label key={key} className="settings-row settings-pay-row">
+              <span className="settings-row-label">{label}</span>
+              <span className="settings-pay-field">
+                <span className="settings-pay-prefix" aria-hidden>{prefix}</span>
+                <input
+                  className="settings-pay-input"
+                  value={draft[key] ?? ''}
+                  onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+                  onBlur={() => save(key)}
+                  onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                  placeholder={placeholder}
+                  aria-label={`Your ${label} ${placeholder}`}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                />
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -101,6 +157,8 @@ export default function Settings() {
             Switch person
           </button>
         </div>
+
+        <GettingPaid key={currentUser.id} />
 
         <section className="settings-section" aria-labelledby="settings-appearance">
           <h2 id="settings-appearance" className="settings-section-title">Appearance</h2>

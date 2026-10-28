@@ -287,3 +287,59 @@ button.settings-row:disabled {
     border-top: 1px solid var(--rule);
   }
 }
+
+/* ── Getting paid ──────────────────────────────────────────────────────────── */
+.settings-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.settings-section-intro {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.settings-pay-row {
+  cursor: text;
+}
+
+.settings-pay-row .settings-row-label {
+  flex: 0 0 84px;
+}
+
+.settings-pay-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+}
+
+.settings-pay-field:focus-within {
+  border-color: var(--ink);
+}
+
+.settings-pay-prefix {
+  flex: none;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.settings-pay-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}

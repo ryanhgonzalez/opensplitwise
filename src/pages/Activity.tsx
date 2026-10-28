@@ -39,6 +39,7 @@ const KIND: Record<Activity['type'], { tag: string; cls: string; label: string }
   payment: { tag: 'PAY', cls: 'k-pay', label: 'Payment' },
   settled: { tag: 'PAY', cls: 'k-pay', label: 'Settled up' },
   group_synced: { tag: 'SYN', cls: 'k-exp', label: 'Group received' },
+  reminder_sent: { tag: 'REM', cls: 'k-pay', label: 'Reminder sent' },
 };
 
 function groupByDate(items: Activity[]) {
@@ -66,7 +67,7 @@ export default function ActivityPage() {
 
   const filtered = allActivities.filter((a) => {
     if (filter === 'expenses') return a.type === 'expense_added' || a.type === 'expense_updated';
-    if (filter === 'payments') return a.type === 'payment' || a.type === 'settled';
+    if (filter === 'payments') return a.type === 'payment' || a.type === 'settled' || a.type === 'reminder_sent';
     return true;
   });
 
@@ -121,12 +122,15 @@ export default function ActivityPage() {
                   ? getExpenseById(activity.expenseId)
                   : undefined;
 
-              // An expense opens its page; a payment, or an expense since deleted, opens its group.
+              // An expense opens its page; a reminder, the person; a payment, or an
+              // expense since deleted, opens its group.
               const to = expense?.groupId
                 ? `/groups/${expense.groupId}/expenses/${expense.id}`
-                : group
-                  ? `/groups/${group.id}`
-                  : undefined;
+                : activity.type === 'reminder_sent' && getUserById(activity.toUserId)
+                  ? `/people/${activity.toUserId}`
+                  : group
+                    ? `/groups/${group.id}`
+                    : undefined;
 
               return (
                 <ActivityLine key={activity.id} to={to}>

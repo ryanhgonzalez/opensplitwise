@@ -1,0 +1,101 @@
+/* Remind sheet: shares the pay sheet's frame (SettleModal.css). */
+.remind-tone {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.remind-tone-opt {
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.remind-tone-opt:hover {
+  background: var(--panel);
+}
+
+.remind-tone-opt.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
+}
+
+.remind-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.remind-message {
+  width: 100%;
+  min-height: 190px;
+  resize: vertical;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.remind-hint {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.remind-hint a {
+  color: var(--owed);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.remind-phone {
+  margin-top: 12px;
+}
+
+.remind-phone-form {
+  display: flex;
+  gap: 8px;
+}
+
+.remind-phone-form .field-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.remind-link {
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--owed);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.remind-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.remind-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.remind-secondary {
+  width: 100%;
+  min-height: 48px;
+}

@@ -10,6 +10,7 @@ import type {
   Tombstone,
   User,
 } from '../types';
+import { shareableUser } from '../utils/user';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sharing a group between phones, with no server.
@@ -99,7 +100,7 @@ export function buildBundle(state: SyncState, groupId: string, now = new Date())
     sentAt: now,
     senderId: state.currentUserId,
     group: { ...group, updatedAt: editedAt(group) },
-    users: state.users.filter((u) => mentioned.has(u.id)),
+    users: state.users.filter((u) => mentioned.has(u.id)).map(shareableUser),
     expenses,
     settlements,
     tombstones: state.tombstones.filter((t) => t.groupId === groupId),

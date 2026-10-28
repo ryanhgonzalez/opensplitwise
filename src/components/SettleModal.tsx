@@ -8,12 +8,6 @@ import { currencySymbol } from '../lib/currency';
 import type { PaymentMethod } from '../types';
 import './SettleModal.css';
 
-/**
- * `settle` — record the payment, clearing that much of the debt.
- * `remind` — nudge only, nothing is recorded.
- */
-export type SettleMode = 'settle' | 'remind';
-
 const paymentMethods: { id: PaymentMethod; label: string }[] = [
   { id: 'venmo', label: 'Venmo' },
   { id: 'cashapp', label: 'Cash App' },
@@ -30,7 +24,6 @@ interface SettleModalProps {
   amount: number;
   /** What `amount` and the payment are in. */
   currency: string;
-  mode: SettleMode;
   /** Shown as context when settling inside a group. */
   groupLabel?: string;
   onClose: () => void;
@@ -42,7 +35,6 @@ export default function SettleModal({
   toUserId,
   amount,
   currency,
-  mode,
   groupLabel,
   onClose,
   onConfirm,
@@ -62,7 +54,6 @@ export default function SettleModal({
 
   if (!payer || !recipient) return null;
 
-  const isRemind = mode === 'remind';
   const iAmPayer = fromUserId === currentUser.id;
   const iAmRecipient = toUserId === currentUser.id;
   /** The person on the other side of the payment, from the current user's view. */
@@ -76,19 +67,16 @@ export default function SettleModal({
   const settlesUp = validAmount && remaining <= 0.005;
 
   const handleConfirm = () => {
-    if (!isRemind) {
-      if (!validAmount) return;
-      const settledAmount = round(parsed);
-      setPaidAmount(settledAmount);
-      onConfirm(settledAmount, method);
-    }
+    if (!validAmount) return;
+    const settledAmount = round(parsed);
+    setPaidAmount(settledAmount);
+    onConfirm(settledAmount, method);
     setConfirmed(true);
     closeTimer.current = setTimeout(onClose, 1800);
   };
 
   const title =
-    isRemind ? `Remind ${otherName}`
-    : iAmPayer ? `Pay ${otherName}`
+    iAmPayer ? `Pay ${otherName}`
     : iAmRecipient ? `${otherName} paid you`
     : `${payer.name.split(' ')[0]} paid ${recipient.name.split(' ')[0]}`;
 
@@ -103,26 +91,21 @@ export default function SettleModal({
   // than advertising a $0.00 payment.
   const sum = validAmount ? ` ${formatCurrency(parsed, currency)}` : '';
   const confirmLabel =
-    isRemind ? 'Send Reminder'
-    : iAmPayer ? `Pay${sum}`
+    iAmPayer ? `Pay${sum}`
     : iAmRecipient ? `Mark${sum} received`
     : `Record${sum} payment`;
 
   const successTitle =
-    isRemind ? `Reminder sent to ${otherName}`
-    : iAmRecipient ? 'Payment received'
+    iAmRecipient ? 'Payment received'
     : 'Payment recorded';
 
   const settledWith = iAmPayer || iAmRecipient
     ? `you're all square with ${otherName}`
     : `${payer.name.split(' ')[0]} and ${recipient.name.split(' ')[0]} are square`;
 
-  const successDetail =
-    isRemind
-      ? `You'll be notified when ${otherName} pays`
-      : settlesUp
-        ? `${formatCurrency(paidAmount, currency)} settled — ${settledWith}`
-        : `${formatCurrency(paidAmount, currency)} recorded · ${formatCurrency(remaining, currency)} still outstanding`;
+  const successDetail = settlesUp
+    ? `${formatCurrency(paidAmount, currency)} settled — ${settledWith}`
+    : `${formatCurrency(paidAmount, currency)} recorded · ${formatCurrency(remaining, currency)} still outstanding`;
 
   return (
     <motion.div
@@ -181,74 +164,66 @@ export default function SettleModal({
                 {groupLabel && <span className="modal-group-chip">{groupLabel}</span>}
               </div>
 
-              {isRemind ? (
+              <div className="modal-amount-field">
                 <div className="modal-amount">
                   <span className="amount-currency">{currencySymbol(currency)}</span>
-                  <span className="amount-value">{amount.toFixed(2)}</span>
+                  <input
+                    className="amount-input"
+                    value={rawAmount}
+                    onChange={(e) => setRawAmount(e.target.value.replace(/[^\d.]/g, ''))}
+                    onFocus={(e) => e.target.select()}
+                    inputMode="decimal"
+                    aria-label="Payment amount"
+                    size={Math.max(rawAmount.length, 1)}
+                  />
                 </div>
-              ) : (
-                <div className="modal-amount-field">
-                  <div className="modal-amount">
-                    <span className="amount-currency">{currencySymbol(currency)}</span>
-                    <input
-                      className="amount-input"
-                      value={rawAmount}
-                      onChange={(e) => setRawAmount(e.target.value.replace(/[^\d.]/g, ''))}
-                      onFocus={(e) => e.target.select()}
-                      inputMode="decimal"
-                      aria-label="Payment amount"
-                      size={Math.max(rawAmount.length, 1)}
-                    />
-                  </div>
-                  <div className="amount-hint">
-                    {overMax ? (
-                      <span className="text-red text-xs">
-                        Only {formatCurrency(amount, currency)} is outstanding
+                <div className="amount-hint">
+                  {overMax ? (
+                    <span className="text-red text-xs">
+                      Only {formatCurrency(amount, currency)} is outstanding
+                    </span>
+                  ) : !validAmount ? (
+                    <span className="text-red text-xs">Enter an amount</span>
+                  ) : settlesUp ? (
+                    <span className="text-green text-xs">Settles this balance in full</span>
+                  ) : (
+                    <>
+                      <span className="text-xs text-secondary">
+                        Partial · {formatCurrency(remaining, currency)} will remain
                       </span>
-                    ) : !validAmount ? (
-                      <span className="text-red text-xs">Enter an amount</span>
-                    ) : settlesUp ? (
-                      <span className="text-green text-xs">Settles this balance in full</span>
-                    ) : (
-                      <>
-                        <span className="text-xs text-secondary">
-                          Partial · {formatCurrency(remaining, currency)} will remain
-                        </span>
-                        <button className="amount-full-btn" onClick={() => setRawAmount(amount.toFixed(2))}>
-                          Full amount
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {!isRemind && (
-                <div className="payment-methods">
-                  <p className="text-sm text-secondary" style={{ marginBottom: 10 }}>
-                    {iAmPayer ? 'Pay via' : 'Paid via'}
-                  </p>
-                  <div className="payment-grid">
-                    {paymentMethods.map((pm) => (
-                      <button
-                        key={pm.id}
-                        className={`payment-method-btn ${method === pm.id ? 'active' : ''}`}
-                        aria-pressed={method === pm.id}
-                        onClick={() => setMethod(pm.id)}
-                      >
-                        {pm.label}
+                      <button className="amount-full-btn" onClick={() => setRawAmount(amount.toFixed(2))}>
+                        Full amount
                       </button>
-                    ))}
-                  </div>
+                    </>
+                  )}
                 </div>
-              )}
+              </div>
+
+              <div className="payment-methods">
+                <p className="text-sm text-secondary" style={{ marginBottom: 10 }}>
+                  {iAmPayer ? 'Pay via' : 'Paid via'}
+                </p>
+                <div className="payment-grid">
+                  {paymentMethods.map((pm) => (
+                    <button
+                      key={pm.id}
+                      className={`payment-method-btn ${method === pm.id ? 'active' : ''}`}
+                      aria-pressed={method === pm.id}
+                      onClick={() => setMethod(pm.id)}
+                    >
+                      {pm.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
 
               <div className="modal-actions">
                 <button className="modal-cancel" onClick={onClose}>Cancel</button>
                 <motion.button
                   className="modal-confirm"
                   onClick={handleConfirm}
-                  disabled={!isRemind && !validAmount}
+                  disabled={!validAmount}
                   whileTap={{ scale: 0.97 }}
                 >
                   {confirmLabel}

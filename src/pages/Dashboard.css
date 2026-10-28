@@ -120,6 +120,13 @@
 }
 
 /* Opens the explanation for a payment simplifying sent this way */
+.dash-settle-reminded {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .dash-settle-why {
   flex-shrink: 0;
   padding: 0;
