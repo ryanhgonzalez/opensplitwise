@@ -5,6 +5,7 @@ import Avatar from './Avatar';
 import { useStore, selectCurrentUser } from '../store';
 import { formatCurrency } from '../utils';
 import { buildReminder, payLinks, reminderItems, smsLink, type Tone } from '../lib/reminder';
+import { contactPicker } from '../lib/contacts';
 import type { ReminderSentActivity } from '../types';
 import './SettleModal.css';
 import './RemindSheet.css';
@@ -18,11 +19,6 @@ interface RemindSheetProps {
   groupIds: string[];
   onClose: () => void;
 }
-
-/** Android Chrome's contact picker. Not in Safari, so it's optional. */
-type ContactsManager = { select: (props: string[], opts?: { multiple?: boolean }) => Promise<{ tel?: string[] }[]> };
-const contactPicker = (): ContactsManager | undefined =>
-  (navigator as Navigator & { contacts?: ContactsManager }).contacts;
 
 const canShare = () => typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 

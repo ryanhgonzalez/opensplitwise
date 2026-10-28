@@ -146,6 +146,8 @@ export interface AppStore {
 
   // ── User actions ──
   addUser: (input: AddUserInput) => User;
+  /** Adds people from contacts, and gives a number to people here without one. */
+  importContacts: (rows: { name: string; phone?: string; email?: string; userId?: string }[]) => { added: number; updated: number };
   updateUser: (id: string, updates: UpdateUserInput) => void;
   deleteUser: (id: string) => void;
 
@@ -769,6 +771,28 @@ export const useStore = create<AppStore>()(
           const user = { ...makeUser(name, get().users.length), email };
           set({ users: [...get().users, user] }, false, 'addUser');
           return user;
+        },
+
+        importContacts: (rows) => {
+          const users = [...get().users];
+          let added = 0;
+          let updated = 0;
+          for (const row of rows) {
+            const at = row.userId ? users.findIndex((u) => u.id === row.userId) : -1;
+            if (at >= 0) {
+              const u = users[at];
+              users[at] = { ...u, phone: u.phone || row.phone, email: u.email || row.email };
+              updated++;
+            } else if (row.name.trim()) {
+              const user: User = { ...makeUser(row.name, users.length) };
+              if (row.phone) user.phone = row.phone;
+              if (row.email) user.email = row.email;
+              users.push(user);
+              added++;
+            }
+          }
+          set({ users }, false, 'importContacts');
+          return { added, updated };
         },
 
         updateUser: (id, updates) =>

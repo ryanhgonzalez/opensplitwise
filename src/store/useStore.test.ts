@@ -815,3 +815,16 @@ describe('private contact details', () => {
     expect(state().users.find((u) => u.id === others[0].id)?.phone).toBe('+15550102030');
   });
 });
+
+describe('importContacts', () => {
+  it('adds new people with their details and gives a number to someone here', () => {
+    const { others } = setup(['Me', 'Alice']);
+    const result = state().importContacts([
+      { name: 'Bob Reis', phone: '+15550001111', email: 'bob@example.com' },
+      { name: 'Alice', phone: '+15552223333', userId: others[0].id },
+    ]);
+    expect(result).toEqual({ added: 1, updated: 1 });
+    expect(state().users.find((u) => u.name === 'Bob Reis')).toMatchObject({ phone: '+15550001111', email: 'bob@example.com', initials: 'BR' });
+    expect(state().users.find((u) => u.id === others[0].id)?.phone).toBe('+15552223333');
+  });
+});
