@@ -201,7 +201,6 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
                     placeholder="Group name…"
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    autoFocus
                   />
                 </div>
               </div>
