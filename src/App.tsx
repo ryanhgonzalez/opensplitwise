@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from './store';
 import BottomNav from './components/BottomNav';
@@ -21,30 +21,55 @@ import ToastHost from './components/ToastHost';
 import { requestPersistentStorage } from './lib/dataSafety';
 import { removeOrphanPhotos } from './lib/receiptPhotos';
 
+// Going to a page fades it in. Going back or forward (the back button, or a
+// swipe, which already animates on its own) swaps pages at once: fading on
+// top of the phone's own animation looked like the page reloading.
+const EASE = [0.4, 0, 0.2, 1] as [number, number, number, number];
 const pageVariants = {
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] } },
-  exit: { opacity: 0, y: -8, transition: { duration: 0.2 } },
+  initial: (back: boolean) => (back ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }),
+  animate: (back: boolean) => ({ opacity: 1, y: 0, transition: { duration: back ? 0 : 0.3, ease: EASE } }),
+  exit: (back: boolean) => (back ? { opacity: 1, transition: { duration: 0 } } : { opacity: 0, y: -8, transition: { duration: 0.2 } }),
 };
+
+/** How far down each visited page was scrolled, by history entry, to put back on returning. */
+const scrollPositions = new Map<string, number>();
 
 function ToShareHub() {
   const { id } = useParams<{ id: string }>();
   return <Navigate to={`/share?group=${id}`} replace />;
 }
 
+/** Puts a page back where it was scrolled to when it's returned to (back or forward). */
+function ScrollMemory({ entry, back }: { entry: string; back: boolean }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    // Each page scrolls in its own .page-content, rebuilt when it opens.
+    const scroller = ref.current?.parentElement?.querySelector<HTMLElement>('.page-content');
+    if (!scroller) return;
+    if (back) scroller.scrollTop = scrollPositions.get(entry) ?? 0;
+    const remember = () => scrollPositions.set(entry, scroller.scrollTop);
+    scroller.addEventListener('scroll', remember, { passive: true });
+    return () => scroller.removeEventListener('scroll', remember);
+  }, [entry, back]);
+  return <span ref={ref} hidden />;
+}
+
 function AnimatedRoutes() {
   const location = useLocation();
+  const back = useNavigationType() === 'POP';
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode="wait" custom={back}>
       <motion.div
         key={location.pathname}
         style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
         variants={pageVariants}
+        custom={back}
         initial="initial"
         animate="animate"
         exit="exit"
       >
+        <ScrollMemory entry={location.key} back={back} />
         <Routes location={location}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/groups" element={<Groups />} />
