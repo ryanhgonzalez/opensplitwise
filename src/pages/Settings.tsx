@@ -346,7 +346,6 @@ export default function Settings() {
                 value={wipeNameInput}
                 onChange={(e) => setWipeNameInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleWipe()}
-                autoFocus
                 autoComplete="off"
               />
               <div className="settings-wipe-actions">
