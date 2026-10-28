@@ -24,7 +24,7 @@ import type {
 //     edited on both since the last share is listed as a conflict.
 //   • A deletion marker removes the other copy unless it was edited after.
 //   • Payments never change once made: they're only added or deleted.
-//   • Group details (name, look, currency) follow the newer `updatedAt`;
+//   • Group details (name, look, currency, simplifying) follow the newer `updatedAt`;
 //     members and categories are combined, less any removed on either phone
 //     (a member added again after their removal stays).
 //   • Each phone has its own id for each person. The first time, the
@@ -283,6 +283,7 @@ export function mergeBundle(
       color: details.color,
       type: details.type,
       currency: details.currency,
+      simplifyDebts: details.simplifyDebts,
       members,
       categories: categories.filter((c) => !isDeleted('category', c.id)),
       updatedAt: theirsNewer ? editedAt(bundle.group) : editedAt(local),

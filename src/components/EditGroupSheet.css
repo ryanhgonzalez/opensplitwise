@@ -129,3 +129,32 @@
   background: var(--owe);
   color: #ffffff;
 }
+
+/* ── Simplify debts ────────────────────────────────────────────────────────── */
+.egs-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.egs-toggle input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--ink);
+}
+
+.egs-toggle-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.egs-toggle-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}

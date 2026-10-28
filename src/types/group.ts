@@ -22,6 +22,12 @@ export interface Group {
   members: GroupMember[];
   /** ISO 4217 code every amount in this group is in. Absent on older data, which is US dollars. */
   currency?: string;
+  /**
+   * Whether the payments to settle up are simplified: the fewest payments,
+   * which can have someone pay a person they don't owe directly. Off, everyone
+   * pays who they owe. Absent (older data, and new groups) means on.
+   */
+  simplifyDebts?: boolean;
   /** Categories made for this group, offered next to the built-in ones. Absent on older data. */
   categories?: CustomCategory[];
   lastActivity: Date;

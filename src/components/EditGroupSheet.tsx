@@ -4,6 +4,7 @@ import { useStore, selectCurrentUser } from '../store';
 import { firstGrapheme } from '../lib/emoji';
 import { MAX_CATEGORY_NAME, cleanCategoryName, findCategoryByName } from '../lib/categories';
 import { groupCurrency } from '../lib/currency';
+import { simplifies } from '../lib/calculations';
 import CurrencySelect from './CurrencySelect';
 import type { CustomCategoryId, Group, GroupType } from '../types';
 import Avatar from './Avatar';
@@ -38,12 +39,14 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
   const addGroupCategory = useStore(s => s.addGroupCategory);
   const removeGroupCategory = useStore(s => s.removeGroupCategory);
   const expenses = useStore(s => s.expenses);
+  const hasPayments = useStore(s => s.settlements.some(st => st.groupId === group.id));
 
   const [name, setName] = useState(group.name);
   const [emoji, setEmoji] = useState(group.emoji);
   const [color, setColor] = useState(group.color);
   const [type, setType] = useState<GroupType>(group.type);
   const [currency, setCurrency] = useState(groupCurrency(group));
+  const [simplify, setSimplify] = useState(simplifies(group));
   const [memberIds, setMemberIds] = useState<Set<string>>(
     new Set(group.members.map(m => m.userId))
   );
@@ -111,7 +114,7 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
   const handleSave = () => {
     if (!name.trim()) return;
 
-    updateGroup(group.id, { name: name.trim(), emoji, color, type, currency });
+    updateGroup(group.id, { name: name.trim(), emoji, color, type, currency, simplifyDebts: simplify });
 
     // Diff members: add newly selected, remove deselected.
     const origIds = new Set(group.members.map(m => m.userId));
@@ -312,6 +315,32 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
                   <p className="egs-currency-note">
                     Existing amounts keep their numbers and are relabelled as {currency}; they aren't converted.
                     Use this to fix the currency, not to change it partway through.
+                  </p>
+                )}
+              </div>
+
+              {/* Simplify debts */}
+              <div className="field-group">
+                <label className="egs-toggle">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={simplify}
+                    onChange={(e) => setSimplify(e.target.checked)}
+                  />
+                  <span>
+                    <span className="egs-toggle-title">Simplify debts</span>
+                    <span className="egs-toggle-sub">
+                      {simplify
+                        ? 'Fewer payments. Someone may pay a person they don\u2019t owe directly; everyone still ends up even.'
+                        : 'Everyone pays the people they owe directly. More payments, but each one matches a shared expense.'}
+                    </span>
+                  </span>
+                </label>
+                {!simplify && simplifies(group) && hasPayments && (
+                  <p className="egs-currency-note">
+                    Payments already made followed the simplified plan, so some people may now show new debts to
+                    each other. Everyone's overall total stays the same.
                   </p>
                 )}
               </div>

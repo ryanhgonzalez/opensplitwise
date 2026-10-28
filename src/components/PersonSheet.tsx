@@ -51,7 +51,7 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
   const groupExpenses = group ? allExpenses.filter(e => e.groupId === groupId) : [];
   const groupSettlements = group ? allSettlements.filter(s => s.groupId === groupId) : [];
   const owedInGroup = (from: string, to: string) =>
-    outstandingByGroup(groupExpenses, groupSettlements, from, to, groupCur).reduce((sum, b) => sum + b.outstanding, 0);
+    outstandingByGroup(groupExpenses, groupSettlements, from, to, groupCur, group ? [group] : []).reduce((sum, b) => sum + b.outstanding, 0);
   const balances: { currency: string; amount: number }[] = group
     ? [{ currency: groupCur, amount: owedInGroup(userId, me) - owedInGroup(me, userId) }]
     : Object.entries(byCurrency).map(([currency, b]) => ({ currency, amount: b[userId] ?? 0 }));

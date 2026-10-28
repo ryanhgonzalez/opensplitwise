@@ -7,7 +7,7 @@ import BackupReminder from '../components/BackupReminder';
 import SettleModal, { type SettleMode } from '../components/SettleModal';
 import TransferExplainer from '../components/TransferExplainer';
 import { useStore, selectCurrentUser, selectMainCurrency, selectOverallBalances, selectRecentExpenses, selectGroupTotals } from '../store';
-import { calculateSettlements, directDebts } from '../lib/calculations';
+import { directDebts, groupTransfers, simplifies } from '../lib/calculations';
 import { expenseAmountLabel, groupCurrency, recordCurrency } from '../lib/currency';
 import { nextOccurrence } from '../lib/recurring';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned, getNetAmountForUser } from '../utils';
@@ -87,7 +87,7 @@ export default function Dashboard() {
       const groupPayments = payments.filter((p) => p.groupId === g.id);
       const snapshot = { expenses: groupExpenses, memberIds, settlements: groupPayments };
       const direct = directDebts(snapshot);
-      return calculateSettlements(snapshot)
+      return groupTransfers(snapshot, simplifies(g))
         .filter((t) => t.from === currentUser.id || t.to === currentUser.id)
         .map((t) => ({
           ...t,

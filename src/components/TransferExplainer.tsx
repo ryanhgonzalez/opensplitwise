@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import Avatar from './Avatar';
 import { useStore, selectCurrentUser } from '../store';
-import { calculateSettlements, directDebts, type SettlementTransaction } from '../lib/calculations';
+import { directDebts, groupTransfers, simplifies, type SettlementTransaction } from '../lib/calculations';
 import { groupCurrency } from '../lib/currency';
 import { formatCurrency } from '../utils';
 import './SettleModal.css';
@@ -40,7 +40,7 @@ export default function TransferExplainer({ groupId, transfer, showGroup = false
       settlements: allSettlements.filter((s) => s.groupId === groupId),
       memberIds: group?.members.map((m) => m.userId) ?? [],
     };
-    return { transfers: calculateSettlements(snapshot), direct: directDebts(snapshot) };
+    return { transfers: groupTransfers(snapshot, simplifies(group)), direct: directDebts(snapshot) };
   }, [allExpenses, allSettlements, groupId, group]);
 
   const payer = users.find((u) => u.id === transfer.from);

@@ -3,7 +3,7 @@
  * No React, Zustand, or UI dependencies — safe to test in isolation.
  */
 
-import type { Expense, ExpenseSplit, Settlement, SplitEntry, SplitType } from '../types';
+import type { Expense, ExpenseSplit, Group, Settlement, SplitEntry, SplitType } from '../types';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -413,6 +413,22 @@ export function isSimplified(transfers: SettlementTransaction[], direct: DirectD
   );
 }
 
+// ─── A group's payments, simplified or not ────────────────────────────────────
+
+/** Each group's choice, from its settings. */
+export type SimplifySetting = Pick<Group, 'id' | 'simplifyDebts'>;
+
+/** Whether a group simplifies its payments: on unless turned off. */
+export const simplifies = (group?: Pick<Group, 'simplifyDebts'>): boolean => group?.simplifyDebts !== false;
+
+/**
+ * The payments that would settle a group. Simplified: the fewest payments
+ * (see `settleBalances`). Not: each person pays who they owe directly.
+ */
+export function groupTransfers(snapshot: GroupSnapshot, simplify = true): SettlementTransaction[] {
+  return simplify ? calculateSettlements(snapshot) : directDebts(snapshot).map(({ from, to, amount }) => ({ from, to, amount }));
+}
+
 // ─── Suggested debts (what everyone sees as owed) ─────────────────────────────
 
 /** One payment the app suggests, in the ledger it belongs to. */
@@ -428,14 +444,19 @@ export interface SuggestedDebt {
 /**
  * Every payment still needed to settle up, across all groups.
  *
- * Inside a group these are the simplified transfers from `calculateSettlements`,
- * the same ones the group screen lists, so "Frank owes you" means the same
- * thing on every screen and settling the group clears it everywhere. Records
- * with no group aren't simplified: each pair's direct debt stands on its own.
+ * Inside a group these are the group's own payments (`groupTransfers`, as its
+ * settings say: simplified unless turned off), the same ones the group screen
+ * lists, so "Frank owes you" means the same thing on every screen and settling
+ * the group clears it everywhere. Records with no group aren't simplified:
+ * each pair's direct debt stands on its own.
  *
  * Each group and currency is its own ledger: a debt in one never offsets another.
  */
-export function suggestedDebts(expenses: Expense[], settlements: Settlement[]): SuggestedDebt[] {
+export function suggestedDebts(
+  expenses: Expense[],
+  settlements: Settlement[],
+  groups: SimplifySetting[] = [],
+): SuggestedDebt[] {
   const ledgers = new Map<string, { groupId?: string; currency: string; expenses: Expense[]; settlements: Settlement[] }>();
   const ledgerOf = (groupId: string | undefined, currency: string | undefined) => {
     // Records from before groups had a currency are US dollars.
@@ -454,7 +475,9 @@ export function suggestedDebts(expenses: Expense[], settlements: Settlement[]): 
   const debts: SuggestedDebt[] = [];
   for (const { groupId, currency, expenses: ex, settlements: st } of ledgers.values()) {
     const snapshot = { expenses: ex, settlements: st, memberIds: [] };
-    const pairs = groupId ? calculateSettlements(snapshot) : directDebts(snapshot);
+    const pairs = groupId
+      ? groupTransfers(snapshot, simplifies(groups.find((g) => g.id === groupId)))
+      : directDebts(snapshot);
     for (const { from, to, amount } of pairs) debts.push({ groupId, currency, from, to, amount });
   }
   return debts;
@@ -496,6 +519,7 @@ export function deriveTotals(
   expenses: Expense[],
   settlements: Settlement[],
   currentUserId: string,
+  groups: SimplifySetting[] = [],
 ): DerivedTotals {
   const friendBalances: BalanceMap = {};
   const friendBalancesByCurrency: Record<string, BalanceMap> = {};
@@ -507,7 +531,7 @@ export function deriveTotals(
     inCurrency[userId] = (inCurrency[userId] ?? 0) + delta;
   };
 
-  for (const debt of suggestedDebts(expenses, settlements)) {
+  for (const debt of suggestedDebts(expenses, settlements, groups)) {
     if (debt.to === currentUserId) bump(debt.from, debt.currency, debt.amount);
     else if (debt.from === currentUserId) bump(debt.to, debt.currency, -debt.amount);
   }
@@ -583,10 +607,11 @@ export function outstandingByGroup(
   debtorId: string,
   creditorId: string,
   currency?: string,
+  groups: SimplifySetting[] = [],
 ): OutstandingBucket[] {
   const UNGROUPED = ' ungrouped';
   const owed: Record<string, number> = {};
-  for (const debt of suggestedDebts(expenses, settlements)) {
+  for (const debt of suggestedDebts(expenses, settlements, groups)) {
     if (currency && debt.currency !== currency) continue;
     if (debt.from !== debtorId || debt.to !== creditorId) continue;
     const key = debt.groupId ?? UNGROUPED;

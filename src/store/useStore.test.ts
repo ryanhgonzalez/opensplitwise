@@ -313,6 +313,27 @@ describe('settleWithUser', () => {
     expect(balanceIn(home.id)).toBe(0);
   });
 
+  it('pays whoever is owed directly when the group does not simplify', () => {
+    // Me fronts 100 for Alice; Alice fronts 14 for Bob. Simplified, Bob pays me.
+    const { me, others, group } = setup(['Me', 'Alice', 'Bob']);
+    const [alice, bob] = others;
+    addEvenExpense(me.id, [alice.id], 100, group.id);
+    addEvenExpense(alice.id, [bob.id], 14, group.id);
+    expect(friendBalances()[bob.id]).toBe(14);
+
+    state().updateGroup(group.id, { simplifyDebts: false });
+    expect(friendBalances()[bob.id] ?? 0).toBe(0);
+    expect(friendBalances()[alice.id]).toBe(100);
+
+    // Paying Alice in full clears the direct debt, and nothing goes unassigned.
+    const created = state().settleWithUser({
+      fromUserId: alice.id, toUserId: me.id, amount: 100, currency: 'USD', date: new Date(),
+    });
+    expect(created).toHaveLength(1);
+    expect(created[0].groupId).toBe(group.id);
+    expect(friendBalances()[alice.id] ?? 0).toBe(0);
+  });
+
   it('works when the money is coming to you', () => {
     const { me, others, group } = setup(['Me', 'Alice']);
     const [alice] = others;

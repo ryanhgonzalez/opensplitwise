@@ -6,7 +6,7 @@ import type { Group, Expense, User, Settlement, PaymentMethod } from '../types';
 import { categoryLabel } from './categories';
 import { groupCurrency } from './currency';
 import { formatCurrency } from '../utils/format';
-import { calculateBalances, calculateSettlements, signedAmount } from './calculations';
+import { calculateBalances, groupTransfers, signedAmount, simplifies } from './calculations';
 import { getShareForUser } from '../utils/expense';
 import plexSansRegularUrl from '../assets/fonts/IBMPlexSans-Regular.ttf?url';
 import plexSansSemiBoldUrl from '../assets/fonts/IBMPlexSans-SemiBold.ttf?url';
@@ -227,7 +227,7 @@ export async function generateGroupReport(
 
   // Completed payments count, so balances and transfers show what is still owed.
   const balances = calculateBalances({ expenses, memberIds, settlements: payments });
-  const transfers = calculateSettlements({ expenses, memberIds, settlements: payments });
+  const transfers = groupTransfers({ expenses, memberIds, settlements: payments }, simplifies(group));
 
   // Refunds come off what was spent.
   const totalSpent = expenses.reduce((s, e) => s + signedAmount(e), 0);

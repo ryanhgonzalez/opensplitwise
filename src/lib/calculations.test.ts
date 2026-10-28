@@ -16,6 +16,8 @@ import {
   directDebts,
   isSimplified,
   suggestedDebts,
+  groupTransfers,
+  simplifies,
 } from './calculations';
 import type { Expense, Settlement, SplitEntry } from '../types';
 
@@ -650,5 +652,58 @@ describe('person balances match the group screen', () => {
     const debts = suggestedDebts([big, eur], []);
     expect(debts).toContainEqual({ groupId: 'g1', currency: 'EUR', from: 'frank', to: 'jr', amount: 14.17 });
     expect(debts).toContainEqual({ groupId: 'g1', currency: 'USD', from: 'jr', to: 'ryan', amount: 100 });
+  });
+});
+
+// ─── A group can turn simplifying off ─────────────────────────────────────────
+
+describe('simplify debts switch', () => {
+  // The same cruise case: simplified, Frank pays Ryan; direct, Frank pays Jr.
+  const big = expense({ id: 'big', amount: 100, paidBy: 'ryan', split: { type: 'exact', entries: [{ userId: 'jr', amount: 100 }] } });
+  const small = expense({ id: 'small', amount: 14.17, paidBy: 'jr', split: { type: 'exact', entries: [{ userId: 'frank', amount: 14.17 }] } });
+  const snap = { expenses: [big, small], memberIds: ['ryan', 'jr', 'frank'] };
+  const off = [{ id: 'g1', simplifyDebts: false }];
+
+  it('is on unless a group turns it off', () => {
+    expect(simplifies(undefined)).toBe(true);
+    expect(simplifies({})).toBe(true);
+    expect(simplifies({ simplifyDebts: true })).toBe(true);
+    expect(simplifies({ simplifyDebts: false })).toBe(false);
+  });
+
+  it('gives the simplified plan or the direct debts', () => {
+    expect(groupTransfers(snap)).toEqual(calculateSettlements(snap));
+    expect(groupTransfers(snap, false)).toEqual([
+      { from: 'jr', to: 'ryan', amount: 100 },
+      { from: 'frank', to: 'jr', amount: 14.17 },
+    ]);
+  });
+
+  it('suggests direct debts for a group that turned it off', () => {
+    const debts = suggestedDebts([big, small], [], off);
+    expect(debts).toContainEqual({ groupId: 'g1', currency: 'USD', from: 'frank', to: 'jr', amount: 14.17 });
+    expect(debts.some((d) => d.from === 'frank' && d.to === 'ryan')).toBe(false);
+    // Other groups keep simplifying.
+    expect(suggestedDebts([big, small], [], [{ id: 'other', simplifyDebts: false }])).toContainEqual(
+      { groupId: 'g1', currency: 'USD', from: 'frank', to: 'ryan', amount: 14.17 },
+    );
+  });
+
+  it('shows person balances as direct debts', () => {
+    expect(deriveTotals([big, small], [], 'ryan', off).friendBalances).toEqual({ jr: 100 });
+    expect(deriveTotals([big, small], [], 'frank', off).friendBalances).toEqual({ jr: -14.17 });
+  });
+
+  it('keeps each overall total the same either way', () => {
+    for (const who of ['ryan', 'jr', 'frank']) {
+      const total = (groups = [] as typeof off) =>
+        round(Object.values(deriveTotals([big, small], [], who, groups).friendBalances).reduce((s, v) => s + v, 0));
+      expect(total(off)).toBe(total());
+    }
+  });
+
+  it('settles up with whoever is owed directly', () => {
+    expect(outstandingByGroup([big, small], [], 'frank', 'jr', undefined, off)).toEqual([{ groupId: 'g1', outstanding: 14.17 }]);
+    expect(outstandingByGroup([big, small], [], 'frank', 'ryan', undefined, off)).toEqual([]);
   });
 });

@@ -228,10 +228,11 @@ function debtCleared(
   settlements: Settlement[],
   fromUserId: string,
   toUserId: string,
-  groupId?: string,
-  currency?: string,
+  groupId: string | undefined,
+  currency: string | undefined,
+  groups: Group[],
 ): boolean {
-  const buckets = outstandingByGroup(expenses, settlements, fromUserId, toUserId, currency);
+  const buckets = outstandingByGroup(expenses, settlements, fromUserId, toUserId, currency, groups);
   const inScope = groupId ? buckets.filter((b) => b.groupId === groupId) : buckets;
   return inScope.reduce((sum, b) => sum + b.outstanding, 0) <= EPSILON;
 }
@@ -623,6 +624,8 @@ export const useStore = create<AppStore>()(
             settlement.fromUserId,
             settlement.toUserId,
             settlement.groupId,
+            undefined,
+            groups,
           );
 
           const activity: PaymentActivity | SettledActivity = {
@@ -666,7 +669,7 @@ export const useStore = create<AppStore>()(
           const now = new Date();
 
           // Only debts in the payment's currency can be paid down by it.
-          const buckets = outstandingByGroup(expenses, settlements, input.fromUserId, input.toUserId, input.currency);
+          const buckets = outstandingByGroup(expenses, settlements, input.fromUserId, input.toUserId, input.currency, groups);
           const allocations = allocatePayment(input.amount, buckets);
           if (allocations.length === 0) return [];
 
@@ -691,6 +694,7 @@ export const useStore = create<AppStore>()(
             input.toUserId,
             undefined,
             input.currency,
+            groups,
           );
 
           // One feed entry per slice, each tagged with its group so the feed

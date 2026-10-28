@@ -85,8 +85,8 @@ export default function Person() {
         const currency = groupCurrency(g);
         const inGroup = (buckets: { groupId?: string; outstanding: number }[]) =>
           buckets.find((b) => b.groupId === g.id)?.outstanding ?? 0;
-        const theyOwe = inGroup(outstandingByGroup(expenses, payments, id, me, currency));
-        const iOwe = inGroup(outstandingByGroup(expenses, payments, me, id, currency));
+        const theyOwe = inGroup(outstandingByGroup(expenses, payments, id, me, currency, [g]));
+        const iOwe = inGroup(outstandingByGroup(expenses, payments, me, id, currency, [g]));
         const net = theyOwe - iOwe;
         // The group's suggested payment between you two, if there is one.
         const transfer: SettlementTransaction | undefined =

@@ -4,9 +4,10 @@ import { AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser, selectTotalsForGroup } from '../store';
 import {
   calculateBalances,
-  calculateSettlements,
+  groupTransfers,
   directDebts,
   isSimplified,
+  simplifies,
   moneySign,
   round,
   signedAmount,
@@ -164,7 +165,8 @@ export default function GroupDetail() {
   // Completed payments count against the expense totals, so balances and the
   // suggested transfers below both reflect what is actually still outstanding.
   const balances = calculateBalances({ expenses, memberIds, settlements: groupSettlements });
-  const settlements = calculateSettlements({ expenses, memberIds, settlements: groupSettlements });
+  // As the group's settings say: simplified (fewest payments) unless turned off.
+  const settlements = groupTransfers({ expenses, memberIds, settlements: groupSettlements }, simplifies(group));
   // Who owes whom before simplifying, to explain transfers that reroute money.
   const direct = directDebts({ expenses, memberIds, settlements: groupSettlements });
   const simplified = isSimplified(settlements, direct);

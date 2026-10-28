@@ -211,7 +211,7 @@ describe('deletions', () => {
 });
 
 describe('group details', () => {
-  it('take the newer name and currency, and combine members and categories', () => {
+  it('take the newer name, currency and simplify setting, and combine members and categories', () => {
     const { state: bens } = benReceivesFirst();
     const carl = user('c1', 'Carl');
     const anas = {
@@ -221,6 +221,7 @@ describe('group details', () => {
         trip(['a1', 'b1', 'c1'], {
           name: 'Lisbon & Porto',
           currency: 'GBP',
+          simplifyDebts: false,
           updatedAt: T(30),
           categories: [{ id: 'custom:wine' as const, name: 'Wine' }],
         }),
@@ -232,7 +233,7 @@ describe('group details', () => {
     };
     const { state } = mergeBundle(bensWithCategory, buildBundle(anas, 'trip', T(31))!, { a1: 'a2', b1: 'b2', c1: NEW_PERSON }, T(31));
     const g = state.groups[0];
-    expect([g.name, g.currency]).toEqual(['Lisbon & Porto', 'GBP']);
+    expect([g.name, g.currency, g.simplifyDebts]).toEqual(['Lisbon & Porto', 'GBP', false]);
     expect(g.members.map((m) => m.userId)).toEqual(['a2', 'b2', 'c1']);
     expect(g.categories?.map((c) => c.name)).toEqual(['Fado', 'Wine']);
     // Amounts are relabelled with the group's currency, not converted.

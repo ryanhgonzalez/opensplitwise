@@ -126,7 +126,7 @@ export function buildGroupExport(state: ExportPayload, groupId: string): AppExpo
 
   // What each person owes you in this group alone: the app-wide balances
   // would mix in every other group you share with them.
-  const { friendBalances } = deriveTotals(groupExpenses, groupSettlements, state.currentUserId);
+  const { friendBalances } = deriveTotals(groupExpenses, groupSettlements, state.currentUserId, [group]);
 
   return {
     schema: EXPORT_SCHEMA,

@@ -41,7 +41,9 @@ export const selectRecentExpenses = (limit = 10) => (s: AppStore): Expense[] => 
 // `deriveTotals` reads: without a stable reference, every call would produce new
 // objects → useSyncExternalStore sees a changed snapshot on every render →
 // infinite re-render loop.
-let _totalsKey: { expenses: Expense[]; settlements: AppStore['settlements']; currentUserId: string } | undefined;
+let _totalsKey:
+  | { expenses: Expense[]; settlements: AppStore['settlements']; groups: AppStore['groups']; currentUserId: string }
+  | undefined;
 let _totals: DerivedTotals | undefined;
 
 export const selectDerivedTotals = (s: AppStore): DerivedTotals => {
@@ -50,13 +52,15 @@ export const selectDerivedTotals = (s: AppStore): DerivedTotals => {
     _totalsKey &&
     _totalsKey.expenses === s.expenses &&
     _totalsKey.settlements === s.settlements &&
+    // Each group's "simplify debts" setting decides its payments.
+    _totalsKey.groups === s.groups &&
     _totalsKey.currentUserId === s.currentUserId
   ) {
     return _totals;
   }
 
-  _totals = deriveTotals(s.expenses, s.settlements, s.currentUserId);
-  _totalsKey = { expenses: s.expenses, settlements: s.settlements, currentUserId: s.currentUserId };
+  _totals = deriveTotals(s.expenses, s.settlements, s.currentUserId, s.groups);
+  _totalsKey = { expenses: s.expenses, settlements: s.settlements, groups: s.groups, currentUserId: s.currentUserId };
   return _totals;
 };
 
