@@ -97,6 +97,11 @@
   font: inherit;
 }
 
+a.settings-link-row {
+  text-decoration: none;
+}
+
+a.settings-link-row:hover .settings-row-label,
 button.settings-row:not(:disabled):hover .settings-row-label {
   color: var(--owed);
 }
@@ -342,4 +347,12 @@ button.settings-row:disabled {
   color: var(--ink);
   font: inherit;
   font-size: 16px;
+}
+
+/* The version, faintly, at the foot of the page. */
+.settings-build {
+  margin: 0;
+  font-size: 12px;
+  color: var(--faint);
+  text-align: center;
 }

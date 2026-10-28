@@ -12,6 +12,7 @@ import Insights from './pages/Insights';
 import People from './pages/People';
 import Person from './pages/Person';
 import Settings from './pages/Settings';
+import About from './pages/About';
 import ShareHub from './pages/ShareHub';
 import ExpenseDetail from './pages/ExpenseDetail';
 import Onboarding from './pages/Onboarding';
@@ -86,6 +87,7 @@ function AnimatedRoutes() {
           <Route path="/people" element={<People />} />
           <Route path="/people/:id" element={<Person />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/settings/about" element={<About />} />
         </Routes>
       </motion.div>
     </AnimatePresence>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { useGroupReport } from '../components/useGroupReport';
 import { useStore, selectCurrentUser, type ThemeMode } from '../store';
 import Avatar from '../components/Avatar';
@@ -13,6 +14,7 @@ import { isOcrDownloaded, RECEIPT_OCR } from '../lib/receiptOcr';
 import { shouldOfferInstall, showInstallGuide } from '../lib/pwa';
 import { formatRelativeDay } from '../utils/format';
 import { cleanHandle } from '../lib/reminder';
+import { versionLine } from '../lib/buildInfo';
 import type { PayHandles } from '../types';
 import './Settings.css';
 
@@ -270,6 +272,13 @@ export default function Settings() {
               </span>
               <span className="settings-row-sub">{offlineReady ? 'Ready' : 'After the next visit'}</span>
             </div>
+            <Link className="settings-row settings-link-row" to="/settings/about">
+              <span className="settings-row-text">
+                <span className="settings-row-label">About OpenSplitwise</span>
+                <span className="settings-row-sub">Version, privacy, source code</span>
+              </span>
+              <Chevron />
+            </Link>
           </div>
         </section>
 
@@ -278,6 +287,8 @@ export default function Settings() {
             Erase all data on this device
           </button>
         </div>
+
+        <p className="num settings-build">OpenSplitwise · {versionLine()}</p>
       </div>
 
       <AnimatePresence>

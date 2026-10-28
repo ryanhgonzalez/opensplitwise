@@ -1,0 +1,66 @@
+/* About: uses the Settings page's sections and rows. */
+.about-crumb {
+  display: inline-block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: var(--owed);
+}
+
+.about-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.about-icon {
+  flex: none;
+  border-radius: 12px;
+}
+
+.about-hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.about-name {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.about-version {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.about-lede {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.about-copy p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.about-link {
+  text-decoration: none;
+}
+
+.about-link:hover .settings-row-label {
+  color: var(--owed);
+}
+
+.about-footer {
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+
+.about-footer p {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
