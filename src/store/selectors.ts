@@ -7,23 +7,7 @@ import { deriveTotals, type DerivedTotals, type GroupTotals } from '../lib/calcu
 export const selectCurrentUser = (s: AppStore) =>
   s.users.find((u) => u.id === s.currentUserId);
 
-/** Usage: useStore(selectUserById('user-1')) */
-export const selectUserById = (id: string) => (s: AppStore) =>
-  s.users.find((u) => u.id === id);
-
-export const selectGroupById = (id: string) => (s: AppStore) =>
-  s.groups.find((g) => g.id === id);
-
-export const selectExpenseById = (id: string) => (s: AppStore) =>
-  s.expenses.find((e) => e.id === id);
-
-export const selectSettlementById = (id: string) => (s: AppStore) =>
-  s.settlements.find((sett) => sett.id === id);
-
 // ─── Collection slices ────────────────────────────────────────────────────────
-
-export const selectExpensesByGroup = (groupId: string) => (s: AppStore) =>
-  s.expenses.filter((e) => e.groupId === groupId);
 
 // Memoized: returns the same array reference when s.activities hasn't changed.
 // This keeps useSyncExternalStore's snapshot stable between renders.
@@ -36,9 +20,6 @@ export const selectActivities = (s: AppStore): Activity[] => {
   _sortedActivities = [...s.activities].sort((a, b) => b.date.getTime() - a.date.getTime());
   return _sortedActivities;
 };
-
-export const selectActivitiesByGroup = (groupId: string) => (s: AppStore) =>
-  s.activities.filter((a) => a.groupId === groupId);
 
 // Memoized per limit: returns the same array reference when s.expenses hasn't changed.
 const _recentExpensesCache = new Map<number, { ref: Expense[]; result: Expense[] }>();
@@ -143,9 +124,3 @@ export const selectMainCurrency = (s: AppStore): string => {
   _currencySource = s.groups;
   return _mainCurrency;
 };
-
-export const selectGroupBalance = (groupId: string) => (s: AppStore) =>
-  selectTotalsForGroup(groupId)(s).yourBalance;
-
-export const selectGroupTotalSpent = (groupId: string) => (s: AppStore) =>
-  selectTotalsForGroup(groupId)(s).totalSpent;

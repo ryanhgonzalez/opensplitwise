@@ -107,6 +107,29 @@ describe('parseSplitwiseCsv', () => {
     expect(parseSplitwiseCsv(csv).warnings.some((w) => w.includes('Total balance'))).toBe(true);
   });
 
+  it('makes one group per currency when the file mixes them', () => {
+    const csv = [
+      'Date,Description,Category,Cost,Currency,Alice,Bob',
+      '2024-05-01,Dinner,Dining out,60.00,USD,30.00,-30.00',
+      '2024-05-02,Tapas,Dining out,40.00,EUR,-20.00,20.00',
+      '2024-05-03,Taxi,Taxi,20.00,USD,10.00,-10.00',
+      '',
+      '2024-05-04,Total balance, , ,USD,40.00,-40.00',
+      '2024-05-04,Total balance, , ,EUR,-20.00,20.00',
+    ].join('\n');
+    const result = parseSplitwiseCsv(csv, 'beach-trip_2024-05-04_export.csv');
+    expect(result.ok).toBe(true);
+    const { groups, expenses } = result.data!.data;
+    // A group here is in one currency, so euros aren't shown (or shared) as dollars.
+    expect(groups.map((g) => [g.name, g.currency])).toEqual([['Beach Trip (USD)', 'USD'], ['Beach Trip (EUR)', 'EUR']]);
+    for (const e of expenses) expect(groups.find((g) => g.id === e.groupId)!.currency).toBe(e.currency);
+    expect(result.data!.meta.groupCount).toBe(2);
+    expect(result.warnings.some((w) => w.includes('one group per currency'))).toBe(true);
+    // Each still matches the file's own totals.
+    expect(result.warnings.some((w) => w.includes('different'))).toBe(false);
+    expect(balances(result.data!, 'EUR')).toEqual({ Alice: -20, Bob: 20 });
+  });
+
   it('rejects CSVs that aren\'t a Splitwise export', () => {
     expect(looksLikeSplitwiseCsv('Name,Amount\nx,1')).toBe(false);
     expect(parseSplitwiseCsv('Name,Amount\nx,1').ok).toBe(false);

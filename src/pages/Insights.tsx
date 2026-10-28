@@ -350,6 +350,10 @@ export default function Insights() {
   };
 
   const totalMoved = change(total, beforeTotal);
+  // "May 1 – Jul 27": the days the figures are compared with (the range's end is exclusive).
+  const beforeLabel = before
+    ? `${shortDate(before.range.start)} – ${shortDate(new Date(before.range.end.getFullYear(), before.range.end.getMonth(), before.range.end.getDate() - 1))}`
+    : '';
   const averageMoved =
     beforeAverage === undefined || Math.abs(average - beforeAverage) < 0.5
       ? beforeAverage === undefined ? null : 'about the same'
@@ -404,7 +408,7 @@ export default function Insights() {
             <span className="num ins-figure">{money(total, currency)}</span>
             {totalMoved && (
               <span className="text-xs text-secondary">
-                {totalMoved === 'same' ? 'Same as' : totalMoved === 'new' ? 'Nothing in' : `${totalMoved} vs`} the {period === 1 ? 'month' : `${period} months`} before
+                {totalMoved === 'same' ? 'Same as' : totalMoved === 'new' ? 'Nothing in' : `${totalMoved} vs`} {beforeLabel}
               </span>
             )}
           </div>
@@ -443,7 +447,7 @@ export default function Insights() {
           <section className="ins-chart">
             <div className="ins-chart-head">
               <h2 className="ins-h2">By category</h2>
-              {categoriesBefore && <span className="text-xs text-secondary">Right: change on the period before</span>}
+              {categoriesBefore && <span className="text-xs text-secondary">Right: change vs {beforeLabel}</span>}
             </div>
             <CategoryBars data={categoryData} currency={currency} before={categoriesBefore} />
           </section>

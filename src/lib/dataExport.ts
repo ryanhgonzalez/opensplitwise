@@ -1,5 +1,6 @@
 import type { User, Group, Expense, ExpenseSnapshot, Settlement, Activity, Tombstone, RecurringExpense } from '../types';
 import { deriveTotals } from './calculations';
+import { reviveDates } from './dates';
 
 // ─── Schema constants ─────────────────────────────────────────────────────────
 
@@ -173,23 +174,6 @@ export function downloadExport(data: AppExport): void {
   URL.revokeObjectURL(url);
 }
 
-// ─── Date revival ─────────────────────────────────────────────────────────────
-
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
-
-function reviveDates<T>(obj: T): T {
-  if (typeof obj === 'string' && ISO_DATE_RE.test(obj)) return new Date(obj) as unknown as T;
-  if (Array.isArray(obj)) return (obj as unknown[]).map(reviveDates) as unknown as T;
-  if (obj !== null && typeof obj === 'object') {
-    const result: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-      result[k] = reviveDates(v);
-    }
-    return result as unknown as T;
-  }
-  return obj;
-}
-
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 function isObj(v: unknown): v is Record<string, unknown> {
@@ -202,7 +186,8 @@ export function parseAndValidate(json: string): ParseResult {
 
   let raw: unknown;
   try {
-    raw = JSON.parse(json);
+    // Dates come back as Dates (see dates.ts); everything checked below is unaffected.
+    raw = JSON.parse(json, reviveDates);
   } catch {
     return { ok: false, errors: ['Invalid JSON — the file appears to be corrupted or was not an OpenSplitwise export.'], warnings };
   }
@@ -266,8 +251,7 @@ export function parseAndValidate(json: string): ParseResult {
     if (e.groupId && !groupIds.has(e.groupId)) { warnings.push(`Expense "${e.description ?? '?'}" references an unknown group.`); flagged++; }
   }
 
-  // Revive ISO date strings → Date objects.
-  const revived = reviveDates(raw) as unknown as AppExport;
+  const revived = raw as unknown as AppExport;
   revived.data.groups = revived.data.groups.map(withoutLegacyTotals);
   return { ok: true, data: revived, warnings, errors: [] };
 }
@@ -334,6 +318,8 @@ export function remapForNewGroup(
       paidBy: remapId(e.paidBy),
       groupId: e.groupId ? remapId(e.groupId) : undefined,
       split: { ...e.split, entries: e.split.entries.map((en) => ({ ...en, userId: remapId(en.userId) })) },
+      // Who had each item of a receipt split by item.
+      ...(e.items && { items: e.items.map((it) => ({ ...it, assigned: it.assigned.map(remapId) })) }),
     };
   });
   // A refund names the expense it refunds, which has a new id too.
@@ -342,13 +328,18 @@ export function remapForNewGroup(
   }
 
   // Remap settlements.
-  const remappedSettlements: Settlement[] = exported.data.settlements.map((s) => ({
-    ...s,
-    id: crypto.randomUUID(),
-    fromUserId: remapId(s.fromUserId),
-    toUserId: remapId(s.toUserId),
-    groupId: s.groupId ? remapId(s.groupId) : undefined,
-  }));
+  const setIdMap = new Map<string, string>();
+  const remappedSettlements: Settlement[] = exported.data.settlements.map((s) => {
+    const newId = crypto.randomUUID();
+    setIdMap.set(s.id, newId);
+    return {
+      ...s,
+      id: newId,
+      fromUserId: remapId(s.fromUserId),
+      toUserId: remapId(s.toUserId),
+      groupId: s.groupId ? remapId(s.groupId) : undefined,
+    };
+  });
 
   // Remap activities, preserving type-specific fields.
   const remappedActivities: Activity[] = exported.data.activities.map((a) => {
@@ -360,6 +351,10 @@ export function remapForNewGroup(
     };
     if ('expenseId' in a && typeof a.expenseId === 'string') {
       base.expenseId = expIdMap.get(a.expenseId) ?? a.expenseId;
+    }
+    // A payment's entry names the payment, so undoing it can remove the entry.
+    if ('settlementId' in a && typeof a.settlementId === 'string') {
+      base.settlementId = setIdMap.get(a.settlementId) ?? a.settlementId;
     }
     // An edit's before/after copies name the payer and everyone in the split.
     for (const key of ['before', 'after'] as const) {

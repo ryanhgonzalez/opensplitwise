@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useStore, selectFriendBalances } from '../store';
+import { dataSnapshot, useStore, selectFriendBalances } from '../store';
 import {
   buildFullExport,
   buildGroupExport,
@@ -111,15 +111,7 @@ export default function ExportImportSheet({
   const users       = useStore((s) => s.users);
   const expenses    = useStore((s) => s.expenses);
   const settlements = useStore((s) => s.settlements);
-  const activities  = useStore((s) => s.activities);
-  // Still written into the export file: the format carries it so older app
-  // versions can read these backups. On import it is ignored and recomputed.
-  const friendBalances  = useStore(selectFriendBalances);
   const currentUserId   = useStore((s) => s.currentUserId);
-  const tombstones      = useStore((s) => s.tombstones);
-  const userAliases     = useStore((s) => s.userAliases);
-  const groupSyncedAt   = useStore((s) => s.groupSyncedAt);
-  const recurring       = useStore((s) => s.recurring);
   const restoreAllData  = useStore((s) => s.restoreAllData);
   const mergeImportData = useStore((s) => s.mergeImportData);
 
@@ -148,9 +140,12 @@ export default function ExportImportSheet({
   const [importStats,    setImportStats]    = useState<ImportStats | null>(null);
   const [importError,    setImportError]    = useState<string | null>(null);
 
-  const statePayload = {
-    currentUserId, users, groups, expenses, settlements, activities, friendBalances,
-    tombstones, userAliases, groupSyncedAt, recurring,
+  // Everything, as it is at the moment of exporting. `friendBalances` is
+  // still written into the file: the format carries it so older app versions
+  // can read these backups. On import it is ignored and recomputed.
+  const statePayload = () => {
+    const s = useStore.getState();
+    return { ...dataSnapshot(s), friendBalances: selectFriendBalances(s) };
   };
   // Re-read on every render; exporting re-renders (exportDone), so it stays current.
   const lastBackup = lastBackupAt();
@@ -172,8 +167,8 @@ export default function ExportImportSheet({
         : undefined;
     const data =
       exportTarget === 'full'
-        ? buildFullExport({ ...statePayload, receipts })
-        : buildGroupExport(statePayload, exportGroupId);
+        ? buildFullExport({ ...statePayload(), receipts })
+        : buildGroupExport(statePayload(), exportGroupId);
     if (!data) return;
     downloadExport(data);
     // Only a full export can restore everything; a single group's file can't.

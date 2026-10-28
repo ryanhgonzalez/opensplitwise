@@ -4,13 +4,6 @@ export interface FriendBalance {
   groupId?: string;
 }
 
-export interface GroupBalance {
-  groupId: string;
-  yourBalance: number;
-  totalSpent: number;
-  memberBalances: FriendBalance[];
-}
-
 export interface OverallBalance {
   /** Every amount below is in this currency; balances in different currencies are never added. */
   currency: string;

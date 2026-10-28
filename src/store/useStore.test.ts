@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { useStore } from './useStore';
+import { dataSnapshot, useStore } from './useStore';
 import { selectFriendBalances, selectFriendBalancesByCurrency, selectGroupTotals, selectOverallBalances } from './selectors';
 import { round } from '../lib/calculations';
-import type { ExpenseUpdatedActivity, Group, User } from '../types';
+import type { ExpenseUpdatedActivity, Group, RecurringExpense, RecurringTemplate, Tombstone, User } from '../types';
+import { reviveDates } from '../lib/dates';
 import { getEditBalanceChange, getEditSummary } from '../utils/activity';
 
 // ─── Harness ──────────────────────────────────────────────────────────────────
@@ -186,6 +187,74 @@ describe('deleteUser', () => {
         expect(expenseIds.has(activity.expenseId)).toBe(true);
       }
     }
+  });
+
+  it('stops repeating expenses they were part of', () => {
+    const { me, others, group } = setup(['Me', 'Alice', 'Bob']);
+    const [alice, bob] = others;
+    // Starting far ahead, so nothing is due yet.
+    const repeat = (description: string, withId: string): RecurringTemplate => ({
+      description, amount: 100, currency: 'USD', paidBy: me.id, category: 'rent',
+      split: { type: 'equal', entries: [{ userId: me.id, amount: 50 }, { userId: withId, amount: 50 }] },
+    });
+    for (const [what, who] of [['Rent', alice.id], ['Netflix', bob.id]]) {
+      state().addRecurring({ groupId: group.id, frequency: 'monthly', startDate: new Date(2099, 0, 1), template: repeat(what, who) });
+    }
+
+    state().deleteUser(alice.id);
+
+    // Left behind, each new month of rent would name someone who no longer exists.
+    expect(state().recurring.map((r) => r.template.description)).toEqual(['Netflix']);
+  });
+});
+
+// ─── Merging a backup ─────────────────────────────────────────────────────────
+
+describe('mergeImportData', () => {
+  it('brings in the file\'s repeating expenses and deletion markers', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const [alice] = others;
+    const here = addEvenExpense(me.id, [me.id, alice.id], 20, group.id);
+    const at = new Date(2026, 0, 1);
+    const rule: RecurringExpense = {
+      id: 'rule-1', groupId: group.id, frequency: 'monthly', startDate: new Date(2099, 0, 1), createdAt: at, updatedAt: at,
+      template: {
+        description: 'Rent', amount: 100, currency: 'USD', paidBy: me.id, category: 'rent',
+        split: { type: 'equal', entries: [{ userId: me.id, amount: 50 }, { userId: alice.id, amount: 50 }] },
+      },
+    };
+    // One marker for an expense deleted on the file's phone, one for an expense this phone still has.
+    const gone: Tombstone = { id: 'deleted-there', kind: 'expense', groupId: group.id, deletedAt: at };
+    const stillHere: Tombstone = { id: here.id, kind: 'expense', groupId: group.id, deletedAt: at };
+
+    state().mergeImportData({ ...dataSnapshot(state()), friendBalances: {}, recurring: [rule], tombstones: [gone, stillHere] });
+
+    expect(state().recurring.map((r) => r.id)).toEqual(['rule-1']);
+    // A merge only adds: the expense here stays, and so no marker says it's gone.
+    expect(state().tombstones.map((t) => t.id)).toEqual(['deleted-there']);
+    expect(state().expenses.some((e) => e.id === here.id)).toBe(true);
+  });
+});
+
+// ─── Saving ───────────────────────────────────────────────────────────────────
+
+describe('saved data', () => {
+  it('comes back with every date a Date', () => {
+    // One of each kind of record, then a save and reload (JSON and back).
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const [alice] = others;
+    const dinner = addEvenExpense(me.id, [me.id, alice.id], 20, group.id);
+    state().addSettlement({ fromUserId: alice.id, toUserId: me.id, amount: 5, currency: 'USD', groupId: group.id, date: new Date(), paymentMethod: 'cash' });
+    state().addRecurring({
+      groupId: group.id, frequency: 'monthly', startDate: new Date(2099, 0, 1),
+      template: { description: 'Rent', amount: 10, currency: 'USD', paidBy: me.id, category: 'rent', split: { type: 'exact', entries: [{ userId: alice.id, amount: 10 }] } },
+    });
+    state().updateExpense(dinner.id, { description: '2026-10-12T10:00:00 dinner' });
+    state().deleteExpense(addEvenExpense(me.id, [me.id], 1, group.id).id);
+    useStore.setState({ groupSyncedAt: { [group.id]: new Date() } });
+
+    const snapshot = dataSnapshot(state());
+    expect(JSON.parse(JSON.stringify(snapshot), reviveDates)).toEqual(snapshot);
   });
 });
 

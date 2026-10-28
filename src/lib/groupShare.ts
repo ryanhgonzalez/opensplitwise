@@ -1,4 +1,5 @@
 import { BUNDLE_KIND, BUNDLE_VERSION, type GroupBundle } from './groupSync';
+import { reviveDates } from './dates';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Getting a group bundle (groupSync.ts) from one phone to another.
@@ -9,14 +10,11 @@ import { BUNDLE_KIND, BUNDLE_VERSION, type GroupBundle } from './groupSync';
 //     on screen (frames below; drawing and scanning live in the UI).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
-const revive = (_: string, v: unknown) => (typeof v === 'string' && ISO_DATE.test(v) ? new Date(v) : v);
-
 /** Reads a bundle from JSON text, or explains why it isn't one. */
 export function parseBundle(text: string): GroupBundle {
   let data: unknown;
   try {
-    data = JSON.parse(text, revive);
+    data = JSON.parse(text, reviveDates);
   } catch {
     throw new Error('That isn’t a shared group (not valid JSON).');
   }

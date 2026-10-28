@@ -55,15 +55,6 @@ export function formatTime(date: Date): string {
   });
 }
 
-export function formatFullDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
 /** "today", "yesterday", "5 days ago", or "on Oct 12" beyond a month, by calendar day. */
 export function formatRelativeDay(date: Date, now: Date = new Date()): string {
   const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();

@@ -223,7 +223,17 @@ export function parseSplitwiseCsv(text: string, filename = ''): ParseResult {
 
   const now = new Date();
   const users = names.map((name, i) => makeUser(name || `Person ${i + 1}`, i, now));
-  const groupId = crypto.randomUUID();
+  // A group here is in one currency, so a file that mixes them becomes one
+  // group per currency, each with its own balances (as Splitwise keeps them).
+  const groupIds = new Map<string, string>();
+  const groupIdFor = (currency: string) => {
+    let id = groupIds.get(currency);
+    if (!id) {
+      id = crypto.randomUUID();
+      groupIds.set(currency, id);
+    }
+    return id;
+  };
   const expenses: Expense[] = [];
   const settlements: Settlement[] = [];
   const activities: Activity[] = [];
@@ -261,6 +271,7 @@ export function parseSplitwiseCsv(text: string, filename = ''): ParseResult {
     if (!date || Number.isNaN(cost) || nets.some(Number.isNaN)) { badRows++; continue; }
 
     currencyCount.set(currency, (currencyCount.get(currency) ?? 0) + 1);
+    const groupId = groupIdFor(currency);
     const byUser = new Map(users.map((u, i) => [u.id, nets[i]]));
 
     if ((rawCategory ?? '').trim() === PAYMENT) {
@@ -333,9 +344,17 @@ export function parseSplitwiseCsv(text: string, filename = ''): ParseResult {
   if (unknownPayer) {
     warnings.push(`${unknownPayer} expense${unknownPayer === 1 ? '' : 's'} didn't change anyone's balance, so the file doesn't say who paid. ${unknownPayer === 1 ? 'It\'s' : 'They\'re'} listed as paid by ${users[0].name}.`);
   }
-  const currencies = [...currencyCount.keys()];
+  const baseName = groupNameFromFilename(filename);
+  // Most-used currency first; only those with something in them.
+  const currencies = [...currencyCount]
+    .sort((x, y) => y[1] - x[1])
+    .map(([c]) => c)
+    .filter((c) => expenses.some((e) => e.currency === c) || settlements.some((x) => x.currency === c));
+  const nameFor = (currency: string) => (currencies.length > 1 ? `${baseName} (${currency})` : baseName);
   if (currencies.length > 1) {
-    warnings.push(`The file mixes currencies (${currencies.join(', ')}). Each keeps its own balances, as in Splitwise.`);
+    warnings.push(
+      `The file mixes currencies (${currencies.join(', ')}), so it becomes one group per currency: ${currencies.map(nameFor).join(', ')}.`,
+    );
   }
 
   // Check the result against the file's own totals.
@@ -356,23 +375,28 @@ export function parseSplitwiseCsv(text: string, filename = ''): ParseResult {
     }
   }
 
-  const mainCurrency = [...currencyCount].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'USD';
-  const dates = [...expenses.map((e) => e.date), ...settlements.map((s) => s.date)];
-  const first = new Date(Math.min(...dates.map((d) => d.getTime())));
-  const last = new Date(Math.max(...dates.map((d) => d.getTime())));
-  const group: Group = {
-    id: groupId,
-    name: groupNameFromFilename(filename),
-    emoji: '🧾',
-    color: PALETTE[0],
-    type: 'other',
-    members: users.map((u, i) => ({ userId: u.id, role: i === 0 ? 'owner' : 'member', joinedAt: first })),
-    currency: mainCurrency,
-    ...(customCategories.length ? { categories: customCategories } : {}),
-    lastActivity: last,
-    createdAt: first,
-    updatedAt: now,
-  };
+  const groups: Group[] = currencies.map((currency) => {
+    const id = groupIdFor(currency);
+    const dates = [
+      ...expenses.filter((e) => e.groupId === id).map((e) => e.date),
+      ...settlements.filter((x) => x.groupId === id).map((x) => x.date),
+    ];
+    const first = new Date(Math.min(...dates.map((d) => d.getTime())));
+    const last = new Date(Math.max(...dates.map((d) => d.getTime())));
+    return {
+      id,
+      name: nameFor(currency),
+      emoji: '🧾',
+      color: PALETTE[0],
+      type: 'other',
+      members: users.map((u, i) => ({ userId: u.id, role: i === 0 ? 'owner' : 'member', joinedAt: first })),
+      currency,
+      ...(customCategories.length ? { categories: customCategories } : {}),
+      lastActivity: last,
+      createdAt: first,
+      updatedAt: now,
+    };
+  });
 
   const data: AppExport = {
     schema: EXPORT_SCHEMA,
@@ -381,10 +405,10 @@ export function parseSplitwiseCsv(text: string, filename = ''): ParseResult {
     exportedAt: now.toISOString(),
     meta: {
       source: 'splitwise',
-      groupId,
-      groupName: group.name,
+      groupId: groups[0].id,
+      groupName: baseName,
       userCount: users.length,
-      groupCount: 1,
+      groupCount: groups.length,
       expenseCount: expenses.length,
       settlementCount: settlements.length,
       activityCount: activities.length,
@@ -393,7 +417,7 @@ export function parseSplitwiseCsv(text: string, filename = ''): ParseResult {
       // Nobody in the file is marked as its author; the importer picks who they are.
       currentUserId: '',
       users,
-      groups: [group],
+      groups,
       expenses,
       settlements,
       activities,

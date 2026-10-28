@@ -48,6 +48,12 @@ export const dayKey = (d: Date) =>
 
 export const occurrenceId = (rule: Pick<RecurringExpense, 'id'>, date: Date) => `${rule.id}:${dayKey(date)}`;
 
+/** Whether a person pays for, or has a share of, what a rule repeats. */
+export const ruleMentions = (rule: Pick<RecurringExpense, 'template'>, userId: string): boolean =>
+  rule.template.paidBy === userId ||
+  rule.template.split.entries.some((en) => en.userId === userId) ||
+  !!rule.template.items?.some((it) => it.assigned.includes(userId));
+
 /** The rule a repeat came from, from its id; undefined for an ordinary expense. */
 export const ruleIdOf = (expenseId: string) => (/:\d{4}-\d{2}-\d{2}$/.test(expenseId) ? expenseId.slice(0, -11) : undefined);
 

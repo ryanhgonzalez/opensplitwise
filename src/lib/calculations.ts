@@ -182,14 +182,6 @@ export function splitByItems(
   return entries;
 }
 
-// ─── Split validation ─────────────────────────────────────────────────────────
-
-/** Returns true when the split entries sum to within one cent of the expense amount. */
-export function validateSplit(expense: Expense): boolean {
-  const total = expense.split.entries.reduce((s, e) => s + e.amount, 0);
-  return Math.abs(total - expense.amount) < 0.01;
-}
-
 // ─── Per-expense net ──────────────────────────────────────────────────────────
 
 /**
@@ -211,11 +203,6 @@ export function netForUserOnExpense(
   // under Object.is, which is a confusing thing to leak into a balance.
   if (expense.paidBy === userId) return round(expense.amount - share) * sign || 0;
   return share === 0 ? 0 : -share * sign;
-}
-
-/** Net amount for `userId` summed across multiple expenses. */
-export function netForUser(expenses: Expense[], userId: string): number {
-  return round(expenses.reduce((sum, e) => sum + netForUserOnExpense(e, userId), 0));
 }
 
 // ─── Core: calculateBalances ──────────────────────────────────────────────────

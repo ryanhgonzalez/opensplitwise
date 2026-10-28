@@ -66,4 +66,3 @@ export type Activity =
   | PaymentActivity
   | SettledActivity;
 
-export type ActivityType = Activity['type'];

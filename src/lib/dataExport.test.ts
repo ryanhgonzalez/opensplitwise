@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildFullExport, buildGroupExport, parseAndValidate, withoutLegacyTotals, type ExportPayload } from './dataExport';
-import type { Expense, Group, User } from '../types';
+import { buildFullExport, buildGroupExport, parseAndValidate, remapForNewGroup, withoutLegacyTotals, type ExportPayload } from './dataExport';
+import type { Expense, Group, PaymentActivity, Settlement, User } from '../types';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -87,5 +87,40 @@ describe('parseAndValidate', () => {
     expect(result.ok).toBe(true);
     expect(result.data!.data.groups[0]).not.toHaveProperty('yourBalance');
     expect(result.data!.data.groups[0]).not.toHaveProperty('totalSpent');
+  });
+
+  it('gives dates back as Dates, and leaves text that only looks like one', () => {
+    const p = payload();
+    p.expenses[0] = { ...p.expenses[0], description: '2026-10-12T10:00:00 dinner' };
+    const { data } = parseAndValidate(JSON.stringify(buildFullExport({ ...p, groupSyncedAt: { trip: when } }))).data!;
+    expect(data.expenses[0].description).toBe('2026-10-12T10:00:00 dinner');
+    expect(data.expenses[0].date).toEqual(when);
+    expect(data.groups[0].members[0].joinedAt).toEqual(when);
+    expect(data.groupSyncedAt!.trip).toEqual(when);
+  });
+});
+
+describe('remapForNewGroup', () => {
+  it('moves item assignments and payment entries onto the new ids', () => {
+    // A receipt split by item, and a payment with its feed entry.
+    const p = payload();
+    p.expenses[0] = {
+      ...p.expenses[0],
+      items: [
+        { description: 'Pasta', amount: 18, assigned: ['me'] },
+        { description: 'Wine', amount: 12, assigned: ['me', 'alice'] },
+      ],
+    };
+    const pay: Settlement = { id: 'pay', fromUserId: 'alice', toUserId: 'me', amount: 5, currency: 'USD', groupId: 'trip', date: when, createdAt: when };
+    const entry: PaymentActivity = { id: 'feed', type: 'payment', actorId: 'alice', settlementId: 'pay', fromUserId: 'alice', toUserId: 'me', amount: 5, groupId: 'trip', date: when };
+    const file = buildGroupExport({ ...p, settlements: [pay], activities: [entry] }, 'trip')!;
+
+    // Imported by someone else, who says they're "me" in the file.
+    const result = remapForNewGroup(file, [user('carol')], 'carol', 'me');
+    const dinner = result.expenses.find((e) => e.description === 'dinner')!;
+    expect(dinner.items!.map((it) => it.assigned)).toEqual([['carol'], ['carol', 'alice']]);
+    const feed = result.activities[0] as PaymentActivity;
+    expect(feed.settlementId).toBe(result.settlements[0].id);
+    expect(feed.settlementId).not.toBe('pay');
   });
 });

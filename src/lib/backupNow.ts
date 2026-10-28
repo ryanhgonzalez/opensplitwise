@@ -1,4 +1,4 @@
-import { useStore } from '../store';
+import { dataSnapshot, useStore } from '../store';
 import { selectFriendBalances } from '../store/selectors';
 import { buildFullExport, downloadExport } from './dataExport';
 import { markBackedUp } from './dataSafety';
@@ -14,20 +14,7 @@ export async function downloadFullBackup(): Promise<void> {
   const withPhotos = s.expenses.filter((e) => e.receipt).map((e) => e.id);
   const receipts = withPhotos.length ? await photosFor(withPhotos) : undefined;
   downloadExport(
-    buildFullExport({
-      currentUserId: s.currentUserId,
-      users: s.users,
-      groups: s.groups,
-      expenses: s.expenses,
-      settlements: s.settlements,
-      activities: s.activities,
-      friendBalances: selectFriendBalances(s),
-      tombstones: s.tombstones,
-      userAliases: s.userAliases,
-      groupSyncedAt: s.groupSyncedAt,
-      recurring: s.recurring,
-      receipts,
-    }),
+    buildFullExport({ ...dataSnapshot(s), friendBalances: selectFriendBalances(s), receipts }),
   );
   markBackedUp();
 }

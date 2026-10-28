@@ -1,12 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   chooseStep,
-  filterByPeriod,
   getGroupContributions,
   getLargestExpenses,
   getSharedWith,
   getTrend,
-  monthsBetween,
+  inRange,
   periodStart,
   previousRange,
   trendRange,
@@ -49,12 +48,11 @@ describe('periods', () => {
 
   it('start "All" at the month of the earliest expense', () => {
     expect(periodStart(all, 0, now)).toEqual(new Date(2025, 8, 1));
-    expect(monthsBetween(periodStart(all, 0, now), now)).toBe(14);
   });
 
   it('count the same expenses the chart shows', () => {
     // Jul 28 is outside Aug–Oct, so it's not in the totals either.
-    expect(filterByPeriod(all, 3, now).map((e) => e.id)).toEqual(['refund']);
+    expect(inRange(all, trendRange(all, 3, false, now)).map((e) => e.id)).toEqual(['refund']);
   });
 });
 
@@ -97,9 +95,16 @@ describe('trend', () => {
     expect(getTrend(trip, 'me', 'personal', range, 'day', now).map((p) => p.value)).toEqual([40, 300, 0, 0, 0, 0, 20]);
   });
 
-  it('compares with the same number of months just before', () => {
-    expect(previousRange(trendRange(all, 3, false, now), 3)).toEqual({ start: new Date(2026, 4, 1), end: new Date(2026, 7, 1) });
+  it('compares with the same stretch of time, months earlier', () => {
+    // Aug 1 – Oct 26 (still going) against May 1 – Jul 26, not three whole months.
+    expect(previousRange(trendRange(all, 3, false, now), 3)).toEqual({ start: new Date(2026, 4, 1), end: new Date(2026, 6, 27) });
     expect(previousRange(trendRange(all, 0, false, now), 0)).toBeNull();
+  });
+
+  it('lands on a month\'s last day when the day doesn\'t exist in it', () => {
+    // Mar 1 – 30 against Feb 1 – 28: "Mar 30 a month earlier" is Feb's last day.
+    const march = trendRange(all, 1, false, new Date(2026, 2, 30));
+    expect(previousRange(march, 1)).toEqual({ start: new Date(2026, 1, 1), end: new Date(2026, 2, 1) });
   });
 });
 

@@ -21,12 +21,13 @@ import type {
   RecurringTemplate,
   RepeatFrequency,
 } from '../types';
-import { dueRepeats, ruleIdOf } from '../lib/recurring';
-import { mergeBundle, type GroupBundle, type MergeOptions, type MergeSummary, type PeopleChoice } from '../lib/groupSync';
+import { dueRepeats, ruleIdOf, ruleMentions } from '../lib/recurring';
+import { mergeBundle, type GroupBundle, type MergeOptions, type MergeSummary, type PeopleChoice, type SyncState } from '../lib/groupSync';
 import type { ExportPayload, ImportStats } from '../lib/dataExport';
 import { withoutLegacyTotals } from '../lib/dataExport';
 import { cleanCategoryName, findCategoryByName } from '../lib/categories';
 import { round, outstandingByGroup, allocatePayment } from '../lib/calculations';
+import { reviveDates } from '../lib/dates';
 
 // ─── Action input types ───────────────────────────────────────────────────────
 
@@ -175,6 +176,26 @@ export interface AppStore {
   wipeAllData: () => void;
 }
 
+/**
+ * The records backups and shared groups are built from, and what's saved:
+ * everything except the settings. One list, so a new kind of record can't be
+ * left out of one of them (merging a backup once lost repeating expenses that way).
+ */
+export function dataSnapshot(s: AppStore): SyncState {
+  return {
+    currentUserId: s.currentUserId,
+    users: s.users,
+    groups: s.groups,
+    expenses: s.expenses,
+    settlements: s.settlements,
+    activities: s.activities,
+    tombstones: s.tombstones,
+    userAliases: s.userAliases,
+    groupSyncedAt: s.groupSyncedAt,
+    recurring: s.recurring,
+  };
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function uid(): string {
@@ -275,12 +296,7 @@ function attributeLooseSettlements(expenses: Expense[], settlements: Settlement[
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
-
-const persistStorage = createJSONStorage(() => localStorage, {
-  reviver: (_key: string, value: unknown) =>
-    typeof value === 'string' && ISO_DATE.test(value) ? new Date(value) : value,
-});
+const persistStorage = createJSONStorage(() => localStorage, { reviver: reviveDates });
 
 // ─── Store ───────────────────────────────────────────────────────────────────
 
@@ -745,7 +761,7 @@ export const useStore = create<AppStore>()(
           ),
 
         deleteUser: (id) => {
-          const { currentUserId, users, groups, expenses, settlements, activities } = get();
+          const { currentUserId, users, groups, expenses, settlements, activities, recurring } = get();
           if (id === currentUserId) return;
 
           const purgedExpenseIds = new Set(
@@ -779,6 +795,9 @@ export const useStore = create<AppStore>()(
                 members: g.members.filter((m) => m.userId !== id),
               })),
               activities: remainingActivities,
+              // Their repeating expenses go too, like their past ones: left
+              // behind, each new repeat would name someone who no longer exists.
+              recurring: recurring.filter((r) => !ruleMentions(r, id)),
             },
             false,
             'deleteUser',
@@ -836,14 +855,56 @@ export const useStore = create<AppStore>()(
           const newExpenses    = payload.expenses.filter((e) => !existingExpIds.has(e.id));
           const newSettlements = payload.settlements.filter((s) => !existingSetIds.has(s.id));
           const newActivities  = payload.activities.filter((a) => !existingActIds.has(a.id));
+          const groups      = [...mergedGroups, ...newGroups];
+          const expenses    = [...state.expenses, ...newExpenses];
+          const settlements = [...state.settlements, ...newSettlements];
+
+          // Repeating expenses: ones the file has that aren't here, and a newer
+          // version of one that is (as when a group is shared). App.tsx then
+          // adds any repeats that have come due.
+          const groupIds = new Set(groups.map((g) => g.id));
+          const recurringById = new Map(state.recurring.map((r) => [r.id, r]));
+          for (const rule of payload.recurring ?? []) {
+            const mine = recurringById.get(rule.id);
+            if (groupIds.has(rule.groupId) && (!mine || rule.updatedAt > mine.updatedAt)) recurringById.set(rule.id, rule);
+          }
+          const recurring = [...recurringById.values()];
+
+          // Deletion markers, so sharing a group later doesn't bring back what
+          // was deleted on the file's phone. Only for records that aren't here:
+          // a merge adds what's missing and never removes what this phone has.
+          const present = (t: Tombstone) => {
+            const g = groups.find((x) => x.id === t.groupId);
+            switch (t.kind) {
+              case 'expense': return expenses.some((e) => e.id === t.id);
+              case 'settlement': return settlements.some((x) => x.id === t.id);
+              case 'recurring': return recurring.some((r) => r.id === t.id);
+              case 'member': return !!g?.members.some((m) => m.userId === t.id);
+              case 'category': return !!g?.categories?.some((c) => c.id === t.id);
+            }
+          };
+          const markerKey = (t: Tombstone) => `${t.kind}|${t.groupId}|${t.id}|${t.deletedAt.getTime()}`;
+          const haveMarkers = new Set(state.tombstones.map(markerKey));
+          const newTombstones = (payload.tombstones ?? []).filter((t) => !haveMarkers.has(markerKey(t)) && !present(t));
+
+          // What the file's phone learned about people and when groups were last received.
+          const userAliases = { ...(payload.userAliases ?? {}), ...state.userAliases };
+          const groupSyncedAt = { ...state.groupSyncedAt };
+          for (const [id, when] of Object.entries(payload.groupSyncedAt ?? {})) {
+            if (groupIds.has(id) && (!groupSyncedAt[id] || when > groupSyncedAt[id])) groupSyncedAt[id] = when;
+          }
 
           set(
             {
               users:       [...state.users, ...newUsers],
-              groups:      [...mergedGroups, ...newGroups],
-              expenses:    [...state.expenses, ...newExpenses],
-              settlements: [...state.settlements, ...newSettlements],
+              groups,
+              expenses,
+              settlements,
               activities:  [...state.activities, ...newActivities],
+              recurring,
+              tombstones:  [...state.tombstones, ...newTombstones],
+              userAliases,
+              groupSyncedAt,
             },
             false,
             'mergeImportData',
@@ -920,41 +981,8 @@ export const useStore = create<AppStore>()(
         // ── Sharing ────────────────────────────────────────────────────────────
 
         applyGroupBundle: (bundle, people, options) => {
-          const s = get();
-          const { state, summary } = mergeBundle(
-            {
-              currentUserId: s.currentUserId,
-              users: s.users,
-              groups: s.groups,
-              expenses: s.expenses,
-              settlements: s.settlements,
-              activities: s.activities,
-              tombstones: s.tombstones,
-              userAliases: s.userAliases,
-              groupSyncedAt: s.groupSyncedAt,
-        recurring: s.recurring,
-            },
-            bundle,
-            people,
-            undefined,
-            undefined,
-            options,
-          );
-          set(
-            {
-              users: state.users,
-              groups: state.groups,
-              expenses: state.expenses,
-              settlements: state.settlements,
-              activities: state.activities,
-              tombstones: state.tombstones,
-              userAliases: state.userAliases,
-              groupSyncedAt: state.groupSyncedAt,
-              recurring: state.recurring,
-            },
-            false,
-            'applyGroupBundle',
-          );
+          const { state, summary } = mergeBundle(dataSnapshot(get()), bundle, people, undefined, undefined, options);
+          set(state, false, 'applyGroupBundle');
           return summary;
         },
 
@@ -1030,17 +1058,8 @@ export const useStore = create<AppStore>()(
         partialize: (state) => ({
           hasOnboarded:  state.hasOnboarded,
           theme:         state.theme,
-          currentUserId: state.currentUserId,
           needsIdentity: state.needsIdentity,
-          users:         state.users,
-          groups:        state.groups,
-          expenses:      state.expenses,
-          settlements:   state.settlements,
-          activities:    state.activities,
-          tombstones:    state.tombstones,
-          userAliases:   state.userAliases,
-          groupSyncedAt: state.groupSyncedAt,
-          recurring:     state.recurring,
+          ...dataSnapshot(state),
         }),
       },
     ),

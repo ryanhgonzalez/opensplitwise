@@ -1,9 +1,8 @@
 /*
  * Ledger design tokens.
  *
- * The first block is the Ledger palette itself. The second maps the older token
- * names (glass, accent-*, fill-*) onto it, so components restyle from here
- * before their own CSS is rewritten. New CSS should use the Ledger names.
+ * The Ledger palette, then the few older names some CSS still uses, mapped
+ * onto it. New CSS should use the Ledger names.
  *
  * Money direction: --owed (you are owed, positive) and --owe (you owe,
  * negative). Amounts always carry a + / − sign as well, so colour is never the
@@ -37,69 +36,17 @@
 
   /* Layout */
   --bottom-nav-height: 76px;
-  --top-bar-height: 56px;
-  --safe-bottom: env(safe-area-inset-bottom, 16px);
-  --safe-top: env(safe-area-inset-top, 0px);
   --radius-sm: 4px;
   --radius-md: 6px;
-  --radius-lg: 6px;
-  --radius-xl: 12px;
   --radius-full: 9999px;
 
   /* Transitions */
   --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ── Legacy names, mapped onto Ledger ── */
+  /* ── Older names still in use, mapped onto Ledger ── */
   --bg-base: var(--paper);
-  --bg-panel: var(--paper);
-  --bg-topbar: var(--paper);
-  --bg-sidebar: var(--panel);
-  --bg-nav: var(--panel);
-  --bg-overlay-dim: var(--scrim);
-  --bg-code: var(--panel);
-
-  --glass-bg: var(--paper);
-  --glass-bg-hover: var(--panel);
-  --glass-bg-active: var(--panel);
-  --glass-bg-strong: var(--paper);
-  --glass-border: var(--rule);
-  --glass-border-strong: var(--border);
-  --glass-specular: transparent;
-  --glass-blur: none;
-  --glass-blur-light: none;
-
-  --fill-primary: var(--panel);
-  --fill-secondary: var(--panel);
-  --fill-tertiary: var(--panel);
-  --fill-hover: var(--panel);
-  --border-prominent: var(--border);
-
-  --shadow-sm: none;
-  --shadow-md: none;
-  --shadow-lg: var(--shadow-pop);
-  --shadow-inset: 0 0 0 transparent;
-
   --text-primary: var(--ink);
   --text-secondary: var(--muted);
-  --text-tertiary: var(--faint);
-
-  --accent-green: var(--owed);
-  --accent-green-bg: var(--owed-tint);
-  --accent-red: var(--owe);
-  --accent-red-bg: var(--owe-tint);
-  --accent-blue: var(--owed);
-  --accent-blue-bg: var(--owed-tint);
-  --accent-teal: var(--ink);
-  --accent-purple: var(--ink-soft);
-  --accent-amber: var(--owe);
-  --danger: var(--owe);
-
-  --orb-1: transparent;
-  --orb-2: transparent;
-  --orb-3: transparent;
-  --orb-4: transparent;
 }
 
 [data-theme="dark"] {

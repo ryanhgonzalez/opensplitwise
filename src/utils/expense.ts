@@ -7,10 +7,6 @@ export function getShareForUser(expense: Expense, userId: string): number {
   return (entry?.amount ?? 0) * moneySign(expense) || 0;
 }
 
-export function getParticipantIds(expense: Expense): string[] {
-  return expense.split.entries.map(e => e.userId);
-}
-
 /**
  * Re-exported from the calculation layer so there is exactly one definition of
  * "what did this expense do to my balance" in the app. Two copies had already

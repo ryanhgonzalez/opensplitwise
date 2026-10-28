@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useStore } from '../store';
+import { dataSnapshot, useStore } from '../store';
 import GroupTile from '../components/GroupTile';
 import {
   NEW_PERSON,
@@ -10,7 +10,6 @@ import {
   needsSelfChoice,
   type GroupBundle,
   type PeopleChoice,
-  type SyncState,
 } from '../lib/groupSync';
 import { FrameCollector, decompressBundle, parseBundle } from '../lib/groupShare';
 import { loadPhoto, savePhotos } from '../lib/receiptPhotos';
@@ -19,19 +18,6 @@ import './Sharing.css';
 
 /** Scans per second while the camera is open. */
 const SCAN_INTERVAL_MS = 120;
-
-const syncStateOf = (s: ReturnType<typeof useStore.getState>): SyncState => ({
-  currentUserId: s.currentUserId,
-  users: s.users,
-  groups: s.groups,
-  expenses: s.expenses,
-  settlements: s.settlements,
-  activities: s.activities,
-  tombstones: s.tombstones,
-  userAliases: s.userAliases,
-  groupSyncedAt: s.groupSyncedAt,
-  recurring: s.recurring,
-});
 
 const PERSON_ICON = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -82,7 +68,7 @@ export function ReceivePanel({
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const review = (b: GroupBundle, parts: number) => {
-    const state = syncStateOf(useStore.getState());
+    const state = dataSnapshot(useStore.getState());
     setBundle(b);
     setViaParts(parts);
     setChoice(defaultChoice(matchPeople(state, b)));
@@ -167,7 +153,7 @@ export function ReceivePanel({
   }, [bundle, onReviewChange]);
 
   // ── Review ──
-  const state = useMemo(() => (bundle ? syncStateOf(useStore.getState()) : null), [bundle]);
+  const state = useMemo(() => (bundle ? dataSnapshot(useStore.getState()) : null), [bundle]);
   const matches = useMemo(() => (bundle && state ? matchPeople(state, bundle) : []), [bundle, state]);
   const askSelf = !!state && needsSelfChoice(state, matches);
   // Only people the app isn't sure about need a decision.

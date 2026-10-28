@@ -7,7 +7,6 @@ import {
   matchesQuery,
   parseISODate,
   resolveDateRange,
-  toISODateInput,
   type ExpenseFilter,
 } from './expenseFilter';
 import type { Expense, ExpenseCategory } from '../types';
@@ -82,10 +81,8 @@ describe('parseISODate', () => {
     expect(parseISODate(undefined)).toBeUndefined();
   });
 
-  it('round-trips through the input format', () => {
-    const date = new Date(2026, 0, 5);
-    expect(toISODateInput(date)).toBe('2026-01-05');
-    expect(parseISODate(toISODateInput(date))!.getTime()).toBe(date.getTime());
+  it('reads the date input format as local midnight', () => {
+    expect(parseISODate('2026-01-05')!.getTime()).toBe(new Date(2026, 0, 5).getTime());
   });
 });
 

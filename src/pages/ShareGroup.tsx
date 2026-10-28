@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useStore } from '../store';
+import { dataSnapshot, useStore } from '../store';
 import GroupTile from '../components/GroupTile';
 import { buildBundle, type GroupBundle } from '../lib/groupSync';
 import { compressBundle, sendBundleFile, toFrames } from '../lib/groupShare';
@@ -33,22 +33,7 @@ export function SendPanel({ groupId: id }: { groupId: string }) {
   // Pack the group as it is when the page opens.
   useEffect(() => {
     let live = true;
-    const s = useStore.getState();
-    const b = buildBundle(
-      {
-        currentUserId: s.currentUserId,
-        users: s.users,
-        groups: s.groups,
-        expenses: s.expenses,
-        settlements: s.settlements,
-        activities: s.activities,
-        tombstones: s.tombstones,
-        userAliases: s.userAliases,
-        groupSyncedAt: s.groupSyncedAt,
-        recurring: s.recurring,
-      },
-      id,
-    );
+    const b = buildBundle(dataSnapshot(useStore.getState()), id);
     setBundle(b);
     if (b) {
       compressBundle(b)

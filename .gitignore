@@ -47,3 +47,8 @@ vite.config.ts.timestamp-*
 
 # Receipt bench: real receipt photos and labels stay local (card digits, locations)
 bench/data/
+
+# Exports saved into the project while testing: backups, shared groups and
+# Splitwise spreadsheets hold real people's names and money
+/opensplitwise-*.json
+/*_export.csv

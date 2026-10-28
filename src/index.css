@@ -1,5 +1,4 @@
 @import './styles/variables.css';
-@import './styles/glass.css';
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -165,7 +164,6 @@ h4 { font-size: 14px; font-weight: 600; line-height: 1.35; }
 .text-tertiary { color: var(--faint); }
 .text-green { color: var(--owed); }
 .text-red { color: var(--owe); }
-.text-blue { color: var(--owed); }
 
 /* ── Ledger primitives ─────────────────────────────────────────────────────── */
 
@@ -371,57 +369,9 @@ h4 { font-size: 14px; font-weight: 600; line-height: 1.35; }
   white-space: nowrap;
 }
 
-/* Divider */
-.divider {
-  height: 1px;
-  background: var(--rule);
-}
-
-/* Section header */
-.section-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 0 20px;
-  margin-bottom: 8px;
-}
-
-.section-header h2,
-.section-header h3 {
-  font-size: 17px;
-  font-weight: 600;
-}
-
-.section-header button,
-.section-header a {
-  color: var(--owed);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-/* Page padding */
-.px-5 { padding-left: 20px; padding-right: 20px; }
-.pt-4 { padding-top: 16px; }
-.pb-4 { padding-bottom: 16px; }
-.mb-4 { margin-bottom: 16px; }
-.mb-5 { margin-bottom: 20px; }
-.mb-6 { margin-bottom: 24px; }
-.gap-3 { gap: 12px; }
-.gap-4 { gap: 16px; }
 .flex { display: flex; }
-.flex-col { flex-direction: column; }
-.items-center { align-items: center; }
-.justify-between { justify-content: space-between; }
-.w-full { width: 100%; }
 
-/* ── Shared in-content page header (matches People page style) ────────────── */
-.page-hero-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: calc(28px + env(safe-area-inset-top, 0px)) 20px 16px;
-}
-
+/* ── Page title, shared by the pages ──────────────────────────────────────── */
 .page-hero-title {
   font-size: 28px;
   font-weight: 600;
@@ -430,40 +380,7 @@ h4 { font-size: 14px; font-weight: 600; line-height: 1.35; }
   line-height: 1.1;
 }
 
-.page-hero-subtitle {
-  margin-top: 4px;
-}
-
-.page-hero-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 18px;
-  border-radius: var(--radius-md);
-  background: var(--ink);
-  border: 0;
-  color: var(--on-ink);
-  font-size: 14px;
-  font-weight: 600;
-  font-family: var(--font);
-  cursor: pointer;
-  transition: opacity var(--transition-fast);
-  white-space: nowrap;
-}
-
-.page-hero-btn:hover {
-  opacity: 0.88;
-}
-
 @media (min-width: 1024px) {
-  .page-hero-header {
-    padding: 32px 48px 20px;
-    max-width: 1216px;
-    margin: 0 auto;
-    width: 100%;
-  }
-
   .page-hero-title {
     font-size: 34px;
   }

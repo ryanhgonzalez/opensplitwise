@@ -62,12 +62,6 @@ export function parseISODate(value: string | undefined): Date | undefined {
   return date;
 }
 
-/** Formats a date as `YYYY-MM-DD` in local time, for `<input type="date">`. */
-export function toISODateInput(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
 /**
  * The inclusive window a filter describes, or `undefined` bounds where it is
  * open-ended. Rolling windows count today as day one, so `7d` covers today plus

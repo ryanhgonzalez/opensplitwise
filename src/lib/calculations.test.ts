@@ -6,9 +6,7 @@ import {
   splitByShares,
   splitByItems,
   buildSplit,
-  validateSplit,
   netForUserOnExpense,
-  netForUser,
   calculateBalances,
   settleBalances,
   calculateSettlements,
@@ -174,18 +172,10 @@ describe('splitByItems', () => {
   });
 });
 
-describe('buildSplit / validateSplit', () => {
-  it('produces entries that validate against the expense amount', () => {
+describe('buildSplit', () => {
+  it('produces entries that add up to the amount', () => {
     const split = buildSplit(10, 'equal', [{ userId: 'a' }, { userId: 'b' }, { userId: 'c' }]);
-    expect(validateSplit(expense({ amount: 10, paidBy: 'a', split }))).toBe(true);
-  });
-
-  it('flags a split that does not add up', () => {
-    const split = buildSplit(10, 'exact', [
-      { userId: 'a', value: 4 },
-      { userId: 'b', value: 4 },
-    ]);
-    expect(validateSplit(expense({ amount: 10, paidBy: 'a', split }))).toBe(false);
+    expect(sum(split.entries)).toBe(10);
   });
 });
 
@@ -220,20 +210,6 @@ describe('netForUserOnExpense', () => {
       split: { type: 'equal', entries: [{ userId: 'a', amount: 25 }, { userId: 'b', amount: 25 }] },
     });
     expect(netForUserOnExpense(e, 'z')).toBe(0);
-  });
-
-  it('sums across expenses', () => {
-    const e1 = expense({
-      amount: 90,
-      paidBy: 'a',
-      split: { type: 'equal', entries: [{ userId: 'a', amount: 30 }, { userId: 'b', amount: 30 }, { userId: 'c', amount: 30 }] },
-    });
-    const e2 = expense({
-      amount: 30,
-      paidBy: 'b',
-      split: { type: 'equal', entries: [{ userId: 'a', amount: 15 }, { userId: 'b', amount: 15 }] },
-    });
-    expect(netForUser([e1, e2], 'a')).toBe(45);
   });
 });
 

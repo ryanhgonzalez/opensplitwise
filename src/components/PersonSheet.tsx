@@ -6,6 +6,7 @@ import { groupCurrency } from '../lib/currency';
 import Avatar from './Avatar';
 import { formatCurrency } from '../utils';
 import { calculateBalances, outstandingByGroup } from '../lib/calculations';
+import { ruleMentions } from '../lib/recurring';
 import '../styles/sheet.css';
 import './PersonSheet.css';
 
@@ -24,6 +25,7 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
   const groups = useStore(s => s.groups);
   const allExpenses = useStore(s => s.expenses);
   const allSettlements = useStore(s => s.settlements);
+  const allRecurring = useStore(s => s.recurring);
   const byCurrency = useStore(selectFriendBalancesByCurrency);
   const updateUser = useStore(s => s.updateUser);
   const deleteUser = useStore(s => s.deleteUser);
@@ -89,6 +91,7 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
   const expenseCount = allExpenses.filter(
     e => e.paidBy === userId || e.split.entries.some(en => en.userId === userId)
   ).length;
+  const repeatCount = allRecurring.filter(r => ruleMentions(r, userId)).length;
 
   const previewUser = { ...person, name: name || person.name, avatarColor };
   const settled = unsettled.length === 0;
@@ -256,7 +259,9 @@ export default function PersonSheet({ open, onClose, userId, groupId }: PersonSh
                       >
                         <p className="ps-confirm-text">
                           Permanently delete <strong>{person.name}</strong>?{' '}
-                          This will also delete {expenseCount} expense{expenseCount !== 1 ? 's' : ''} involving them and cannot be undone.
+                          This will also delete {expenseCount} expense{expenseCount !== 1 ? 's' : ''}
+                          {repeatCount > 0 && ` and ${repeatCount} repeating expense${repeatCount !== 1 ? 's' : ''}`} involving
+                          them and cannot be undone.
                         </p>
                         <div className="ps-confirm-btns">
                           <button className="btn btn-secondary" onClick={() => setConfirmAction(null)}>Cancel</button>

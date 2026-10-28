@@ -8,28 +8,7 @@ import { signedAmount } from './calculations';
 export type Period = 1 | 3 | 6 | 0;
 export type ViewMode = 'personal' | 'total';
 
-export const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
-  food:            '#f59e0b',
-  groceries:       '#84cc16',
-  transport:       '#60a5fa',
-  travel:          '#34d399',
-  accommodation:   '#22d3ee',
-  shopping:        '#fb923c',
-  entertainment:   '#f472b6',
-  utilities:       '#a78bfa',
-  rent:            '#818cf8',
-  healthcare:      '#f87171',
-  gifts:           '#c084fc',
-  education:       '#4ade80',
-  subscriptions:   '#38bdf8',
-  'personal-care': '#fb7185',
-  other:           '#94a3b8',
-};
-
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-/** Custom categories have no colour of their own. */
-const CUSTOM_CATEGORY_COLOR = '#94a3b8';
 
 export interface CategoryBreakdown {
   /** A built-in category id, or `name:<lowercased name>` for custom ones. */
@@ -38,7 +17,6 @@ export interface CategoryBreakdown {
   icon: string;
   amount: number;
   percentage: number;
-  color: string;
 }
 
 export interface MemberContribution {
@@ -75,17 +53,6 @@ export function periodStart(expenses: Expense[], period: Period, now = new Date(
   return new Date(now.getFullYear(), now.getMonth() - (period - 1), 1);
 }
 
-/** Calendar months from `start` to `now`, inclusive. */
-export function monthsBetween(start: Date, now = new Date()): number {
-  return (now.getFullYear() - start.getFullYear()) * 12 + now.getMonth() - start.getMonth() + 1;
-}
-
-export function filterByPeriod(expenses: Expense[], period: Period, now = new Date()): Expense[] {
-  if (period === 0) return expenses;
-  const start = periodStart(expenses, period, now);
-  return expenses.filter(e => e.date >= start);
-}
-
 /**
  * Spending per category. Custom categories are per group, so two groups that
  * each made "Gas" would otherwise show twice; they're combined by name.
@@ -97,7 +64,7 @@ export function getCategoryBreakdown(
   groups: Group[] = [],
 ): CategoryBreakdown[] {
   const groupById = new Map(groups.map((g) => [g.id, g]));
-  const totals = new Map<string, { label: string; icon: string; color: string; amount: number }>();
+  const totals = new Map<string, { label: string; icon: string; amount: number }>();
 
   for (const expense of expenses) {
     // Refunds count against their category.
@@ -112,9 +79,8 @@ export function getCategoryBreakdown(
     const builtIn: ExpenseCategory = isCustomCategory(expense.category) ? 'other' : expense.category;
     const key = custom ? `name:${custom.name.toLowerCase()}` : builtIn;
     const { label, icon } = categoryInfo(custom ? custom.id : builtIn, group);
-    const color = custom ? CUSTOM_CATEGORY_COLOR : CATEGORY_COLORS[builtIn];
 
-    const entry = totals.get(key) ?? { label, icon, color, amount: 0 };
+    const entry = totals.get(key) ?? { label, icon, amount: 0 };
     entry.amount += amount;
     totals.set(key, entry);
   }
@@ -130,15 +96,11 @@ export function getCategoryBreakdown(
       icon: t.icon,
       amount: t.amount,
       percentage: grandTotal > 0 ? (t.amount / grandTotal) * 100 : 0,
-      color: t.color,
     }))
     .sort((a, b) => b.amount - a.amount);
 }
 
-/**
- * Spending per calendar month across the period. "All" runs from the month of
- * the earliest expense, so nothing counted in the totals is left off the chart.
- */
+/** For each group: what every member paid, against their share, in these expenses. */
 export function getGroupContributions(
   expenses: Expense[],
   groups: Group[],
@@ -234,11 +196,25 @@ export function trendRange(expenses: Expense[], period: Period, oneGroup: boolea
   return { start: periodStart(expenses, period, now), end: tomorrow };
 }
 
-/** The period of the same length just before, to compare against. None for "All". */
+/** The same day of the month `n` months away; a day that month doesn't have becomes its last. */
+function addMonths(d: Date, n: number): Date {
+  const first = new Date(d.getFullYear(), d.getMonth() + n, 1);
+  const days = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+  return new Date(first.getFullYear(), first.getMonth(), Math.min(d.getDate(), days));
+}
+
+/**
+ * What to compare a period with: the same stretch of time, `period` months
+ * earlier. A period still going (Aug 1 – today, Oct 27) is set against the
+ * same days then (May 1 – Jul 27), not against three whole months, which
+ * made every figure look like a drop early in a month. None for "All".
+ */
 export function previousRange(range: Range, period: Period): Range | null {
   if (period === 0) return null;
-  const s = range.start;
-  return { start: new Date(s.getFullYear(), s.getMonth() - period, 1), end: s };
+  // Move the last day in the range, not its (exclusive) end, so a month-end
+  // keeps its last day: Mar 1–31 compares with all of Feb, not Feb 1–27.
+  const lastDay = addDays(range.end, -1);
+  return { start: addMonths(range.start, -period), end: addDays(addMonths(lastDay, -period), 1) };
 }
 
 /** Days for up to about a month, weeks up to about half a year, months beyond. */
