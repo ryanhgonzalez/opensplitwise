@@ -1,11 +1,12 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useStore, selectCurrentUser, selectFriendBalancesByCurrency, selectOverallBalances } from '../store';
 import Avatar from '../components/Avatar';
 import PersonSheet from '../components/PersonSheet';
 import ContactImportSheet from '../components/ContactImportSheet';
-import { contactPicker, parseVcf, pickContacts, planImport, type ImportRow } from '../lib/contacts';
+import AddPersonSheet from '../components/AddPersonSheet';
+import { planImport, type Contact, type ImportRow } from '../lib/contacts';
 import { formatCurrency, formatSigned } from '../utils';
 import './People.css';
 
@@ -15,16 +16,13 @@ export default function People() {
   const groups = useStore(s => s.groups);
   const byCurrency = useStore(selectFriendBalancesByCurrency);
   const overall = useStore(selectOverallBalances);
-  const addUser = useStore(s => s.addUser);
 
   const navigate = useNavigate();
   // Only your own row opens the sheet; everyone else has a page.
   const [editingSelf, setEditingSelf] = useState(false);
-  const [newName, setNewName] = useState('');
+  const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState<ImportRow[] | null>(null);
   const [imported, setImported] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
-  const hasPicker = !!contactPicker();
 
   const others = users.filter(u => u.id !== currentUser.id);
 
@@ -51,25 +49,9 @@ export default function People() {
       )
       .map(g => g.name);
 
-  const handleAddPerson = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!newName.trim()) return;
-    addUser({ name: newName.trim() });
-    setNewName('');
-  };
-
-  const fromPicker = async () => {
-    try {
-      const picked = await pickContacts();
-      if (picked.length) setImporting(planImport(picked, users));
-    } catch {
-      // Cancelled or refused.
-    }
-  };
-
-  const fromFile = async (file: File | undefined) => {
-    if (!file) return;
-    setImporting(planImport(parseVcf(await file.text()), users));
+  const fromContacts = (contacts: Contact[]) => {
+    setAdding(false);
+    setImporting(planImport(contacts, users));
   };
 
   const finishImport = ({ added, updated }: { added: number; updated: number }) => {
@@ -90,50 +72,23 @@ export default function People() {
     <div className="page-content">
       <div className="people-page">
         <header className="people-header">
-          <h1 className="page-hero-title">People</h1>
-          <p className="text-secondary">Friends &amp; contacts</p>
-        </header>
-
-        <form className="people-add rule-top" onSubmit={handleAddPerson}>
-          <label className="people-add-field">
-            <span className="sr-only">Name</span>
-            <input
-              className="field-input"
-              placeholder="Their name…"
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-            />
-          </label>
-          <button type="submit" className="btn btn-primary" disabled={!newName.trim()}>
+          <span className="people-header-text">
+            <h1 className="page-hero-title">People</h1>
+            <p className="text-secondary">Friends &amp; contacts</p>
+          </span>
+          <button className="btn btn-primary" onClick={() => setAdding(true)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
             Add person
           </button>
-        </form>
+        </header>
 
-        <div className="people-import">
-          {hasPicker && (
-            <button className="people-import-btn" onClick={fromPicker}>
-              Add from contacts
-            </button>
-          )}
-          <button className="people-import-btn" onClick={() => fileRef.current?.click()}>
-            Import contacts file (.vcf)
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".vcf,text/vcard,text/x-vcard"
-            hidden
-            onChange={(e) => {
-              void fromFile(e.target.files?.[0]);
-              e.target.value = '';
-            }}
-          />
-          {imported && (
-            <span className="people-import-done" role="status">
-              {imported}
-            </span>
-          )}
-        </div>
+        {imported && (
+          <p className="people-import-done" role="status">
+            {imported}
+          </p>
+        )}
 
         {/* You */}
         <section>
@@ -204,6 +159,18 @@ export default function People() {
       <AnimatePresence>
         {editingSelf && (
           <PersonSheet open={editingSelf} onClose={() => setEditingSelf(false)} userId={currentUser.id} />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {adding && (
+          <AddPersonSheet
+            onClose={() => setAdding(false)}
+            onAdded={(name) => {
+              setAdding(false);
+              setImported(`Added ${name}.`);
+            }}
+            onContacts={fromContacts}
+          />
         )}
       </AnimatePresence>
       <AnimatePresence>

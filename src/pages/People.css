@@ -7,44 +7,20 @@
 
 .people-header {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.people-header-text {
+  display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.people-add {
-  display: flex;
-  gap: 8px;
-  padding-top: 16px;
-}
-
-.people-add-field {
-  flex: 1;
   min-width: 0;
-  display: flex;
-}
-
-.people-import {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 18px;
-  margin-top: -12px;
-}
-
-.people-import-btn {
-  min-height: 40px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--owed);
-  font-size: 14px;
-  font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 
 .people-import-done {
-  flex-basis: 100%;
+  margin: -8px 0 0;
   font-size: 13px;
   color: var(--muted);
 }

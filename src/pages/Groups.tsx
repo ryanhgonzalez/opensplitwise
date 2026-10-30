@@ -39,15 +39,6 @@ export default function Groups() {
     g.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Net across every group, per currency: positive means you are owed overall.
-  const netByCurrency = new Map<string, number>();
-  for (const g of groups) {
-    const c = groupCurrency(g);
-    netByCurrency.set(c, (netByCurrency.get(c) ?? 0) + totalsOf(g.id).yourBalance);
-  }
-  const nets = [...netByCurrency.entries()].filter(([, n]) => Math.abs(n) >= 0.005);
-  const netEven = nets.length === 0;
-
   const memberSummary = (ids: string[]) => {
     const names = ids.map(nameOf);
     return names.length > 3 ? `${names.slice(0, 3).join(', ')} +${names.length - 3}` : names.join(', ');
@@ -65,25 +56,6 @@ export default function Groups() {
             Add group
           </button>
         </header>
-
-        <section className="statement" aria-label="Summary">
-          <div>
-            <span className="cap">Groups</span>
-            <span className="num groups-figure">{groups.length}</span>
-          </div>
-          <div>
-            <span className="cap">Net balance</span>
-            {netEven ? (
-              <span className="num groups-figure groups-net zero">Settled</span>
-            ) : (
-              nets.map(([currency, net]) => (
-                <span key={currency} className={`num groups-figure groups-net ${net > 0 ? 'pos' : 'neg'}`}>
-                  {formatSigned(net, currency)}
-                </span>
-              ))
-            )}
-          </div>
-        </section>
 
         <label className="groups-search">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -120,7 +92,9 @@ export default function Groups() {
         ) : (
           <div className="groups-table" role="table" aria-label="Groups">
             <div className="groups-row groups-head" role="row">
-              <span role="columnheader" className="cap">Group</span>
+              <span role="columnheader" className="cap">
+                Groups · {searchQuery ? `${filtered.length} of ${groups.length}` : groups.length}
+              </span>
               <span role="columnheader" className="cap groups-col-wide">Members</span>
               <span role="columnheader" className="cap groups-col-wide">Last active</span>
               <span role="columnheader" className="cap groups-col-wide groups-right">Total spent</span>

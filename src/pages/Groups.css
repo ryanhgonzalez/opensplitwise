@@ -52,15 +52,6 @@
   max-height: none;
 }
 
-.groups-figure {
-  font-size: 22px;
-  font-weight: 500;
-}
-
-.groups-net {
-  font-weight: 600;
-}
-
 /* Search */
 .groups-search {
   display: flex;
@@ -189,10 +180,6 @@
 
   .groups-header {
     align-items: flex-end;
-  }
-
-  .groups-figure {
-    font-size: 26px;
   }
 
   .groups-row {
