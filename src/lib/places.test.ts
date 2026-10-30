@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { distanceMetres, formatDistance, overpassQuery, parsePlaces } from './places';
+import { distanceMetres, formatDistance, overpassQuery, parsePhoton, parsePlaces, photonUrl } from './places';
 
 const here = { lat: 40.71283, lng: -74.00602 };
 // About 11 m per 0.0001° of latitude.
@@ -29,6 +29,39 @@ describe('parsePlaces', () => {
 
   it('is empty when nothing is there', () => {
     expect(parsePlaces({}, here)).toEqual([]);
+  });
+});
+
+describe('parsePhoton', () => {
+  const feature = (id: number, metres: number, props: Record<string, string>) => ({
+    geometry: { coordinates: [here.lng, north(metres)] as [number, number] },
+    properties: { osm_type: 'N', osm_id: id, ...props },
+  });
+
+  it('lists the businesses Photon finds, leaving out places and streets', () => {
+    const places = parsePhoton(
+      {
+        features: [
+          feature(1, 0, { osm_key: 'place', osm_value: 'city', name: 'New York' }),
+          feature(2, 60, { osm_key: 'amenity', osm_value: 'cafe', name: 'Starbucks', housenumber: '38', street: 'Park Row' }),
+          feature(3, 20, { osm_key: 'shop', osm_value: 'convenience', name: 'City Hall Oasis', street: 'Broadway' }),
+          feature(4, 10, { osm_key: 'amenity', osm_value: 'fountain', name: 'Mould Fountain' }),
+          feature(5, 15, { osm_key: 'highway', osm_value: 'service', name: 'Flanders Square' }),
+        ],
+      },
+      here,
+    );
+    expect(places.map((p) => [p.name, p.kind, p.address, p.distance])).toEqual([
+      ['City Hall Oasis', 'Convenience store', 'Broadway', 20],
+      ['Starbucks', 'Cafe', '38 Park Row', 60],
+    ]);
+  });
+
+  it('asks for the kinds of places people pay at', () => {
+    const url = new URL(photonUrl(40.7, -74, 0.3));
+    expect(url.origin + url.pathname).toBe('https://photon.komoot.io/reverse');
+    expect(url.searchParams.get('radius')).toBe('0.3');
+    expect(url.searchParams.getAll('osm_tag')).toContain('shop');
   });
 });
 
