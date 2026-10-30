@@ -167,7 +167,6 @@ export default function CreateGroupSheet({ open, onClose, onCreated }: CreateGro
                     placeholder="Apartment, Road Trip, …"
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    autoFocus
                   />
                 </div>
               </div>
