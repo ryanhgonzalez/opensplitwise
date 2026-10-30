@@ -114,6 +114,12 @@ export interface Expense {
    * way round. `of` is the expense it refunds, when there is one.
    */
   refund?: { of?: string };
+  /**
+   * Where it was paid, when "Add location" was tapped: the phone's GPS
+   * position, worked out on the phone. No place name: looking one up would
+   * send the position to a map service. `accuracy` is in metres.
+   */
+  location?: { lat: number; lng: number; accuracy?: number };
   createdAt: Date;
   updatedAt: Date;
 }

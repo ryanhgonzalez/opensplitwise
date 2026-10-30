@@ -11,6 +11,7 @@ import ReceiptViewer from './ReceiptViewer';
 import { compressReceiptPhoto, formatBytes, loadPhoto, savePhoto } from '../lib/receiptPhotos';
 import { FREQUENCY_LABELS, nextOccurrence, ruleIdOf } from '../lib/recurring';
 import { showToast } from '../lib/toast';
+import { canLocate, currentLocation, formatAccuracy, formatCoords, mapsUrl, type ExpenseLocation } from '../lib/location';
 import type { RepeatFrequency } from '../types';
 import type { TotalCandidate } from '../lib/receiptScanner';
 import { formatCurrency } from '../utils/format';
@@ -121,6 +122,10 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const [newCategory, setNewCategory] = useState<string | null>(null);
   const [newCategoryHint, setNewCategoryHint] = useState<string | null>(null);
   const [dateStr, setDateStr] = useState(editExpense ? toDateInputValue(editExpense.date) : '');
+  // Only an expense's own location: a copy was paid somewhere else.
+  const [location, setLocation] = useState<ExpenseLocation | undefined>(editExpense?.location);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [groupId, setGroupId] = useState(source?.groupId ?? refundOf?.groupId ?? defaultGroupId ?? '');
   // For a refund: who received it; usually whoever paid, back on their card.
   const [paidBy, setPaidBy] = useState(source?.paidBy ?? refundOf?.paidBy ?? currentUser.id);
@@ -450,6 +455,18 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     }
   };
 
+  const addLocation = async () => {
+    setLocating(true);
+    setLocationError(null);
+    try {
+      setLocation(await currentLocation());
+    } catch (e) {
+      setLocationError((e as Error).message);
+    } finally {
+      setLocating(false);
+    }
+  };
+
   const handleSubmit = () => {
     if (!canSubmit) return;
 
@@ -503,6 +520,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         receipt,
         items,
         refund: isRefund ? { of: editExpense.refund?.of } : undefined,
+        location,
       });
       if (newPhoto) void savePhoto(editExpense.id, newPhoto.blob);
     } else if (repeat && groupId && !isRefund) {
@@ -534,6 +552,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         receipt,
         items,
         ...(isRefund && { refund: { of: refundOf?.id ?? template?.refund?.of } }),
+        ...(location && { location }),
       });
       // Saved under the new expense's id, which exists only now.
       if (newPhoto) void savePhoto(added.id, newPhoto.blob);
@@ -885,6 +904,45 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                 />
                 <div className="aes-field-hint text-tertiary text-xs">Leave empty to use today's date.</div>
               </div>
+
+              {/* Location: the phone's own position, kept as a map pin */}
+              {!repeat && (location || canLocate()) && (
+                <div className="field-group">
+                  <div className="field-label">Location</div>
+                  {location ? (
+                    <div className="aes-location">
+                      <span className="aes-location-text">
+                        <span>📍 Location saved</span>
+                        <span className="text-tertiary text-xs">{formatAccuracy(location.accuracy) || formatCoords(location)}</span>
+                      </span>
+                      <a
+                        className="aes-location-action"
+                        href={mapsUrl(location, description.trim())}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View
+                      </a>
+                      <button type="button" className="aes-location-action" onClick={() => setLocation(undefined)}>
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" className="btn btn-secondary aes-location-btn" onClick={addLocation} disabled={locating}>
+                      {locating ? 'Finding you…' : '📍 Add location'}
+                    </button>
+                  )}
+                  {locationError ? (
+                    <div className="aes-field-hint text-red text-xs">{locationError}</div>
+                  ) : (
+                    !location && (
+                      <div className="aes-field-hint text-tertiary text-xs">
+                        Saves where you are as a map pin. Your phone works it out; it isn't sent anywhere.
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
 
               {/* Repeats: rent, bills, subscriptions */}
               {isRefund ? null : !isEditing ? (

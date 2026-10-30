@@ -784,3 +784,50 @@
   font-size: 12px;
   color: var(--muted);
 }
+
+/* ── Location ──────────────────────────────────────────────────────────────── */
+.aes-location-btn {
+  width: 100%;
+  min-height: 44px;
+}
+
+.aes-location {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 48px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.aes-location-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+}
+
+.aes-location-action {
+  flex: none;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--owed);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.aes-location-action:last-child {
+  color: var(--owe);
+}
+
+.aes-field-hint.text-red {
+  color: var(--owe);
+}

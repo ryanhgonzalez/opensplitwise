@@ -273,6 +273,21 @@ button.xd-link:hover,
   border-color: var(--ink);
 }
 
+.xd-location {
+  padding-block: 8px;
+}
+
+.xd-location-sub {
+  display: block;
+  font-family: var(--font-mono);
+}
+
+.xd-location-open {
+  flex: none;
+  color: var(--owed);
+  font-weight: 500;
+}
+
 .xd-refunds {
   display: flex;
   flex-direction: column;

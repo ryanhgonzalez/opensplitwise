@@ -9,6 +9,7 @@ import { categoryLabel } from '../lib/categories';
 import { recordCurrency } from '../lib/currency';
 import { FREQUENCY_LABELS, nextOccurrence, ruleIdOf } from '../lib/recurring';
 import { loadPhoto } from '../lib/receiptPhotos';
+import { formatCoords, mapsUrl } from '../lib/location';
 import { showToast } from '../lib/toast';
 import { round } from '../lib/calculations';
 import { formatCurrency, formatSigned, getNetAmountForUser } from '../utils';
@@ -246,6 +247,21 @@ export default function ExpenseDetail() {
               </Link>
             ))}
           </div>
+        )}
+
+        {expense.location && (
+          <a
+            className="xd-link-row xd-location"
+            href={mapsUrl(expense.location, expense.description)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span>
+              📍 Where it was paid
+              <span className="text-secondary text-xs xd-location-sub">{formatCoords(expense.location)}</span>
+            </span>
+            <span className="xd-location-open">Open in Maps ↗</span>
+          </a>
         )}
 
         {/* Phones: one line saying where this leaves you. Desktop: a summary strip. */}
