@@ -1,52 +1,21 @@
+/* One height for the expense and its panels, so opening one doesn't resize the sheet. */
+.aes-sheet {
+  height: 92vh;
+  height: 92dvh;
+}
+
+@media (min-width: 1024px) {
+  .aes-sheet {
+    height: min(780px, 88vh);
+  }
+}
+
 /* ── Receipt scan ──────────────────────────────────────────────────────────── */
 .aes-scan {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-bottom: 18px;
-}
-
-.aes-scan-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.aes-scan-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px dashed var(--faint);
-  border-radius: var(--radius-md);
-  background: var(--panel);
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: border-color var(--transition-fast);
-}
-
-.aes-scan-btn:hover:not(:disabled) {
-  border-color: var(--ink);
-}
-
-.aes-scan-btn:disabled {
-  cursor: progress;
-  color: var(--muted);
-}
-
-/* Camera capture only makes sense on touch devices */
-.aes-scan-camera {
-  display: none;
-}
-
-@media (pointer: coarse) {
-  .aes-scan-camera {
-    display: flex;
-  }
 }
 
 .aes-scan-spinner {
@@ -83,9 +52,7 @@
   display: flex;
   align-items: baseline;
   gap: 4px;
-  padding-top: 12px;
-  margin-bottom: 18px;
-  border-top: 2px solid var(--ink);
+  margin-bottom: 4px;
 }
 
 /* Scanned totals to pick from, under the amount */
@@ -141,31 +108,6 @@
   opacity: 0.75;
 }
 
-/* Receipt photo kept with the expense */
-.aes-photo {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 18px;
-}
-
-.aes-photo-add {
-  align-self: flex-start;
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--paper);
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.aes-photo-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .aes-photo-thumb {
   flex: none;
   width: 44px;
@@ -182,35 +124,6 @@
   height: 100%;
   object-fit: cover;
   object-position: top;
-}
-
-.aes-photo-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.aes-photo-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink);
-}
-
-.aes-photo-sub {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.aes-photo-action {
-  flex: none;
-  min-height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--paper);
-  color: var(--ink);
-  font-size: 13px;
 }
 
 /* Currency of this expense: a small code button, native list on tap */
@@ -311,171 +224,21 @@
   margin: 0;
 }
 
-.aes-field-hint {
-  margin-top: 6px;
-  color: var(--muted);
-}
-
-/* ── Category chips ───────────────────────────────────────────────────────── */
-.aes-category-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.aes-category-btn {
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--paper);
-  color: var(--ink);
-  font-size: 13px;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.aes-category-btn:hover {
-  background: var(--panel);
-}
-
-.aes-category-btn.active {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--on-ink);
-}
-
-/* "+ New" category: a dashed chip, then an inline name field */
-.aes-category-new {
-  border-style: dashed;
-  color: var(--muted);
-}
-
-.aes-category-form {
-  display: flex;
-  gap: 6px;
-  flex: 1 1 100%;
-}
-
-.aes-category-input {
-  flex: 1;
-  min-width: 0;
-  min-height: 36px;
-  padding: 0 10px;
-  border: 1px solid var(--ink);
-  border-radius: var(--radius-sm);
-  background: var(--paper);
-  color: var(--ink);
-  font: inherit;
-  font-size: 16px; /* below 16px, iOS zooms the page on focus */
-}
-
-.aes-category-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.aes-category-hint {
-  margin: 6px 0 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.aes-date-input {
-  color-scheme: inherit;
-}
-
-/* ── Group picker ─────────────────────────────────────────────────────────── */
-.aes-group-picker {
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid var(--ink);
-}
-
-.aes-group-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  padding: 0 10px;
-  border: 0;
-  border-bottom: 1px solid var(--rule);
-  background: none;
-  color: var(--ink);
-  font-size: 14px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.aes-group-option:hover {
-  background: var(--panel);
-}
-
-.aes-group-option.active {
-  background: var(--panel);
-  box-shadow: inset 0 0 0 2px var(--ink);
-}
-
-.aes-group-name {
-  font-weight: 500;
-}
-
-/* ── Paid by ──────────────────────────────────────────────────────────────── */
-.aes-paid-by-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.aes-payer-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 0 12px 0 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: var(--paper);
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.aes-payer-btn:hover {
-  background: var(--panel);
-}
-
-.aes-payer-btn.active {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--on-ink);
-}
-
-/* ── Split ────────────────────────────────────────────────────────────────── */
-.aes-split-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
 .aes-split-tabs {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
 
 .aes-split-tab {
-  min-height: 36px;
-  padding: 0 12px;
+  min-height: 42px;
+  padding: 0 6px;
   border: 0;
   background: var(--paper);
   color: var(--ink);
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
 }
 
@@ -567,7 +330,8 @@
 .aes-remainder {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 10px;
   margin-top: 10px;
   padding: 10px 12px;
   border-radius: var(--radius-md);
@@ -730,121 +494,28 @@
   font-weight: 600;
 }
 
-/* The amount field has no box; focus shows as the section rule turning blue. */
-.aes-amount-hero:focus-within {
-  border-top-color: var(--owed);
-}
-
-/* Editing one repeat of a recurring expense */
-.aes-repeat-note {
-  margin: -6px 0 18px;
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  background: var(--panel);
-  font-size: 13px;
-  color: var(--ink);
-}
-
-/* ── Refund switch ────────────────────────────────────────────────────────── */
-.aes-refund-toggle {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: -6px 0 18px;
-  padding: 10px 12px;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-}
-
-.aes-refund-toggle.on {
-  border-color: var(--ink);
-  background: var(--panel);
-}
-
-.aes-refund-toggle input {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--ink);
-}
-
-.aes-refund-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.aes-refund-title {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.aes-refund-sub {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-/* ── Location ──────────────────────────────────────────────────────────────── */
-.aes-location-btn {
+/* The description is a line, not a box; it turns blue while typing. */
+.aes-description {
   width: 100%;
-  min-height: 44px;
-}
-
-.aes-location {
-  display: flex;
-  align-items: center;
-  gap: 14px;
   min-height: 48px;
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-
-.aes-location-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 14px;
-}
-
-.aes-location-action {
-  flex: none;
-  min-height: 40px;
-  display: inline-flex;
-  align-items: center;
+  margin-bottom: 18px;
   padding: 0;
   border: 0;
-  background: none;
-  color: var(--owed);
-  font-size: 14px;
-  font-weight: 500;
-  text-decoration: none;
+  border-bottom: 2px solid var(--ink);
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 18px;
 }
 
-.aes-location-action:last-child {
-  color: var(--owe);
+.aes-description::placeholder {
+  color: var(--faint);
 }
 
-.aes-field-hint.text-red {
-  color: var(--owe);
-}
-
-.aes-place-find {
-  min-height: 40px;
-  margin-top: 4px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--owed);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.aes-place-find:disabled {
-  color: var(--muted);
+.aes-description:focus {
+  border-bottom-color: var(--owed);
 }
 
 .aes-places {
@@ -909,4 +580,541 @@
   background: none;
   color: var(--muted);
   font-size: 14px;
+}
+
+/* ── Scan card ─────────────────────────────────────────────────────────────── */
+.aes-scan-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.aes-scan-card:not(:disabled):hover {
+  border-color: var(--border);
+}
+
+.aes-scan-card:disabled {
+  cursor: progress;
+}
+
+.aes-scan-card-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aes-scan-card-title {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.aes-scan-card-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ── Rows: each says what's set and opens a panel ──────────────────────────── */
+.aes-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.aes-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+
+button.aes-row {
+  cursor: pointer;
+}
+
+button.aes-row:not(:disabled):hover .aes-row-value {
+  color: var(--owed);
+}
+
+button.aes-row:disabled {
+  cursor: default;
+}
+
+.aes-row-key {
+  flex: none;
+  width: 84px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.aes-row-value {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.aes-row-chevron {
+  flex: none;
+  color: var(--muted);
+}
+
+.aes-row-wait,
+.aes-row-quiet {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--faint);
+}
+
+.aes-row-plain {
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.aes-row-sub {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.aes-row-value .aes-row-sub {
+  margin-left: 2px;
+}
+
+.aes-row-note {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.aes-row-note.error {
+  color: var(--owe);
+}
+
+/* The group, before one is chosen: the one thing still needed */
+.aes-row.needed {
+  margin: 4px -12px;
+  padding: 6px 12px;
+  width: calc(100% + 24px);
+  border: 1.5px solid var(--owed);
+  border-radius: var(--radius-md);
+  background: var(--owed-tint);
+}
+
+.aes-row.needed .aes-row-key,
+.aes-row.needed .aes-row-value,
+.aes-row.needed .aes-row-chevron {
+  color: var(--owed);
+}
+
+.aes-row-split {
+  overflow: hidden;
+}
+
+.aes-row-split-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aes-row-split.warn .aes-row-split-text {
+  color: var(--owe);
+}
+
+.aes-avatar-stack {
+  flex: none;
+  display: inline-flex;
+}
+
+.aes-avatar-stack > * + * {
+  margin-left: -8px;
+}
+
+.aes-avatar-stack > * {
+  box-shadow: 0 0 0 2px var(--paper);
+  border-radius: 50%;
+}
+
+.aes-row-summary {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aes-row-more {
+  border-bottom: 0;
+}
+
+.aes-row-more.open {
+  border-bottom: 1px solid var(--ink);
+}
+
+.aes-row-more.open .aes-row-key {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.aes-more-chevron {
+  transition: transform var(--transition-fast);
+}
+
+.aes-row-more.open .aes-more-chevron {
+  transform: rotate(180deg);
+}
+
+/* ── More, opened ──────────────────────────────────────────────────────────── */
+.aes-more {
+  display: flex;
+  flex-direction: column;
+}
+
+.aes-row-tall {
+  align-items: flex-start;
+  padding: 14px 0;
+}
+
+.aes-row-tall .aes-row-key {
+  padding-top: 2px;
+}
+
+.aes-row-stack {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.aes-row-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.aes-mini-link {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--owed);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.aes-mini-link.danger {
+  color: var(--owe);
+}
+
+.aes-mini-btn {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.aes-mini-btn:focus-within {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* The date button: an invisible date input over it opens the phone's picker */
+.aes-date-pick-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  font-size: 16px; /* below 16px, iOS zooms the page on focus */
+  cursor: pointer;
+}
+
+.aes-row-select {
+  max-width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+/* Refund: a switch */
+.aes-row-switch {
+  cursor: pointer;
+}
+
+.aes-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  position: relative;
+  width: 46px;
+  height: 28px;
+  margin: 0;
+  border-radius: 14px;
+  background: var(--border);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.aes-switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform var(--transition-fast);
+}
+
+.aes-switch:checked {
+  background: var(--ink);
+}
+
+.aes-switch:checked::after {
+  transform: translateX(18px);
+}
+
+.aes-switch:focus-visible {
+  outline: 2px solid var(--owed);
+  outline-offset: 2px;
+}
+
+/* ── Panels ────────────────────────────────────────────────────────────────── */
+.aes-panel-header {
+  justify-content: flex-start;
+  gap: 4px;
+  padding-left: 8px;
+}
+
+.aes-panel-header .sheet-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aes-back {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.aes-back:hover {
+  background: var(--panel);
+}
+
+.aes-done {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  color: var(--owed);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.aes-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.aes-panel-label {
+  margin: 4px 0 -6px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.aes-panel-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.aes-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.aes-cat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.aes-cat:hover {
+  border-color: var(--border);
+}
+
+.aes-cat.on {
+  border: 1.5px solid var(--ink);
+  background: var(--panel);
+  font-weight: 600;
+}
+
+.aes-cat-new {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.aes-cat-form {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
+.aes-cat-form .field-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.aes-choice-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--rule);
+}
+
+.aes-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 60px;
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.aes-choice:hover .aes-choice-name {
+  color: var(--owed);
+}
+
+.aes-choice-emoji {
+  flex: none;
+  width: 36px;
+  font-size: 22px;
+  text-align: center;
+}
+
+.aes-choice-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aes-choice-name {
+  font-size: 16px;
+}
+
+.aes-choice.on .aes-choice-name {
+  font-weight: 600;
+}
+
+.aes-choice-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.aes-radio {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aes-radio.on {
+  border-color: var(--ink);
+}
+
+.aes-radio.on::after {
+  content: '';
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.aes-remainder-btn {
+  flex: none;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--owe);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--owe);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
 }

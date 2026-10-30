@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser } from '../store';
 import { buildSplit, round, splitByItems, splitEvenly } from '../lib/calculations';
-import { CATEGORY_LABELS } from '../types';
+import { CATEGORY_ICONS, CATEGORY_LABELS } from '../types';
 import type { CategoryId, Expense, SplitType, ExpenseSplit } from '../types';
-import { BUILT_IN_CATEGORIES, MAX_CATEGORY_NAME, isCustomCategory } from '../lib/categories';
+import { BUILT_IN_CATEGORIES, CUSTOM_CATEGORY_ICON, MAX_CATEGORY_NAME, categoryInfo, isCustomCategory } from '../lib/categories';
 import { convertSplit, currencySymbol, groupCurrency, recordCurrency } from '../lib/currency';
 import CurrencySelect from './CurrencySelect';
 import ReceiptViewer from './ReceiptViewer';
@@ -25,11 +25,17 @@ import './AddExpenseSheet.css';
 type SplitMode = 'equal' | 'exact' | 'percentage' | 'items';
 
 const SPLIT_TYPES: { value: SplitMode; label: string }[] = [
-  { value: 'equal',      label: 'Equal' },
-  { value: 'exact',      label: 'Exact' },
+  { value: 'equal',      label: 'Equally' },
+  { value: 'exact',      label: 'Amounts' },
   { value: 'percentage', label: 'Percent' },
   { value: 'items',      label: 'Items' },
 ];
+
+/**
+ * The sheet shows one screen at a time: the expense itself, or one of the
+ * panels its rows open (each slides in with a back arrow).
+ */
+type View = 'main' | 'group' | 'category' | 'paidBy' | 'split';
 
 interface Participant {
   userId: string;
@@ -140,8 +146,8 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const [lineItems, setLineItems] = useState<ItemRow[]>([]);
 
   // Receipt scanning (client-side OCR — fills a draft the user reviews before saving)
-  const cameraInputRef = useRef<HTMLInputElement>(null); // capture=camera (touch devices)
-  const fileInputRef = useRef<HTMLInputElement>(null);   // library / file picker (all devices)
+  // One picker: on phones it offers the camera as well as the photo library.
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
   const [scanStatus, setScanStatus] = useState('');
   const [scanError, setScanError] = useState<string | null>(null);
@@ -203,6 +209,18 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
   // Amounts the scan found that could be the total: tap one to use it.
   const [totalCandidates, setTotalCandidates] = useState<TotalCandidate[]>([]);
+
+  const [view, setView] = useState<View>('main');
+  // Date, location, repeat, refund and the photo: tucked away until asked for.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  // Each panel starts at its top; back on the expense, the place it was left.
+  const mainScroll = useRef(0);
+  const go = (next: View) => {
+    if (view === 'main') mainScroll.current = bodyRef.current?.scrollTop ?? 0;
+    setView(next);
+    requestAnimationFrame(() => bodyRef.current?.scrollTo(0, next === 'main' ? mainScroll.current : 0));
+  };
 
   const selectedGroup = useMemo(() => groups.find(g => g.id === groupId), [groups, groupId]);
   const groupMemberIds = useMemo(() => selectedGroup?.members.map(m => m.userId) ?? [], [selectedGroup]);
@@ -615,10 +633,79 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     setScanError(null);
     setTotalCandidates([]);
     setScanned(false);
+    setView('main');
+    setMoreOpen(false);
     onClose();
   };
 
   const ctaTotal = splitType === 'items' ? effectiveTotal : parsedAmount;
+
+  // ── What the rows say ───────────────────────────────────────────────────────
+  const nameOf = (id: string) => {
+    if (id === currentUser.id) return 'You';
+    const u = getUserById(id);
+    return u ? shortName(u) : 'Someone';
+  };
+  const payer = getUserById(paidBy);
+  const catInfo = categoryInfo(category, selectedGroup);
+
+  const splitSummary = ((): { text: string; warn?: boolean } => {
+    if (splitType === 'items') {
+      const n = pricedItems.length;
+      if (n === 0) return { text: 'By item · add the items', warn: true };
+      if (!allPricedAssigned) return { text: 'By item · someone still to choose', warn: true };
+      return { text: `By item · ${n} ${n === 1 ? 'item' : 'items'}` };
+    }
+    if (checkedCount === 0) return { text: 'Nobody is in it', warn: true };
+    const some = checkedCount < participants.length ? ` · ${checkedCount} of ${participants.length}` : '';
+    if (splitType === 'equal') {
+      const first = checkedParticipants[0] && equalShares.get(checkedParticipants[0].userId);
+      return { text: parsedAmount > 0 && first ? `Equally · ${formatCurrency(first, cur)} each${some}` : `Equally${some}` };
+    }
+    const label = splitType === 'exact' ? 'By amount' : 'By percent';
+    if (parsedAmount <= 0 || Math.abs(remainder) < 0.01) return { text: `${label}${some}` };
+    const left = splitType === 'exact' ? formatCurrency(Math.abs(remainder), cur) : `${Math.abs(remainder).toFixed(1)}%`;
+    return { text: `${label} · ${left} ${remainder > 0 ? 'left' : 'over'}`, warn: true };
+  })();
+
+  const todayStr = toDateInputValue(new Date());
+  const dateLabel = !dateStr || dateStr === todayStr
+    ? 'Today'
+    : fromDateInputValue(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: dateStr.slice(0, 4) === todayStr.slice(0, 4) ? undefined : 'numeric' });
+  const showLocation = !repeat && (!!location || canLocate());
+  const canRepeat = !isRefund && !isEditing;
+  const hasPhoto = !!newPhoto || (hasExisting && !!existingPhotoUrl);
+  const moreSummary = [
+    dateLabel,
+    showLocation ? (location ? location.place?.name ?? 'location saved' : 'no location') : null,
+    isRefund ? 'refund' : repeat ? FREQUENCY_LABELS[repeat].toLowerCase() : canRepeat ? "doesn't repeat" : editRule ? `repeats ${FREQUENCY_LABELS[editRule.frequency].toLowerCase()}` : null,
+    hasPhoto ? 'receipt photo' : null,
+  ].filter(Boolean).join(' · ');
+
+  // The rest of an amount or percent split, to the person most likely to take it.
+  const remainderTarget = checkedParticipants.find(p => p.userId === currentUser.id) ?? checkedParticipants[0];
+  const giveRemainder = () => {
+    if (!remainderTarget) return;
+    const next = round((parseFloat(remainderTarget.value) || 0) + remainder);
+    setParticipantValue(remainderTarget.userId, String(next));
+  };
+
+  const chevron = (
+    <svg className="aes-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+
+  const panelTitle: Record<Exclude<View, 'main'>, string> = {
+    group: 'Which group?',
+    category: 'Category',
+    paidBy: isRefund ? 'Who got the money back?' : 'Who paid?',
+    split: `Split ${ctaTotal > 0 ? formatCurrency(ctaTotal, cur) : ''}`.trim(),
+  };
+
+  const title = isRefund
+    ? isEditing ? 'Edit Refund' : refundOf ? `Refund “${refundOf.description}”` : 'Add Refund'
+    : isEditing ? 'Edit Expense' : template ? 'Duplicate Expense' : 'Add Expense';
 
   return (
     <AnimatePresence>
@@ -631,7 +718,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
           onClick={handleClose}
         >
           <motion.div
-            className="sheet-panel"
+            className="sheet-panel aes-sheet"
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
@@ -639,670 +726,770 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
             onClick={e => e.stopPropagation()}
           >
             <div className="sheet-handle" />
-            <div className="sheet-header">
-              <span className="sheet-title">{isRefund
-                  ? isEditing ? 'Edit Refund' : refundOf ? `Refund “${refundOf.description}”` : 'Add Refund'
-                  : isEditing ? 'Edit Expense' : template ? 'Duplicate Expense' : 'Add Expense'}</span>
-              <button className="sheet-close" onClick={handleClose} aria-label="Close">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="sheet-body">
-              {/* Receipt scan (client-side OCR) — pre-fills an editable draft */}
-              {!isEditing && (
-                <div className="aes-scan">
-                  <input
-                    ref={cameraInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    hidden
-                    onChange={handleReceiptSelected}
-                  />
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    onChange={handleReceiptSelected}
-                  />
-
-                  {scanning ? (
-                    <button type="button" className="aes-scan-btn" disabled>
-                      <span className="aes-scan-spinner" aria-hidden />
-                      {scanStatus}
-                    </button>
-                  ) : (
-                    <div className="aes-scan-actions">
-                      {/* Camera capture — only useful on touch devices (hidden on desktop via CSS) */}
-                      <button
-                        type="button"
-                        className="aes-scan-btn aes-scan-camera"
-                        onClick={() => cameraInputRef.current?.click()}
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                          <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="2" />
-                        </svg>
-                        Take photo
-                      </button>
-                      {/* Library / file picker — on iOS/Android this sheet also offers the camera */}
-                      <button
-                        type="button"
-                        className="aes-scan-btn"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                          <path d="M12 16V4M8 8l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                        Upload photo
-                      </button>
-                    </div>
-                  )}
-                  {scanError && <div className="aes-scan-msg error">{scanError}</div>}
-                  {scanned && !scanError && (
-                    <div className="aes-scan-msg ok">Filled from receipt — double-check the details below.</div>
-                  )}
-                  {/* The items split only shows once there's a group, so say they're waiting */}
-                  {!selectedGroup && lineItems.length > 0 && (
-                    <div className="aes-scan-msg ok">
-                      {lineItems.length} {lineItems.length === 1 ? 'item' : 'items'} read · pick a group below to split them by item
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Receipt photo, kept with the expense on this device */}
-              <div className="aes-photo">
-                <input
-                  ref={photoInputRef}
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    e.target.value = '';
-                    if (f) void keepPhoto(f);
-                  }}
-                />
-                {newPhoto || (hasExisting && existingPhotoUrl) ? (
-                  <div className="aes-photo-row">
-                    <button
-                      type="button"
-                      className="aes-photo-thumb"
-                      onClick={() => setViewingPhoto(true)}
-                      aria-label="View receipt photo"
-                    >
-                      <img src={newPhoto?.url ?? existingPhotoUrl!} alt="" />
-                    </button>
-                    <span className="aes-photo-text">
-                      <span className="aes-photo-title">Receipt photo</span>
-                      <span className="aes-photo-sub">
-                        {formatBytes(newPhoto?.blob.size ?? editExpense?.receipt?.bytes ?? 0)} · kept on this device
-                      </span>
-                    </span>
-                    <button type="button" className="aes-photo-action" onClick={() => photoInputRef.current?.click()}>
-                      Replace
-                    </button>
-                    <button type="button" className="aes-photo-action" onClick={dropPhoto}>
-                      Remove
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" className="aes-photo-add" onClick={() => photoInputRef.current?.click()}>
-                    + Attach receipt photo
-                  </button>
-                )}
-                {photoError && <div className="aes-scan-msg error">{photoError}</div>}
-              </div>
-
-              {/* Amount — hero input */}
-              <div className="aes-amount-hero">
-                <span className="aes-currency-symbol">{sym}</span>
-                <input
-                  className="aes-amount-input"
-                  type="number"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  min="0"
-                  step="0.01"
-                  value={amountStr}
-                  onChange={e => setAmountStr(e.target.value)}
-                />
-                {/* Shows the code; the invisible select on top opens the full list */}
-                <span className={`aes-currency-pick ${isForeign ? 'foreign' : ''}`}>
-                  {cur}
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+            {view === 'main' ? (
+              <div className="sheet-header">
+                <span className="sheet-title">{title}</span>
+                <button className="sheet-close" onClick={handleClose} aria-label="Close">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
                   </svg>
-                  <CurrencySelect
-                    className="aes-currency-pick-select"
-                    aria-label="Currency of this expense"
-                    value={cur}
-                    onChange={c => setEntryCurrency(c === groupCur ? null : c)}
-                  />
-                </span>
+                </button>
               </div>
-
-              {/* Paid in another currency than the group's: the rate converts it */}
-              {isForeign && (
-                <div className="aes-rate">
-                  <label className="aes-rate-row">
-                    <span>1 {cur} =</span>
-                    <input
-                      className="field-input aes-rate-input"
-                      type="number"
-                      inputMode="decimal"
-                      placeholder="rate"
-                      min="0"
-                      step="any"
-                      value={rateStr}
-                      onChange={e => setRateStr(e.target.value)}
-                      aria-label={`${groupCur} per 1 ${cur}`}
-                    />
-                    <span>{groupCur}</span>
-                  </label>
-                  <span className="aes-rate-hint">
-                    {rate > 0 && ctaTotal > 0
-                      ? `= ${formatCurrency(round(ctaTotal * rate), groupCur)}${selectedGroup ? ` in ${selectedGroup.name}` : ''}. Your card statement shows the rate you actually paid.`
-                      : `${selectedGroup?.name ?? 'This group'} is in ${groupCur}. Enter the rate to convert; your card statement shows the one you actually paid.`}
-                  </span>
-                </div>
-              )}
-
-              {/* After a scan: the other amounts that could be the total, one tap to switch */}
-              {totalCandidates.length > 1 && (
-                <div className="aes-total-pick" role="group" aria-label="Amounts on the receipt">
-                  <div className="aes-total-pick-label">Not the total? Pick it from the receipt</div>
-                  <div className="aes-total-pick-row">
-                    {totalCandidates.map(c => {
-                      const active = Math.abs((parseFloat(amountStr) || 0) - c.amount) < 0.005;
-                      return (
-                        <button
-                          key={c.amount}
-                          type="button"
-                          className={`aes-total-chip ${active ? 'active' : ''}`}
-                          aria-pressed={active}
-                          onClick={() => setAmountStr(c.amount.toFixed(2))}
-                        >
-                          <span className="num">{formatCurrency(c.amount, cur)}</span>
-                          <span className="aes-total-chip-label">{c.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Description */}
-              <div className="field-group">
-                <div className="field-label">What was it for?</div>
-                <input
-                  className="field-input"
-                  placeholder="Dinner, gas, groceries…"
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                />
+            ) : (
+              <div className="sheet-header aes-panel-header">
+                <button className="aes-back" onClick={() => go('main')} aria-label="Back to the expense">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                <span className="sheet-title">{panelTitle[view]}</span>
+                {view === 'split' && (
+                  <button className="aes-done" onClick={() => go('main')}>Done</button>
+                )}
               </div>
+            )}
 
-              {/* Money coming back: the same form, counted the other way */}
-              <label className={`aes-refund-toggle ${isRefund ? 'on' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={isRefund}
-                  onChange={e => { setIsRefund(e.target.checked); if (e.target.checked) setRepeat(''); }}
-                />
-                <span className="aes-refund-text">
-                  <span className="aes-refund-title">This is a refund</span>
-                  <span className="aes-refund-sub">
-                    {isRefund
-                      ? 'Money that came back. Whoever received it owes the others their share.'
-                      : 'Money that came back, like a returned item or a deposit.'}
-                  </span>
-                </span>
-              </label>
-
-              {/* Category */}
-              <div className="field-group">
-                <div className="field-label">Category</div>
-                <div className="aes-category-row">
-                  {BUILT_IN_CATEGORIES.map(c => (
-                    <button
-                      key={c}
-                      className={`aes-category-btn ${category === c ? 'active' : ''}`}
-                      aria-pressed={category === c}
-                      onClick={() => setCategory(c)}
-                    >
-                      {CATEGORY_LABELS[c]}
-                    </button>
-                  ))}
-                  {selectedGroup?.categories?.map(c => (
-                    <button
-                      key={c.id}
-                      className={`aes-category-btn ${category === c.id ? 'active' : ''}`}
-                      aria-pressed={category === c.id}
-                      onClick={() => setCategory(c.id)}
-                    >
-                      {c.name}
-                    </button>
-                  ))}
-                  {newCategory === null ? (
-                    <button type="button" className="aes-category-btn aes-category-new" onClick={openNewCategory}>
-                      + New
-                    </button>
-                  ) : (
-                    <form
-                      className="aes-category-form"
-                      onSubmit={e => { e.preventDefault(); saveNewCategory(); }}
-                    >
-                      <input
-                        className="aes-category-input"
-                        autoFocus
-                        maxLength={MAX_CATEGORY_NAME}
-                        placeholder="Category name"
-                        aria-label="New category name"
-                        value={newCategory}
-                        onChange={e => setNewCategory(e.target.value)}
-                        onKeyDown={e => e.key === 'Escape' && setNewCategory(null)}
-                      />
-                      <button type="submit" className="aes-category-btn active" disabled={!newCategory.trim()}>
-                        Add
-                      </button>
-                      <button type="button" className="aes-category-btn" onClick={() => setNewCategory(null)}>
-                        Cancel
-                      </button>
-                    </form>
-                  )}
-                </div>
-                {newCategoryHint && <p className="aes-category-hint">{newCategoryHint}</p>}
-              </div>
-
-              {/* Date */}
-              <div className="field-group">
-                <div className="field-label">Date</div>
-                <input
-                  className="field-input aes-date-input"
-                  type="date"
-                  value={dateStr}
-                  onChange={e => setDateStr(e.target.value)}
-                />
-                <div className="aes-field-hint text-tertiary text-xs">Leave empty to use today's date.</div>
-              </div>
-
-              {/* Location: the phone's own position, kept as a map pin */}
-              {!repeat && (location || canLocate()) && (
-                <div className="field-group">
-                  <div className="field-label">Location</div>
-                  {location ? (
-                    <div className="aes-location">
-                      <span className="aes-location-text">
-                        <span>📍 {location.place?.name ?? 'Location saved'}</span>
-                        <span className="text-tertiary text-xs">
-                          {location.place
-                            ? [location.place.kind, location.place.address].filter(Boolean).join(' · ')
-                            : formatAccuracy(location.accuracy) || formatCoords(location)}
-                        </span>
-                      </span>
-                      <a
-                        className="aes-location-action"
-                        href={mapsUrl(location, description.trim())}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        View
-                      </a>
-                      <button type="button" className="aes-location-action" onClick={removeLocation}>
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <button type="button" className="btn btn-secondary aes-location-btn" onClick={addLocation} disabled={locating}>
-                      {locating ? 'Finding you…' : '📍 Add location'}
-                    </button>
-                  )}
-                  {location && places && (
-                    <div className="aes-places">
-                      {places.length === 0 ? (
-                        <p className="aes-places-empty text-xs">No named places nearby on OpenStreetMap.</p>
-                      ) : (
-                        places.map((p) => (
-                          <button key={p.id} type="button" className="aes-place" onClick={() => pickPlace(p)}>
-                            <span className="aes-place-name">{p.name}</span>
-                            <span className="aes-place-meta text-xs">
-                              {[p.kind, p.address].filter(Boolean).join(' · ')}
-                            </span>
-                            <span className="aes-place-distance text-xs">{formatDistance(p.distance)}</span>
-                          </button>
-                        ))
-                      )}
-                      <button type="button" className="aes-places-close" onClick={() => setPlaces(null)}>
-                        {places.length === 0 ? 'Close' : 'None of these'}
-                      </button>
-                    </div>
-                  )}
-                  {location && !places && (
-                    <button type="button" className="aes-place-find" onClick={findPlaces} disabled={findingPlaces}>
-                      {findingPlaces ? 'Looking up nearby places…' : location.place ? 'Change place' : 'Name this place'}
-                    </button>
-                  )}
-                  {locationError ? (
-                    <div className="aes-field-hint text-red text-xs">{locationError}</div>
-                  ) : !location ? (
-                    <div className="aes-field-hint text-tertiary text-xs">
-                      Saves where you are as a map pin. Your phone works it out; it isn't sent anywhere.
-                    </div>
-                  ) : (
-                    !location.place && !places && (
-                      <div className="aes-field-hint text-tertiary text-xs">
-                        Naming the place looks it up on OpenStreetMap, which sees this location.
-                      </div>
-                    )
-                  )}
-                </div>
-              )}
-
-              {/* Repeats: rent, bills, subscriptions */}
-              {isRefund ? null : !isEditing ? (
-                <div className="field-group">
-                  <label className="field-label" htmlFor="aes-repeat">Repeats</label>
-                  <select
-                    id="aes-repeat"
-                    className="field-input"
-                    value={repeat}
-                    onChange={e => setRepeat(e.target.value as RepeatFrequency | '')}
-                  >
-                    <option value="">Never</option>
-                    {(Object.keys(FREQUENCY_LABELS) as RepeatFrequency[]).map(f => (
-                      <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
-                    ))}
-                  </select>
-                  {repeat && (
-                    <div className="aes-field-hint text-tertiary text-xs">
-                      Added automatically on each date, starting with the date above. Stop it from the group page.
-                    </div>
-                  )}
-                </div>
-              ) : editRule && (
-                <div className="aes-repeat-note">
-                  Repeats {FREQUENCY_LABELS[editRule.frequency].toLowerCase()}.{' '}
-                  {editingLatestRepeat
-                    ? 'Changes here also apply to the next ones.'
-                    : 'Only this one changes; edit the latest to change the next ones.'}
-                </div>
-              )}
-
-              {/* Group (only shown when no default) */}
-              {!defaultGroupId && (
-                <div className="field-group">
-                  <div className="field-label">Group</div>
-                  <div className="aes-group-picker">
-                    {groups.length === 0 ? (
-                      <p className="text-secondary text-sm">No groups yet — create one first</p>
-                    ) : (
-                      groups.map(g => (
-                        <button
-                          key={g.id}
-                          className={`aes-group-option ${groupId === g.id ? 'active' : ''}`}
-                          style={groupId === g.id ? { borderColor: `${g.color}55`, background: `${g.color}18` } : {}}
-                          onClick={() => setGroupId(g.id)}
-                        >
-                          <span style={{ fontSize: 18 }}>{g.emoji}</span>
-                          <span className="aes-group-name">{g.name}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Paid by */}
-              {selectedGroup && (
-                <div className="field-group">
-                  <div className="field-label">{isRefund ? 'Received by' : 'Paid by'}</div>
-                  <div className="aes-paid-by-row">
-                    {selectedGroup.members.map(m => {
-                      const u = getUserById(m.userId);
-                      if (!u) return null;
-                      return (
-                        <button
-                          key={m.userId}
-                          className={`aes-payer-btn ${paidBy === m.userId ? 'active' : ''}`}
-                          onClick={() => setPaidBy(m.userId)}
-                        >
-                          <Avatar user={u} size="sm" showRing={paidBy === m.userId} />
-                          <span className="aes-payer-name">
-                            {m.userId === currentUser.id ? 'You' : shortName(u)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Split section */}
-              {selectedGroup && (
-                <div className="field-group">
-                  <div className="aes-split-header">
-                    <div className="field-label" style={{ margin: 0 }}>Split</div>
-                    <div className="aes-split-tabs">
-                      {SPLIT_TYPES.map(st => (
-                        <button
-                          key={st.value}
-                          className={`aes-split-tab ${splitType === st.value ? 'active' : ''}`}
-                          onClick={() => handleSplitTypeChange(st.value)}
-                        >
-                          {st.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {splitType !== 'items' ? (
+            <div className="sheet-body" ref={bodyRef}>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={view}
+                  className="aes-view"
+                  initial={{ opacity: 0, x: view === 'main' ? -16 : 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.16 }}
+                >
+                  {view === 'main' && (
                     <>
-                      <div className="aes-participants">
-                        {participants.map(p => {
-                          const u = getUserById(p.userId);
-                          if (!u) return null;
-                          const isMe = p.userId === currentUser.id;
-                          const sharePreview = splitType === 'equal' && parsedAmount > 0 && p.checked
-                            ? formatCurrency(equalShares.get(p.userId) ?? 0, cur)
-                            : null;
-
-                          return (
-                            <div
-                              key={p.userId}
-                              className={`aes-participant ${p.checked ? 'checked' : 'unchecked'}`}
-                            >
-                              <button className="aes-participant-check" onClick={() => toggleParticipant(p.userId)}>
-                                <div className={`cgs-checkbox ${p.checked ? 'checked' : ''}`} style={{ width: 20, height: 20 }}>
-                                  {p.checked && (
-                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                      <path d="M2 5L4 7L8 3" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-                                  )}
-                                </div>
-                              </button>
-                              <Avatar user={u} size="sm" />
-                              <span className="aes-participant-name">
-                                {isMe ? 'You' : shortName(u)}
-                              </span>
-
-                              {splitType === 'equal' && (
-                                <span className="aes-equal-share text-secondary text-sm">
-                                  {sharePreview ?? '—'}
-                                </span>
-                              )}
-
-                              {(splitType === 'exact' || splitType === 'percentage') && p.checked && (
-                                <div className="aes-value-input-wrap">
-                                  <span className="aes-value-prefix">
-                                    {splitType === 'exact' ? sym : ''}
-                                  </span>
-                                  <input
-                                    className="aes-value-input"
-                                    type="number"
-                                    inputMode="decimal"
-                                    placeholder="0"
-                                    min="0"
-                                    value={p.value}
-                                    onChange={e => setParticipantValue(p.userId, e.target.value)}
-                                  />
-                                  {splitType === 'percentage' && (
-                                    <span className="aes-value-suffix">%</span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Remainder indicator */}
-                      {splitType !== 'equal' && parsedAmount > 0 && (
-                        <div className={`aes-remainder ${Math.abs(remainder) < 0.01 ? 'ok' : 'warn'}`}>
-                          {Math.abs(remainder) < 0.01 ? (
-                            <>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                                <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      {/* Receipt scan (client-side OCR): fills an editable draft, keeps the photo */}
+                      {!isEditing && (
+                        <div className="aes-scan">
+                          <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleReceiptSelected} />
+                          <button
+                            type="button"
+                            className="aes-scan-card"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={scanning}
+                          >
+                            {scanning ? (
+                              <span className="aes-scan-spinner" aria-hidden />
+                            ) : (
+                              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                <path d="M4 8h3l2-3h6l2 3h3v11H4z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                                <circle cx="12" cy="13" r="3.5" stroke="currentColor" strokeWidth="1.7" />
                               </svg>
-                              Splits add up ✓
-                            </>
-                          ) : (
-                            <>
-                              {splitType === 'exact'
-                                ? `${formatCurrency(remainder, cur)} ${remainder > 0 ? 'remaining' : 'over'}`
-                                : `${remainder > 0 ? remainder.toFixed(1) + '% remaining' : Math.abs(remainder).toFixed(1) + '% over'}`
-                              }
-                            </>
+                            )}
+                            <span className="aes-scan-card-text">
+                              <span className="aes-scan-card-title">{scanning ? scanStatus : scanned ? 'Scan another receipt' : 'Scan a receipt'}</span>
+                              {!scanning && <span className="aes-scan-card-sub">Fills in the amount and items, keeps the photo</span>}
+                            </span>
+                            {!scanning && chevron}
+                          </button>
+                          {scanError && <div className="aes-scan-msg error">{scanError}</div>}
+                          {scanned && !scanError && (
+                            <div className="aes-scan-msg ok">Filled from the receipt. Check the details below.</div>
+                          )}
+                          {!selectedGroup && lineItems.length > 0 && (
+                            <div className="aes-scan-msg ok">
+                              {lineItems.length} {lineItems.length === 1 ? 'item' : 'items'} read · choose a group to split them by item
+                            </div>
                           )}
                         </div>
                       )}
-                    </>
-                  ) : (
-                    /* ── Itemized split ── */
-                    <div className="aes-items">
-                      <div className="aes-field-hint text-tertiary text-xs" style={{ marginBottom: 10 }}>
-                        Add each item and tap who shared it. Set the amount above to include tax &amp; tip
-                        (or leave it blank to use the item total).
+
+                      {/* Amount */}
+                      <div className="aes-amount-hero">
+                        <span className="aes-currency-symbol">{sym}</span>
+                        <input
+                          className="aes-amount-input"
+                          type="number"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                          value={amountStr}
+                          onChange={e => setAmountStr(e.target.value)}
+                          aria-label="Amount"
+                        />
+                        {/* Shows the code; the invisible select on top opens the full list */}
+                        <span className={`aes-currency-pick ${isForeign ? 'foreign' : ''}`}>
+                          {cur}
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <CurrencySelect
+                            className="aes-currency-pick-select"
+                            aria-label="Currency of this expense"
+                            value={cur}
+                            onChange={c => setEntryCurrency(c === groupCur ? null : c)}
+                          />
+                        </span>
                       </div>
 
-                      {lineItems.map(it => {
-                        const price = parseFloat(it.price) || 0;
-                        const who = it.assigned.filter(id => groupMemberIds.includes(id));
-                        const perEach = who.length > 0 && price > 0 ? price / who.length : 0;
-                        return (
-                          <div key={it.id} className="aes-item">
-                            <div className="aes-item-top">
-                              <input
-                                className="field-input aes-item-name"
-                                placeholder="Item name"
-                                value={it.description}
-                                onChange={e => updateItem(it.id, 'description', e.target.value)}
-                              />
-                              <div className="aes-item-price-wrap">
-                                <span className="aes-value-prefix">{sym}</span>
+                      {/* Paid in another currency than the group's: the rate converts it */}
+                      {isForeign && (
+                        <div className="aes-rate">
+                          <label className="aes-rate-row">
+                            <span>1 {cur} =</span>
+                            <input
+                              className="field-input aes-rate-input"
+                              type="number"
+                              inputMode="decimal"
+                              placeholder="rate"
+                              min="0"
+                              step="any"
+                              value={rateStr}
+                              onChange={e => setRateStr(e.target.value)}
+                              aria-label={`${groupCur} per 1 ${cur}`}
+                            />
+                            <span>{groupCur}</span>
+                          </label>
+                          <span className="aes-rate-hint">
+                            {rate > 0 && ctaTotal > 0
+                              ? `= ${formatCurrency(round(ctaTotal * rate), groupCur)}${selectedGroup ? ` in ${selectedGroup.name}` : ''}. Your card statement shows the rate you actually paid.`
+                              : `${selectedGroup?.name ?? 'This group'} is in ${groupCur}. Enter the rate to convert; your card statement shows the one you actually paid.`}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* After a scan: the other amounts that could be the total, one tap to switch */}
+                      {totalCandidates.length > 1 && (
+                        <div className="aes-total-pick" role="group" aria-label="Amounts on the receipt">
+                          <div className="aes-total-pick-label">Not the total? Pick it from the receipt</div>
+                          <div className="aes-total-pick-row">
+                            {totalCandidates.map(c => {
+                              const active = Math.abs((parseFloat(amountStr) || 0) - c.amount) < 0.005;
+                              return (
+                                <button
+                                  key={c.amount}
+                                  type="button"
+                                  className={`aes-total-chip ${active ? 'active' : ''}`}
+                                  aria-pressed={active}
+                                  onClick={() => setAmountStr(c.amount.toFixed(2))}
+                                >
+                                  <span className="num">{formatCurrency(c.amount, cur)}</span>
+                                  <span className="aes-total-chip-label">{c.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Description */}
+                      <input
+                        className="aes-description"
+                        placeholder="What was it for?"
+                        aria-label="What was it for?"
+                        value={description}
+                        onChange={e => setDescription(e.target.value)}
+                      />
+
+                      {/* The rows: each opens its own panel */}
+                      <div className="aes-rows">
+                        {!defaultGroupId && (
+                          <button
+                            type="button"
+                            className={`aes-row ${selectedGroup ? '' : 'needed'}`}
+                            onClick={() => go('group')}
+                          >
+                            <span className="aes-row-key">Group</span>
+                            <span className="aes-row-value">
+                              {selectedGroup ? (
+                                <>
+                                  <span aria-hidden>{selectedGroup.emoji}</span>
+                                  {selectedGroup.name}
+                                </>
+                              ) : groups.length === 0 ? 'No groups yet' : 'Choose a group'}
+                            </span>
+                            {chevron}
+                          </button>
+                        )}
+                        <button type="button" className="aes-row" onClick={() => go('category')}>
+                          <span className="aes-row-key">Category</span>
+                          <span className="aes-row-value">
+                            <span aria-hidden>{catInfo.icon}</span>
+                            {catInfo.label}
+                          </span>
+                          {chevron}
+                        </button>
+                        <button type="button" className="aes-row" onClick={() => go('paidBy')} disabled={!selectedGroup}>
+                          <span className="aes-row-key">{isRefund ? 'Received by' : 'Paid by'}</span>
+                          {selectedGroup ? (
+                            <span className="aes-row-value">
+                              {payer && <Avatar user={payer} size="sm" />}
+                              {nameOf(paidBy)}
+                            </span>
+                          ) : (
+                            <span className="aes-row-value aes-row-wait">After you choose a group</span>
+                          )}
+                          {selectedGroup && chevron}
+                        </button>
+                        <button type="button" className="aes-row" onClick={() => go('split')} disabled={!selectedGroup}>
+                          <span className="aes-row-key">Split</span>
+                          {selectedGroup ? (
+                            <span className={`aes-row-value aes-row-split ${splitSummary.warn ? 'warn' : ''}`}>
+                              {splitType !== 'items' && checkedCount > 0 && (
+                                <span className="aes-avatar-stack" aria-hidden>
+                                  {checkedParticipants.slice(0, 4).map(p => {
+                                    const u = getUserById(p.userId);
+                                    return u ? <Avatar key={p.userId} user={u} size="sm" /> : null;
+                                  })}
+                                </span>
+                              )}
+                              <span className="aes-row-split-text">{splitSummary.text}</span>
+                            </span>
+                          ) : (
+                            <span className="aes-row-value aes-row-wait">After you choose a group</span>
+                          )}
+                          {selectedGroup && chevron}
+                        </button>
+
+                        <button
+                          type="button"
+                          className={`aes-row aes-row-more ${moreOpen ? 'open' : ''}`}
+                          onClick={() => setMoreOpen(o => !o)}
+                          aria-expanded={moreOpen}
+                        >
+                          <span className="aes-row-key">More</span>
+                          <span className="aes-row-value aes-row-summary">{moreOpen ? '' : moreSummary}</span>
+                          <svg className="aes-row-chevron aes-more-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+
+                        {moreOpen && (
+                          <div className="aes-more">
+                            {/* Date: the text shows; the invisible date input on top opens the picker */}
+                            <div className="aes-row aes-row-static">
+                              <span className="aes-row-key">Date</span>
+                              <span className="aes-row-value">
+                                {dateLabel}
+                                {dateLabel === 'Today' && (
+                                  <span className="aes-row-sub">
+                                    {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </span>
+                                )}
+                              </span>
+                              {dateStr && dateStr !== todayStr && (
+                                <button type="button" className="aes-mini-link" onClick={() => setDateStr('')}>Today</button>
+                              )}
+                              <span className="aes-mini-btn aes-date-pick">
+                                Change
                                 <input
-                                  className="aes-item-price"
-                                  type="number"
-                                  inputMode="decimal"
-                                  placeholder="0.00"
-                                  min="0"
-                                  value={it.price}
-                                  onChange={e => updateItem(it.id, 'price', e.target.value)}
+                                  className="aes-date-pick-input"
+                                  type="date"
+                                  value={dateStr || todayStr}
+                                  onChange={e => setDateStr(e.target.value)}
+                                  aria-label="Date"
                                 />
-                              </div>
-                              <button className="aes-item-remove" onClick={() => removeItem(it.id)} aria-label="Remove item">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-                                </svg>
-                              </button>
+                              </span>
                             </div>
 
-                            <div className="aes-item-assign">
-                              {selectedGroup.members.map(m => {
-                                const u = getUserById(m.userId);
-                                if (!u) return null;
-                                const on = it.assigned.includes(m.userId);
-                                return (
-                                  <button
-                                    key={m.userId}
-                                    className={`aes-assign-chip ${on ? 'on' : ''}`}
-                                    onClick={() => toggleItemAssign(it.id, m.userId)}
-                                  >
-                                    <Avatar user={u} size="sm" />
-                                    <span>{m.userId === currentUser.id ? 'You' : shortName(u)}</span>
+                            {/* Location: the phone's own position, kept as a map pin */}
+                            {showLocation && (
+                              <div className="aes-row aes-row-static aes-row-tall">
+                                <span className="aes-row-key">Location</span>
+                                <span className="aes-row-stack">
+                                  {location ? (
+                                    <>
+                                      <span className="aes-row-value">{location.place?.name ?? 'Location saved'}</span>
+                                      <span className="aes-row-sub">
+                                        {location.place
+                                          ? [location.place.kind, location.place.address].filter(Boolean).join(' · ')
+                                          : formatAccuracy(location.accuracy) || formatCoords(location)}
+                                      </span>
+                                      {!places && (
+                                        <span className="aes-row-links">
+                                          <button type="button" className="aes-mini-link" onClick={findPlaces} disabled={findingPlaces}>
+                                            {findingPlaces ? 'Looking up nearby places…' : location.place ? 'Change place' : 'Name this place'}
+                                          </button>
+                                          <a className="aes-mini-link" href={mapsUrl(location, description.trim())} target="_blank" rel="noopener noreferrer">
+                                            View
+                                          </a>
+                                          <button type="button" className="aes-mini-link danger" onClick={removeLocation}>Remove</button>
+                                        </span>
+                                      )}
+                                      {places && (
+                                        <div className="aes-places">
+                                          {places.length === 0 ? (
+                                            <p className="aes-places-empty text-xs">No named places nearby on OpenStreetMap.</p>
+                                          ) : (
+                                            places.map((p) => (
+                                              <button key={p.id} type="button" className="aes-place" onClick={() => pickPlace(p)}>
+                                                <span className="aes-place-name">{p.name}</span>
+                                                <span className="aes-place-meta text-xs">
+                                                  {[p.kind, p.address].filter(Boolean).join(' · ')}
+                                                </span>
+                                                <span className="aes-place-distance text-xs">{formatDistance(p.distance)}</span>
+                                              </button>
+                                            ))
+                                          )}
+                                          <button type="button" className="aes-places-close" onClick={() => setPlaces(null)}>
+                                            {places.length === 0 ? 'Close' : 'None of these'}
+                                          </button>
+                                        </div>
+                                      )}
+                                      {!location.place && !places && !locationError && (
+                                        <span className="aes-row-note">Naming the place looks it up on OpenStreetMap, which sees this location.</span>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="aes-row-value aes-row-quiet">Not added</span>
+                                      <span className="aes-row-note">Saved as a map pin. Your phone works it out; it isn't sent anywhere.</span>
+                                    </>
+                                  )}
+                                  {locationError && <span className="aes-row-note error">{locationError}</span>}
+                                </span>
+                                {!location && (
+                                  <button type="button" className="aes-mini-btn" onClick={addLocation} disabled={locating}>
+                                    {locating ? 'Finding you…' : 'Add'}
                                   </button>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Repeats: rent, bills, subscriptions */}
+                            {canRepeat ? (
+                              <div className="aes-row aes-row-static aes-row-tall">
+                                <label className="aes-row-key" htmlFor="aes-repeat">Repeats</label>
+                                <span className="aes-row-stack">
+                                  <select
+                                    id="aes-repeat"
+                                    className="aes-row-select"
+                                    value={repeat}
+                                    onChange={e => setRepeat(e.target.value as RepeatFrequency | '')}
+                                  >
+                                    <option value="">Doesn't repeat</option>
+                                    {(Object.keys(FREQUENCY_LABELS) as RepeatFrequency[]).map(f => (
+                                      <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
+                                    ))}
+                                  </select>
+                                  {repeat && (
+                                    <span className="aes-row-note">Added on each date, starting with this one. Stop it from the group page.</span>
+                                  )}
+                                </span>
+                              </div>
+                            ) : editRule && (
+                              <div className="aes-row aes-row-static aes-row-tall">
+                                <span className="aes-row-key">Repeats</span>
+                                <span className="aes-row-stack">
+                                  <span className="aes-row-value">{FREQUENCY_LABELS[editRule.frequency]}</span>
+                                  <span className="aes-row-note">
+                                    {editingLatestRepeat
+                                      ? 'Changes here also apply to the next ones.'
+                                      : 'Only this one changes; edit the latest to change the next ones.'}
+                                  </span>
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Money coming back: the same form, counted the other way */}
+                            <label className="aes-row aes-row-static aes-row-switch">
+                              <span className="aes-row-key">Refund</span>
+                              <span className="aes-row-stack">
+                                <span className="aes-row-value aes-row-plain">Money that came back</span>
+                                {isRefund && (
+                                  <span className="aes-row-note">Whoever received it owes the others their share.</span>
+                                )}
+                              </span>
+                              <input
+                                type="checkbox"
+                                role="switch"
+                                className="aes-switch"
+                                checked={isRefund}
+                                onChange={e => { setIsRefund(e.target.checked); if (e.target.checked) setRepeat(''); }}
+                              />
+                            </label>
+
+                            {/* Receipt photo, kept with the expense on this device */}
+                            <div className="aes-row aes-row-static">
+                              <span className="aes-row-key">Receipt</span>
+                              <input
+                                ref={photoInputRef}
+                                type="file"
+                                accept="image/*"
+                                hidden
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  e.target.value = '';
+                                  if (f) void keepPhoto(f);
+                                }}
+                              />
+                              {hasPhoto ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="aes-photo-thumb"
+                                    onClick={() => setViewingPhoto(true)}
+                                    aria-label="View receipt photo"
+                                  >
+                                    <img src={newPhoto?.url ?? existingPhotoUrl!} alt="" />
+                                  </button>
+                                  <span className="aes-row-stack">
+                                    <span className="aes-row-sub">
+                                      {formatBytes(newPhoto?.blob.size ?? editExpense?.receipt?.bytes ?? 0)} · on this device
+                                    </span>
+                                    <span className="aes-row-links">
+                                      <button type="button" className="aes-mini-link" onClick={() => photoInputRef.current?.click()}>Replace</button>
+                                      <button type="button" className="aes-mini-link danger" onClick={dropPhoto}>Remove</button>
+                                    </span>
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="aes-row-value aes-row-quiet">No photo</span>
+                                  <button type="button" className="aes-mini-btn" onClick={() => photoInputRef.current?.click()}>Attach</button>
+                                </>
+                              )}
+                            </div>
+                            {photoError && <div className="aes-scan-msg error">{photoError}</div>}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {view === 'group' && (
+                    <div className="aes-panel">
+                      {groups.length === 0 ? (
+                        <p className="aes-panel-note">No groups yet. Create one from the Groups tab first.</p>
+                      ) : (
+                        <div className="aes-choice-list">
+                          {groups.map(g => (
+                            <button
+                              key={g.id}
+                              type="button"
+                              className={`aes-choice ${groupId === g.id ? 'on' : ''}`}
+                              onClick={() => { setGroupId(g.id); go('main'); }}
+                            >
+                              <span className="aes-choice-emoji" aria-hidden>{g.emoji}</span>
+                              <span className="aes-choice-text">
+                                <span className="aes-choice-name">{g.name}</span>
+                                <span className="aes-choice-sub">
+                                  {g.members.length} {g.members.length === 1 ? 'person' : 'people'} · {groupCurrency(g)}
+                                </span>
+                              </span>
+                              <span className={`aes-radio ${groupId === g.id ? 'on' : ''}`} aria-hidden />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {view === 'category' && (
+                    <div className="aes-panel">
+                      <p className="aes-panel-label">{selectedGroup ? `${selectedGroup.name}'s own` : 'Custom'}</p>
+                      <div className="aes-cat-grid">
+                        {selectedGroup?.categories?.map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            className={`aes-cat ${category === c.id ? 'on' : ''}`}
+                            aria-pressed={category === c.id}
+                            onClick={() => { setCategory(c.id); go('main'); }}
+                          >
+                            <span aria-hidden>{CUSTOM_CATEGORY_ICON}</span>
+                            {c.name}
+                          </button>
+                        ))}
+                        {newCategory === null ? (
+                          <button type="button" className="aes-cat aes-cat-new" onClick={openNewCategory}>
+                            + New category
+                          </button>
+                        ) : (
+                          <form
+                            className="aes-cat-form"
+                            onSubmit={e => { e.preventDefault(); saveNewCategory(); go('main'); }}
+                          >
+                            <input
+                              className="field-input"
+                              autoFocus
+                              maxLength={MAX_CATEGORY_NAME}
+                              placeholder="Category name"
+                              aria-label="New category name"
+                              value={newCategory}
+                              onChange={e => setNewCategory(e.target.value)}
+                              onKeyDown={e => e.key === 'Escape' && setNewCategory(null)}
+                            />
+                            <button type="submit" className="btn btn-primary" disabled={!newCategory.trim()}>Add</button>
+                          </form>
+                        )}
+                      </div>
+                      {newCategoryHint && <p className="aes-panel-note">{newCategoryHint.replace('below ', '')}</p>}
+
+                      <p className="aes-panel-label">All</p>
+                      <div className="aes-cat-grid">
+                        {BUILT_IN_CATEGORIES.map(c => (
+                          <button
+                            key={c}
+                            type="button"
+                            className={`aes-cat ${category === c ? 'on' : ''}`}
+                            aria-pressed={category === c}
+                            onClick={() => { setCategory(c); go('main'); }}
+                          >
+                            <span aria-hidden>{CATEGORY_ICONS[c]}</span>
+                            {CATEGORY_LABELS[c]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {view === 'paidBy' && selectedGroup && (
+                    <div className="aes-panel">
+                      {ctaTotal > 0 && (
+                        <p className="aes-panel-note">
+                          {formatCurrency(ctaTotal, cur)}{description.trim() ? ` · ${description.trim()}` : ''} · {selectedGroup.name}
+                        </p>
+                      )}
+                      <div className="aes-choice-list">
+                        {selectedGroup.members.map(m => {
+                          const u = getUserById(m.userId);
+                          if (!u) return null;
+                          const on = paidBy === m.userId;
+                          return (
+                            <button
+                              key={m.userId}
+                              type="button"
+                              className={`aes-choice ${on ? 'on' : ''}`}
+                              onClick={() => { setPaidBy(m.userId); go('main'); }}
+                            >
+                              <Avatar user={u} size="md" />
+                              <span className="aes-choice-text">
+                                <span className="aes-choice-name">{m.userId === currentUser.id ? 'You' : u.name}</span>
+                              </span>
+                              <span className={`aes-radio ${on ? 'on' : ''}`} aria-hidden />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {view === 'split' && selectedGroup && (
+                    <div className="aes-panel">
+                      <div className="aes-split-tabs" role="radiogroup" aria-label="How to split">
+                        {SPLIT_TYPES.map(st => (
+                          <button
+                            key={st.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={splitType === st.value}
+                            className={`aes-split-tab ${splitType === st.value ? 'active' : ''}`}
+                            onClick={() => handleSplitTypeChange(st.value)}
+                          >
+                            {st.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="aes-panel-note">
+                        {splitType === 'equal' && 'Everyone ticked pays the same. Untick anyone who wasn’t part of it.'}
+                        {splitType === 'exact' && 'Type what each person’s share was. Untick anyone who wasn’t part of it.'}
+                        {splitType === 'percentage' && 'Type each person’s percentage. Untick anyone who wasn’t part of it.'}
+                        {splitType === 'items' && 'Add each item and tap who had it. Tax and tip are shared like the items.'}
+                      </p>
+
+                      {splitType !== 'items' ? (
+                        <>
+                          <div className="aes-participants">
+                            {participants.map(p => {
+                              const u = getUserById(p.userId);
+                              if (!u) return null;
+                              const sharePreview = splitType === 'equal' && parsedAmount > 0 && p.checked
+                                ? formatCurrency(equalShares.get(p.userId) ?? 0, cur)
+                                : null;
+                              return (
+                                <div key={p.userId} className={`aes-participant ${p.checked ? 'checked' : 'unchecked'}`}>
+                                  <button
+                                    className="aes-participant-check"
+                                    onClick={() => toggleParticipant(p.userId)}
+                                    role="checkbox"
+                                    aria-checked={p.checked}
+                                    aria-label={`${nameOf(p.userId)} is in it`}
+                                  >
+                                    <div className={`cgs-checkbox ${p.checked ? 'checked' : ''}`} style={{ width: 22, height: 22 }}>
+                                      {p.checked && (
+                                        <svg width="11" height="11" viewBox="0 0 10 10" fill="none">
+                                          <path d="M2 5L4 7L8 3" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                      )}
+                                    </div>
+                                  </button>
+                                  <Avatar user={u} size="sm" />
+                                  <span className="aes-participant-name">{nameOf(p.userId)}</span>
+
+                                  {splitType === 'equal' && (
+                                    <span className="aes-equal-share text-secondary text-sm">
+                                      {p.checked ? sharePreview ?? '—' : 'not in it'}
+                                    </span>
+                                  )}
+
+                                  {(splitType === 'exact' || splitType === 'percentage') && (p.checked ? (
+                                    <div className="aes-value-input-wrap">
+                                      <span className="aes-value-prefix">{splitType === 'exact' ? sym : ''}</span>
+                                      <input
+                                        className="aes-value-input"
+                                        type="number"
+                                        inputMode="decimal"
+                                        placeholder="0"
+                                        min="0"
+                                        value={p.value}
+                                        onChange={e => setParticipantValue(p.userId, e.target.value)}
+                                        aria-label={`${nameOf(p.userId)}'s ${splitType === 'exact' ? 'share' : 'percentage'}`}
+                                      />
+                                      {splitType === 'percentage' && <span className="aes-value-suffix">%</span>}
+                                    </div>
+                                  ) : (
+                                    <span className="aes-equal-share text-secondary text-sm">not in it</span>
+                                  ))}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* What's left to give someone */}
+                          {splitType !== 'equal' && parsedAmount > 0 && (
+                            <div className={`aes-remainder ${Math.abs(remainder) < 0.01 ? 'ok' : 'warn'}`}>
+                              {Math.abs(remainder) < 0.01 ? (
+                                <span>It all adds up</span>
+                              ) : (
+                                <>
+                                  <span>
+                                    <strong>
+                                      {splitType === 'exact' ? formatCurrency(Math.abs(remainder), cur) : `${Math.abs(remainder).toFixed(1)}%`}
+                                      {remainder > 0 ? ' left' : ' over'}
+                                    </strong>
+                                    {remainder > 0 ? ' to give someone' : ', take it off someone'}
+                                  </span>
+                                  {remainder > 0 && remainderTarget && (
+                                    <button type="button" className="aes-remainder-btn" onClick={giveRemainder}>
+                                      Give to {nameOf(remainderTarget.userId)}
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        /* ── Itemized split ── */
+                        <div className="aes-items">
+                          {lineItems.map(it => {
+                            const price = parseFloat(it.price) || 0;
+                            const who = it.assigned.filter(id => groupMemberIds.includes(id));
+                            const perEach = who.length > 0 && price > 0 ? price / who.length : 0;
+                            return (
+                              <div key={it.id} className="aes-item">
+                                <div className="aes-item-top">
+                                  <input
+                                    className="field-input aes-item-name"
+                                    placeholder="Item name"
+                                    value={it.description}
+                                    onChange={e => updateItem(it.id, 'description', e.target.value)}
+                                  />
+                                  <div className="aes-item-price-wrap">
+                                    <span className="aes-value-prefix">{sym}</span>
+                                    <input
+                                      className="aes-item-price"
+                                      type="number"
+                                      inputMode="decimal"
+                                      placeholder="0.00"
+                                      min="0"
+                                      value={it.price}
+                                      onChange={e => updateItem(it.id, 'price', e.target.value)}
+                                      aria-label="Price"
+                                    />
+                                  </div>
+                                  <button className="aes-item-remove" onClick={() => removeItem(it.id)} aria-label="Remove item">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                      <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                                    </svg>
+                                  </button>
+                                </div>
+
+                                <div className="aes-item-assign">
+                                  {selectedGroup.members.map(m => {
+                                    const u = getUserById(m.userId);
+                                    if (!u) return null;
+                                    const on = it.assigned.includes(m.userId);
+                                    return (
+                                      <button
+                                        key={m.userId}
+                                        className={`aes-assign-chip ${on ? 'on' : ''}`}
+                                        aria-pressed={on}
+                                        onClick={() => toggleItemAssign(it.id, m.userId)}
+                                      >
+                                        <Avatar user={u} size="sm" />
+                                        <span>{nameOf(m.userId)}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                {price > 0 && (
+                                  who.length > 0 ? (
+                                    <div className="aes-item-hint text-tertiary text-xs">
+                                      {formatCurrency(perEach, cur)} each · {who.length} {who.length === 1 ? 'person' : 'people'}
+                                    </div>
+                                  ) : (
+                                    <div className="aes-item-hint warn">Choose at least one person</div>
+                                  )
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          <button className="aes-add-item" onClick={addItem}>+ Add an item</button>
+
+                          <div className="aes-items-summary">
+                            <div className="aes-items-row">
+                              <span>Items</span><span>{formatCurrency(itemsSum, cur)}</span>
+                            </div>
+                            {itemsSum > 0 && Math.abs(effectiveTotal - itemsSum) > 0.005 && (
+                              <div className="aes-items-row">
+                                <span>{effectiveTotal >= itemsSum ? 'Tax & tip' : 'Discount'}</span>
+                                <span>
+                                  {effectiveTotal < itemsSum ? '−' : ''}
+                                  {formatCurrency(effectiveTotal - itemsSum, cur)}
+                                </span>
+                              </div>
+                            )}
+                            <div className="aes-items-row total">
+                              <span>Total</span><span>{formatCurrency(effectiveTotal, cur)}</span>
+                            </div>
+
+                            <div className="aes-items-people">
+                              {groupMemberIds.map(id => {
+                                const u = getUserById(id);
+                                const amt = itemAmountFor(id);
+                                if (!u || amt <= 0) return null;
+                                return (
+                                  <div key={id} className="aes-items-person">
+                                    <Avatar user={u} size="sm" />
+                                    <span className="aes-items-person-name">{nameOf(id)}</span>
+                                    <span className="aes-items-person-amt">{formatCurrency(amt, cur)}</span>
+                                  </div>
                                 );
                               })}
                             </div>
 
-                            {price > 0 && (
-                              who.length > 0 ? (
-                                <div className="aes-item-hint text-tertiary text-xs">
-                                  {formatCurrency(perEach, cur)} each · {who.length} {who.length === 1 ? 'person' : 'people'}
-                                </div>
-                              ) : (
-                                <div className="aes-item-hint warn">Assign at least one person</div>
-                              )
+                            {itemsSum > effectiveTotal + 0.01 && (
+                              <div className="aes-remainder">
+                                The total is {formatCurrency(itemsSum - effectiveTotal, cur)} less than the items, so that
+                                comes off as a discount, in proportion to what each person had. If an item or the total
+                                was read wrong, fix it.
+                              </div>
                             )}
                           </div>
-                        );
-                      })}
-
-                      <button className="aes-add-item" onClick={addItem}>+ Add item</button>
-
-                      {/* Summary */}
-                      <div className="aes-items-summary">
-                        <div className="aes-items-row">
-                          <span>Items</span><span>{formatCurrency(itemsSum, cur)}</span>
                         </div>
-                        {itemsSum > 0 && Math.abs(effectiveTotal - itemsSum) > 0.005 && (
-                          <div className="aes-items-row">
-                            <span>{effectiveTotal >= itemsSum ? 'Tax & tip' : 'Discount'}</span>
-                            <span>
-                              {effectiveTotal < itemsSum ? '−' : ''}
-                              {formatCurrency(effectiveTotal - itemsSum, cur)}
-                            </span>
-                          </div>
-                        )}
-                        <div className="aes-items-row total">
-                          <span>Total</span><span>{formatCurrency(effectiveTotal, cur)}</span>
-                        </div>
-
-                        <div className="aes-items-people">
-                          {groupMemberIds.map(id => {
-                            const u = getUserById(id);
-                            const amt = itemAmountFor(id);
-                            if (!u || amt <= 0) return null;
-                            return (
-                              <div key={id} className="aes-items-person">
-                                <Avatar user={u} size="sm" />
-                                <span className="aes-items-person-name">
-                                  {id === currentUser.id ? 'You' : shortName(u)}
-                                </span>
-                                <span className="aes-items-person-amt">{formatCurrency(amt, cur)}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {itemsSum > effectiveTotal + 0.01 && (
-                          <div className="aes-remainder">
-                            The total is {formatCurrency(itemsSum - effectiveTotal, cur)} less than the items, so that
-                            comes off as a discount, in proportion to what each person had. If an item or the total
-                            was read wrong, fix it.
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
+                </motion.div>
+              </AnimatePresence>
             </div>
 
             {viewingPhoto && (newPhoto || existingPhotoUrl) && (
@@ -1313,15 +1500,18 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
               />
             )}
 
-            <div className="sheet-footer">
-              <button className="sheet-cta" onClick={handleSubmit} disabled={!canSubmit}>
-                {isEditing ? 'Save Changes' : isRefund ? 'Add Refund' : 'Add Expense'}{ctaTotal > 0 ? ` · ${formatCurrency(ctaTotal, cur)}` : ''}
-              </button>
-            </div>
+            {view === 'main' && (
+              <div className="sheet-footer">
+                <button className="sheet-cta" onClick={handleSubmit} disabled={!canSubmit}>
+                  {!groupId
+                    ? 'Choose a group to add it'
+                    : `${isEditing ? 'Save Changes' : isRefund ? 'Add Refund' : 'Add Expense'}${ctaTotal > 0 ? ` · ${formatCurrency(ctaTotal, cur)}` : ''}`}
+                </button>
+              </div>
+            )}
           </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
   );
 }
-
