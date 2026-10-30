@@ -2,8 +2,9 @@
 // Where an expense was paid.
 //
 // The phone works out its own position (GPS, Wi-Fi); nothing is sent anywhere.
-// The app keeps just the coordinates. "Open in Maps" hands them to the phone's
-// maps app, which shows the place.
+// The app keeps the coordinates. "Open in Maps" hands them to the phone's maps
+// app, which shows the place. Naming the place is separate and asked for:
+// src/lib/places.ts.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Expense } from '../types';
@@ -50,10 +51,14 @@ export function formatAccuracy(metres?: number): string {
   return metres < 1000 ? `within ${metres} m` : `within ${(metres / 1000).toFixed(1)} km`;
 }
 
-/** Apple devices open Apple Maps; everything else, Google Maps. */
+/**
+ * Apple devices open Apple Maps; everything else, Google Maps. A named place
+ * is searched for by name at its spot, so the maps app shows the business.
+ */
 export function mapsUrl(loc: ExpenseLocation, label: string, userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent): string {
   const apple = /iPhone|iPad|iPod|Macintosh/.test(userAgent);
-  return apple
-    ? `https://maps.apple.com/?ll=${loc.lat},${loc.lng}&q=${encodeURIComponent(label || 'Expense')}`
-    : `https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}`;
+  const name = loc.place?.name;
+  if (apple) return `https://maps.apple.com/?ll=${loc.lat},${loc.lng}&q=${encodeURIComponent(name || label || 'Expense')}`;
+  const query = name ? `${name} ${loc.lat},${loc.lng}` : `${loc.lat},${loc.lng}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }

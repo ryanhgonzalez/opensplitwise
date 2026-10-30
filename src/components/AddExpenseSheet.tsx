@@ -12,6 +12,7 @@ import { compressReceiptPhoto, formatBytes, loadPhoto, savePhoto } from '../lib/
 import { FREQUENCY_LABELS, nextOccurrence, ruleIdOf } from '../lib/recurring';
 import { showToast } from '../lib/toast';
 import { canLocate, currentLocation, formatAccuracy, formatCoords, mapsUrl, type ExpenseLocation } from '../lib/location';
+import { formatDistance, nearbyPlaces, type NearbyPlace } from '../lib/places';
 import type { RepeatFrequency } from '../types';
 import type { TotalCandidate } from '../lib/receiptScanner';
 import { formatCurrency } from '../utils/format';
@@ -126,6 +127,9 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const [location, setLocation] = useState<ExpenseLocation | undefined>(editExpense?.location);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  // Nearby places, once "Name this place" is tapped: null until then.
+  const [places, setPlaces] = useState<NearbyPlace[] | null>(null);
+  const [findingPlaces, setFindingPlaces] = useState(false);
   const [groupId, setGroupId] = useState(source?.groupId ?? refundOf?.groupId ?? defaultGroupId ?? '');
   // For a refund: who received it; usually whoever paid, back on their card.
   const [paidBy, setPaidBy] = useState(source?.paidBy ?? refundOf?.paidBy ?? currentUser.id);
@@ -465,6 +469,30 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     } finally {
       setLocating(false);
     }
+  };
+
+  const findPlaces = async () => {
+    if (!location) return;
+    setFindingPlaces(true);
+    setLocationError(null);
+    try {
+      setPlaces(await nearbyPlaces(location));
+    } catch (e) {
+      setLocationError((e as Error).message);
+    } finally {
+      setFindingPlaces(false);
+    }
+  };
+
+  const pickPlace = (p: NearbyPlace) => {
+    setLocation({ lat: p.lat, lng: p.lng, place: { name: p.name, kind: p.kind, ...(p.address && { address: p.address }) } });
+    setPlaces(null);
+  };
+
+  const removeLocation = () => {
+    setLocation(undefined);
+    setPlaces(null);
+    setLocationError(null);
   };
 
   const handleSubmit = () => {
@@ -912,8 +940,12 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                   {location ? (
                     <div className="aes-location">
                       <span className="aes-location-text">
-                        <span>📍 Location saved</span>
-                        <span className="text-tertiary text-xs">{formatAccuracy(location.accuracy) || formatCoords(location)}</span>
+                        <span>📍 {location.place?.name ?? 'Location saved'}</span>
+                        <span className="text-tertiary text-xs">
+                          {location.place
+                            ? [location.place.kind, location.place.address].filter(Boolean).join(' · ')
+                            : formatAccuracy(location.accuracy) || formatCoords(location)}
+                        </span>
                       </span>
                       <a
                         className="aes-location-action"
@@ -923,7 +955,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                       >
                         View
                       </a>
-                      <button type="button" className="aes-location-action" onClick={() => setLocation(undefined)}>
+                      <button type="button" className="aes-location-action" onClick={removeLocation}>
                         Remove
                       </button>
                     </div>
@@ -932,12 +964,41 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                       {locating ? 'Finding you…' : '📍 Add location'}
                     </button>
                   )}
+                  {location && places && (
+                    <div className="aes-places">
+                      {places.length === 0 ? (
+                        <p className="aes-places-empty text-xs">No named places nearby on OpenStreetMap.</p>
+                      ) : (
+                        places.map((p) => (
+                          <button key={p.id} type="button" className="aes-place" onClick={() => pickPlace(p)}>
+                            <span className="aes-place-name">{p.name}</span>
+                            <span className="aes-place-meta text-xs">
+                              {[p.kind, p.address].filter(Boolean).join(' · ')}
+                            </span>
+                            <span className="aes-place-distance text-xs">{formatDistance(p.distance)}</span>
+                          </button>
+                        ))
+                      )}
+                      <button type="button" className="aes-places-close" onClick={() => setPlaces(null)}>
+                        {places.length === 0 ? 'Close' : 'None of these'}
+                      </button>
+                    </div>
+                  )}
+                  {location && !places && (
+                    <button type="button" className="aes-place-find" onClick={findPlaces} disabled={findingPlaces}>
+                      {findingPlaces ? 'Looking up nearby places…' : location.place ? 'Change place' : 'Name this place'}
+                    </button>
+                  )}
                   {locationError ? (
                     <div className="aes-field-hint text-red text-xs">{locationError}</div>
+                  ) : !location ? (
+                    <div className="aes-field-hint text-tertiary text-xs">
+                      Saves where you are as a map pin. Your phone works it out; it isn't sent anywhere.
+                    </div>
                   ) : (
-                    !location && (
+                    !location.place && !places && (
                       <div className="aes-field-hint text-tertiary text-xs">
-                        Saves where you are as a map pin. Your phone works it out; it isn't sent anywhere.
+                        Naming the place looks it up on OpenStreetMap, which sees this location.
                       </div>
                     )
                   )}

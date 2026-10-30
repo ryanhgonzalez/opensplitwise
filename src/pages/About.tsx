@@ -10,6 +10,7 @@ const BUILT_WITH = [
   'jsPDF',
   'Tesseract.js',
   'PaddleOCR models on ONNX Runtime',
+  'OpenStreetMap',
   'jsQR',
   'node-qrcode',
   'IBM Plex fonts',
@@ -68,6 +69,10 @@ export default function About() {
               phones by QR code or file, and backups are files you keep.
             </p>
             <p>Phone numbers and your pay names never leave this device, even when you share a group.</p>
+            <p>
+              The one exception is when you tap “Name this place” on an expense: that sends its location to
+              OpenStreetMap to find the shops and restaurants nearby.
+            </p>
             <p>Clearing this browser's data erases it all, so back up now and then.</p>
           </div>
         </section>

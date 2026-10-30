@@ -257,8 +257,12 @@ export default function ExpenseDetail() {
             rel="noopener noreferrer"
           >
             <span>
-              📍 Where it was paid
-              <span className="text-secondary text-xs xd-location-sub">{formatCoords(expense.location)}</span>
+              📍 {expense.location.place?.name ?? 'Where it was paid'}
+              <span className={`text-secondary text-xs xd-location-sub ${expense.location.place ? 'named' : ''}`}>
+                {expense.location.place
+                  ? [expense.location.place.kind, expense.location.place.address].filter(Boolean).join(' · ')
+                  : formatCoords(expense.location)}
+              </span>
             </span>
             <span className="xd-location-open">Open in Maps ↗</span>
           </a>

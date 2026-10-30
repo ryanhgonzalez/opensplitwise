@@ -116,10 +116,16 @@ export interface Expense {
   refund?: { of?: string };
   /**
    * Where it was paid, when "Add location" was tapped: the phone's GPS
-   * position, worked out on the phone. No place name: looking one up would
-   * send the position to a map service. `accuracy` is in metres.
+   * position, worked out on the phone. `accuracy` is in metres. `place` is set
+   * when a nearby place was picked (looked up on OpenStreetMap, only when
+   * asked); the coordinates are then the place's.
    */
-  location?: { lat: number; lng: number; accuracy?: number };
+  location?: {
+    lat: number;
+    lng: number;
+    accuracy?: number;
+    place?: { name: string; kind?: string; address?: string };
+  };
   createdAt: Date;
   updatedAt: Date;
 }

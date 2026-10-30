@@ -15,6 +15,12 @@ describe('location', () => {
     const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)';
     const android = 'Mozilla/5.0 (Linux; Android 15; Pixel 9)';
     expect(mapsUrl(shell, 'Gas fill-up', iphone)).toBe('https://maps.apple.com/?ll=40.71283,-74.00602&q=Gas%20fill-up');
-    expect(mapsUrl(shell, 'Gas fill-up', android)).toBe('https://www.google.com/maps/search/?api=1&query=40.71283,-74.00602');
+    expect(mapsUrl(shell, 'Gas fill-up', android)).toBe('https://www.google.com/maps/search/?api=1&query=40.71283%2C-74.00602');
+  });
+
+  it('searches for a named place by name', () => {
+    const named = { ...shell, place: { name: 'Shell' } };
+    expect(mapsUrl(named, 'Gas fill-up', 'iPhone')).toBe('https://maps.apple.com/?ll=40.71283,-74.00602&q=Shell');
+    expect(mapsUrl(named, 'Gas fill-up', 'Android')).toBe('https://www.google.com/maps/search/?api=1&query=Shell%2040.71283%2C-74.00602');
   });
 });

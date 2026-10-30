@@ -282,6 +282,10 @@ button.xd-link:hover,
   font-family: var(--font-mono);
 }
 
+.xd-location-sub.named {
+  font-family: inherit;
+}
+
 .xd-location-open {
   flex: none;
   color: var(--owed);
