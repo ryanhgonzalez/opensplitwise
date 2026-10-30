@@ -6,6 +6,7 @@ import Avatar from '../components/Avatar';
 import PersonSheet from '../components/PersonSheet';
 import ContactImportSheet from '../components/ContactImportSheet';
 import AddPersonSheet from '../components/AddPersonSheet';
+import SearchField from '../components/SearchField';
 import { planImport, type Contact, type ImportRow } from '../lib/contacts';
 import { formatCurrency, formatSigned } from '../utils';
 import './People.css';
@@ -21,6 +22,7 @@ export default function People() {
   // Only your own row opens the sheet; everyone else has a page.
   const [editingSelf, setEditingSelf] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [importing, setImporting] = useState<ImportRow[] | null>(null);
   const [imported, setImported] = useState('');
 
@@ -68,6 +70,13 @@ export default function People() {
 
   const meSettled = overall.length === 0;
 
+  // By name, or by a group you share ("lisbon" finds everyone on that trip).
+  const query = searchQuery.trim().toLowerCase();
+  const matches = (name: string, groupNames: string[]) =>
+    !query || name.toLowerCase().includes(query) || groupNames.some((g) => g.toLowerCase().includes(query));
+  const shown = sorted.filter((u) => matches(u.name, sharedGroupNames(u.id)));
+  const showMe = matches(currentUser.name, []);
+
   return (
     <div className="page-content">
       <div className="people-page">
@@ -90,34 +99,42 @@ export default function People() {
           </p>
         )}
 
+        {(others.length > 0 || query) && (
+          <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search people..." label="Search people" />
+        )}
+
         {/* You */}
-        <section>
-          <h2 className="cap people-section-label">You</h2>
-          <button className="people-row" onClick={() => setEditingSelf(true)}>
-            <Avatar user={currentUser} size="md" />
-            <span className="people-row-info">
-              <span className="people-row-name">{currentUser.name}</span>
-              <span className="text-xs text-secondary">{currentUser.email ?? 'Your profile'}</span>
-            </span>
-            <span className="people-row-balance">
-              {meSettled ? (
-                <span className="people-row-amount zero">Settled</span>
-              ) : (
-                overall.map((b) => (
-                  <span key={b.currency} className={`num people-row-amount ${b.net > 0 ? 'pos' : 'neg'}`}>
-                    {formatSigned(b.net, b.currency)}
-                  </span>
-                ))
-              )}
-            </span>
-          </button>
-        </section>
+        {showMe && (
+          <section>
+            <h2 className="cap people-section-label">You</h2>
+            <button className="people-row" onClick={() => setEditingSelf(true)}>
+              <Avatar user={currentUser} size="md" />
+              <span className="people-row-info">
+                <span className="people-row-name">{currentUser.name}</span>
+                <span className="text-xs text-secondary">{currentUser.email ?? 'Your profile'}</span>
+              </span>
+              <span className="people-row-balance">
+                {meSettled ? (
+                  <span className="people-row-amount zero">Settled</span>
+                ) : (
+                  overall.map((b) => (
+                    <span key={b.currency} className={`num people-row-amount ${b.net > 0 ? 'pos' : 'neg'}`}>
+                      {formatSigned(b.net, b.currency)}
+                    </span>
+                  ))
+                )}
+              </span>
+            </button>
+          </section>
+        )}
 
         {/* Everyone else */}
-        {sorted.length > 0 ? (
+        {shown.length > 0 ? (
           <section>
-            <h2 className="cap people-section-label">People · {sorted.length}</h2>
-            {sorted.map(user => {
+            <h2 className="cap people-section-label">
+              People · {query ? `${shown.length} of ${sorted.length}` : sorted.length}
+            </h2>
+            {shown.map(user => {
               const balances = balancesOf(user.id);
               const settled = balances.length === 0;
               const shared = sharedGroupNames(user.id);
@@ -148,6 +165,13 @@ export default function People() {
               );
             })}
           </section>
+        ) : query ? (
+          !showMe && (
+            <div className="empty-box">
+              <span className="empty-box-title">No people found</span>
+              <span className="text-secondary">Nothing matches “{searchQuery.trim()}”.</span>
+            </div>
+          )
         ) : (
           <div className="empty-box">
             <span className="empty-box-title">No people yet</span>

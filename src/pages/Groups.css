@@ -52,42 +52,6 @@
   max-height: none;
 }
 
-/* Search */
-.groups-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--muted);
-  max-width: 420px;
-}
-
-.groups-search:focus-within {
-  border-color: var(--ink);
-  box-shadow: 0 0 0 3px var(--focus-ring);
-}
-
-.groups-search input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  font-size: 14px;
-}
-
-.groups-search-clear {
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted);
-}
-
 /* Table: a ruled list on phones, real columns on desktop */
 .groups-table {
   display: flex;

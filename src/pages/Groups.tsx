@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import GroupTile from '../components/GroupTile';
 import CreateGroupSheet from '../components/CreateGroupSheet';
+import SearchField from '../components/SearchField';
 import { useStore, selectGroupTotals } from '../store';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned } from '../utils';
 import { groupCurrency } from '../lib/currency';
@@ -57,26 +58,7 @@ export default function Groups() {
           </button>
         </header>
 
-        <label className="groups-search">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
-            <path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
-          <span className="sr-only">Search groups</span>
-          <input
-            type="search"
-            placeholder="Search groups..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <button type="button" onClick={() => setSearchQuery('')} className="groups-search-clear" aria-label="Clear search">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </button>
-          )}
-        </label>
+        <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search groups..." label="Search groups" />
 
         {groups.length === 0 ? (
           <div className="empty-box">
