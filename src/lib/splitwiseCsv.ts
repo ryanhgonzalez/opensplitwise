@@ -84,7 +84,7 @@ const FROM_SPLITWISE: Record<string, CategoryId> = {
   'groceries': 'groceries',
   'bus/train': 'transport',
   'car': 'transport',
-  'gas/fuel': 'transport',
+  'gas/fuel': 'gas',
   'parking': 'transport',
   'taxi': 'transport',
   'bicycle': 'transport',
@@ -104,7 +104,7 @@ const FROM_SPLITWISE: Record<string, CategoryId> = {
   'heat/gas': 'utilities',
   'water': 'utilities',
   'trash': 'utilities',
-  'cleaning': 'utilities',
+  'cleaning': 'household',
   'tv/phone/internet': 'utilities',
   'rent': 'rent',
   'mortgage': 'rent',
@@ -114,7 +114,9 @@ const FROM_SPLITWISE: Record<string, CategoryId> = {
   'clothing': 'shopping',
   'electronics': 'shopping',
   'furniture': 'shopping',
-  'household supplies': 'shopping',
+  'household supplies': 'household',
+  'pets': 'pets',
+  'childcare': 'kids',
 };
 
 /** What a built-in category is called on export: Splitwise's name where there is an obvious one. */
@@ -122,6 +124,9 @@ const TO_SPLITWISE: Partial<Record<CategoryId, string>> = {
   other: 'General',
   food: 'Dining out',
   healthcare: 'Medical expenses',
+  gas: 'Gas/fuel',
+  household: 'Household supplies',
+  kids: 'Childcare',
 };
 
 // ─── Import ───────────────────────────────────────────────────────────────────

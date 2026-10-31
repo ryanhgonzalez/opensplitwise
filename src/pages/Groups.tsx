@@ -7,20 +7,9 @@ import SearchField from '../components/SearchField';
 import { useStore, selectGroupTotals } from '../store';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned } from '../utils';
 import { groupCurrency } from '../lib/currency';
-import type { GroupType } from '../types';
+import { groupTypeLabel } from '../lib/groupTypes';
 import '../styles/sheet.css';
 import './Groups.css';
-
-const TYPE_LABELS: Record<GroupType, string> = {
-  trip: 'Trip',
-  home: 'Home',
-  couple: 'Couple',
-  family: 'Family',
-  friends: 'Friends',
-  work: 'Work',
-  event: 'Event',
-  other: 'Other',
-};
 
 export default function Groups() {
   const navigate = useNavigate();
@@ -96,7 +85,7 @@ export default function Groups() {
                     <GroupTile group={group} size={40} />
                     <span className="groups-name-text">
                       <span className="groups-name">{group.name}</span>
-                      <span className="text-xs text-secondary groups-type">{TYPE_LABELS[group.type] ?? 'Other'}</span>
+                      <span className="text-xs text-secondary groups-type">{groupTypeLabel(group.type)}</span>
                       <span className="text-xs text-secondary groups-meta-mobile">
                         {group.members.length} members · active {formatDate(group.lastActivity)}
                       </span>

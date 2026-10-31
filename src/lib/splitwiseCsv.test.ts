@@ -23,7 +23,7 @@ const SAMPLE = [
   '2024-05-01,Dinner,Dining out,90.00,USD,60.00,-30.00,-30.00',
   '2024-05-02,"Groceries, snacks",Groceries,30.00,USD,-10.00,20.00,-10.00',
   '2024-05-03,Bob Jones paid Alice Smith,Payment,10.00,USD,-10.00,10.00,0.00',
-  '2024-05-04,Ferry,Pets,12.00,USD,-4.00,-4.00,8.00',
+  '2024-05-04,Ferry,Boats,12.00,USD,-4.00,-4.00,8.00',
   '',
   '2024-05-05,Total balance, , ,USD,36.00,-4.00,-32.00',
 ].join('\n');
@@ -61,7 +61,7 @@ describe('parseSplitwiseCsv', () => {
 
     // Splitwise categories with no match here become the group's own.
     const ferry = file.data.expenses[2];
-    expect(file.data.groups[0].categories).toEqual([{ id: ferry.category, name: 'Pets' }]);
+    expect(file.data.groups[0].categories).toEqual([{ id: ferry.category, name: 'Boats' }]);
   });
 
   it('splits a row several people paid into one expense per payer, keeping balances', () => {

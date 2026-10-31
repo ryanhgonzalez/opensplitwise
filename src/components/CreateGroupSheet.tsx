@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser, selectMainCurrency } from '../store';
 import { localeCurrency } from '../lib/currency';
+import { GROUP_TYPES, groupTypeHint } from '../lib/groupTypes';
 import CurrencySelect from './CurrencySelect';
 import { firstGrapheme } from '../lib/emoji';
 import type { GroupType } from '../types';
@@ -10,14 +11,6 @@ import '../styles/sheet.css';
 import './CreateGroupSheet.css';
 
 const PRESET_COLORS = ['#7c3aed', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#ef4444'];
-const GROUP_TYPES: { value: GroupType; label: string }[] = [
-  { value: 'home',    label: 'Home' },
-  { value: 'trip',    label: 'Trip' },
-  { value: 'work',    label: 'Work' },
-  { value: 'event',   label: 'Event' },
-  { value: 'other',   label: 'Other' },
-];
-
 interface CreateGroupSheetProps {
   open: boolean;
   onClose: () => void;
@@ -202,6 +195,7 @@ export default function CreateGroupSheet({ open, onClose, onCreated }: CreateGro
                     </button>
                   ))}
                 </div>
+                <p className="group-type-hint">{groupTypeHint(type)}</p>
               </div>
 
               {/* Currency */}

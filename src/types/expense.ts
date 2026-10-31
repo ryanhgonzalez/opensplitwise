@@ -2,13 +2,17 @@ export type ExpenseCategory =
   | 'food'
   | 'groceries'
   | 'transport'
+  | 'gas'
   | 'travel'
   | 'accommodation'
   | 'shopping'
   | 'entertainment'
   | 'utilities'
   | 'rent'
+  | 'household'
   | 'healthcare'
+  | 'kids'
+  | 'pets'
   | 'gifts'
   | 'education'
   | 'subscriptions'
@@ -19,13 +23,17 @@ export const CATEGORY_ICONS: Record<ExpenseCategory, string> = {
   food:          '🍽️',
   groceries:     '🛒',
   transport:     '🚗',
+  gas:           '⛽',
   travel:        '✈️',
   accommodation: '🏨',
   shopping:      '🛍️',
   entertainment: '🎬',
   utilities:     '⚡',
   rent:          '🏠',
+  household:     '🧽',
   healthcare:    '🏥',
+  kids:          '🧸',
+  pets:          '🐾',
   gifts:         '🎁',
   education:     '📚',
   subscriptions: '📱',
@@ -37,13 +45,17 @@ export const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
   food:          'Food & Drink',
   groceries:     'Groceries',
   transport:     'Transport',
+  gas:           'Gas',
   travel:        'Travel',
   accommodation: 'Accommodation',
   shopping:      'Shopping',
   entertainment: 'Entertainment',
   utilities:     'Utilities',
   rent:          'Rent',
+  household:     'Household',
   healthcare:    'Healthcare',
+  kids:          'Kids',
+  pets:          'Pets',
   gifts:         'Gifts',
   education:     'Education',
   subscriptions: 'Subscriptions',

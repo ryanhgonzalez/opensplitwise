@@ -232,3 +232,11 @@ textarea.field-input {
     padding-top: 16px;
   }
 }
+
+/* The line under a group's type picker saying what the type changes. */
+.group-type-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}

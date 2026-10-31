@@ -5,6 +5,7 @@ import { firstGrapheme } from '../lib/emoji';
 import { MAX_CATEGORY_NAME, cleanCategoryName, findCategoryByName } from '../lib/categories';
 import { groupCurrency } from '../lib/currency';
 import { simplifies } from '../lib/calculations';
+import { GROUP_TYPES, groupTypeHint } from '../lib/groupTypes';
 import CurrencySelect from './CurrencySelect';
 import type { CustomCategoryId, Group, GroupType } from '../types';
 import Avatar from './Avatar';
@@ -13,14 +14,6 @@ import './CreateGroupSheet.css';
 import './EditGroupSheet.css';
 
 const PRESET_COLORS = ['#7c3aed', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#ef4444'];
-const GROUP_TYPES: { value: GroupType; label: string }[] = [
-  { value: 'home',    label: 'Home' },
-  { value: 'trip',    label: 'Trip' },
-  { value: 'work',    label: 'Work' },
-  { value: 'event',   label: 'Event' },
-  { value: 'other',   label: 'Other' },
-];
-
 interface EditGroupSheetProps {
   open: boolean;
   onClose: () => void;
@@ -236,6 +229,7 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
                     </button>
                   ))}
                 </div>
+                <p className="group-type-hint">{groupTypeHint(type)}</p>
               </div>
 
               {/* Members */}

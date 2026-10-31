@@ -420,8 +420,8 @@ describe('custom categories', () => {
 
   it('reuses an existing category instead of making a duplicate', () => {
     const { group } = setup(['Me']);
-    const id = state().addGroupCategory(group.id, 'Gas');
-    expect(state().addGroupCategory(group.id, 'gas')).toBe(id);
+    const id = state().addGroupCategory(group.id, 'Fuel');
+    expect(state().addGroupCategory(group.id, 'fuel')).toBe(id);
     expect(state().addGroupCategory(group.id, 'groceries')).toBe('groceries');
     expect(groupOf(group.id).categories).toHaveLength(1);
   });

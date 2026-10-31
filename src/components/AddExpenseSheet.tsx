@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser } from '../store';
 import { buildSplit, round, splitByItems, splitEvenly } from '../lib/calculations';
 import { CATEGORY_ICONS, CATEGORY_LABELS } from '../types';
-import type { CategoryId, Expense, SplitType, ExpenseSplit } from '../types';
+import type { CategoryId, Expense, ExpenseCategory, SplitType, ExpenseSplit } from '../types';
 import { BUILT_IN_CATEGORIES, CUSTOM_CATEGORY_ICON, MAX_CATEGORY_NAME, categoryInfo, isCustomCategory } from '../lib/categories';
+import { defaultCategory, groupTypePhrase, suggestedCategories } from '../lib/groupTypes';
 import { convertSplit, currencySymbol, groupCurrency, recordCurrency } from '../lib/currency';
 import CurrencySelect from './CurrencySelect';
 import ReceiptViewer from './ReceiptViewer';
@@ -124,7 +125,15 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const [entryCurrency, setEntryCurrency] = useState<string | null>(sourceForeign?.currency ?? null);
   /** Group currency per 1 unit of the entry currency, as typed. */
   const [rateStr, setRateStr] = useState(sourceForeign ? String(sourceForeign.rate) : '');
-  const [category, setCategory] = useState<CategoryId>(source?.category ?? refundOf?.category ?? 'food');
+  const startGroupId = source?.groupId ?? refundOf?.groupId ?? defaultGroupId ?? '';
+  // A new expense starts on what its group's type usually needs (Groceries at home).
+  const startCategory = (): CategoryId =>
+    source?.category ?? refundOf?.category ?? defaultCategory(groups.find(g => g.id === startGroupId)?.type);
+  const [category, setCategory] = useState<CategoryId>(startCategory);
+  // Whether the category was set on purpose (picked, scanned, or carried over),
+  // so choosing a group later doesn't replace it with that group's default.
+  const categoryChosen = useRef(!!(source || refundOf));
+  const pickCategory = (c: CategoryId) => { categoryChosen.current = true; setCategory(c); };
   // Inline "+ New" category entry; null while closed.
   const [newCategory, setNewCategory] = useState<string | null>(null);
   const [newCategoryHint, setNewCategoryHint] = useState<string | null>(null);
@@ -136,7 +145,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   // Nearby places, once "Name this place" is tapped: null until then.
   const [places, setPlaces] = useState<NearbyPlace[] | null>(null);
   const [findingPlaces, setFindingPlaces] = useState(false);
-  const [groupId, setGroupId] = useState(source?.groupId ?? refundOf?.groupId ?? defaultGroupId ?? '');
+  const [groupId, setGroupId] = useState(startGroupId);
   // For a refund: who received it; usually whoever paid, back on their card.
   const [paidBy, setPaidBy] = useState(source?.paidBy ?? refundOf?.paidBy ?? currentUser.id);
   const [splitType, setSplitType] = useState<SplitMode>(
@@ -234,11 +243,27 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
   // A custom category belongs to one group; moving the expense elsewhere drops it to Other.
   useEffect(() => {
-    setCategory(c =>
+    if (!categoryChosen.current) setCategory(defaultCategory(selectedGroup?.type));
+    else setCategory(c =>
       isCustomCategory(c) && !selectedGroup?.categories?.some(x => x.id === c) ? 'other' : c,
     );
     setNewCategoryHint(null);
   }, [selectedGroup]);
+
+  // The group type's usual categories go first in the picker; the rest follow.
+  const suggested = suggestedCategories(selectedGroup?.type);
+  const builtInCategoryButton = (c: ExpenseCategory) => (
+    <button
+      key={c}
+      type="button"
+      className={`aes-cat ${category === c ? 'on' : ''}`}
+      aria-pressed={category === c}
+      onClick={() => { pickCategory(c); go('main'); }}
+    >
+      <span aria-hidden>{CATEGORY_ICONS[c]}</span>
+      {CATEGORY_LABELS[c]}
+    </button>
+  );
 
   const openNewCategory = () => {
     if (!selectedGroup) {
@@ -252,7 +277,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const saveNewCategory = () => {
     if (!selectedGroup || newCategory === null) return;
     const id = addGroupCategory(selectedGroup.id, newCategory);
-    if (id) setCategory(id);
+    if (id) pickCategory(id);
     setNewCategory(null);
   };
 
@@ -446,7 +471,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
       if (result.currency) setEntryCurrency(result.currency === groupCur ? null : result.currency);
       setTotalCandidates(result.totalCandidates ?? []);
       if (result.description) { setDescription(result.description); filledAny = true; }
-      if (result.category) { setCategory(result.category); filledAny = true; }
+      if (result.category) { pickCategory(result.category); filledAny = true; }
       if (result.date) { setDateStr(toDateInputValue(result.date)); filledAny = true; }
       if (result.lineItems && result.lineItems.length > 0) {
         const assigned = groupMemberIds;
@@ -619,11 +644,12 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     setAmountStr(source ? String(sourceForeign?.amount ?? source.amount) : '');
     setEntryCurrency(sourceForeign?.currency ?? null);
     setRateStr(sourceForeign ? String(sourceForeign.rate) : '');
-    setCategory(source?.category ?? refundOf?.category ?? 'food');
+    setCategory(startCategory());
+    categoryChosen.current = !!(source || refundOf);
     setNewCategory(null);
     setNewCategoryHint(null);
     setDateStr(editExpense ? toDateInputValue(editExpense.date) : '');
-    setGroupId(source?.groupId ?? refundOf?.groupId ?? defaultGroupId ?? '');
+    setGroupId(startGroupId);
     setPaidBy(source?.paidBy ?? refundOf?.paidBy ?? currentUser.id);
     setSplitType(refundOf ? (refundEqual ? 'equal' : 'percentage') : initSplitType(source));
     setParticipants([]);
@@ -1181,6 +1207,15 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
                   {view === 'category' && (
                     <div className="aes-panel">
+                      {suggested.length > 0 && (
+                        <>
+                          <p className="aes-panel-label">Suggested for {groupTypePhrase(selectedGroup?.type)}</p>
+                          <div className="aes-cat-grid">
+                            {suggested.map(c => builtInCategoryButton(c))}
+                          </div>
+                        </>
+                      )}
+
                       <p className="aes-panel-label">{selectedGroup ? `${selectedGroup.name}'s own` : 'Custom'}</p>
                       <div className="aes-cat-grid">
                         {selectedGroup?.categories?.map(c => (
@@ -1189,7 +1224,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                             type="button"
                             className={`aes-cat ${category === c.id ? 'on' : ''}`}
                             aria-pressed={category === c.id}
-                            onClick={() => { setCategory(c.id); go('main'); }}
+                            onClick={() => { pickCategory(c.id); go('main'); }}
                           >
                             <span aria-hidden>{CUSTOM_CATEGORY_ICON}</span>
                             {c.name}
@@ -1220,20 +1255,9 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                       </div>
                       {newCategoryHint && <p className="aes-panel-note">{newCategoryHint.replace('below ', '')}</p>}
 
-                      <p className="aes-panel-label">All</p>
+                      <p className="aes-panel-label">{suggested.length ? 'Everything else' : 'All'}</p>
                       <div className="aes-cat-grid">
-                        {BUILT_IN_CATEGORIES.map(c => (
-                          <button
-                            key={c}
-                            type="button"
-                            className={`aes-cat ${category === c ? 'on' : ''}`}
-                            aria-pressed={category === c}
-                            onClick={() => { setCategory(c); go('main'); }}
-                          >
-                            <span aria-hidden>{CATEGORY_ICONS[c]}</span>
-                            {CATEGORY_LABELS[c]}
-                          </button>
-                        ))}
+                        {BUILT_IN_CATEGORIES.filter(c => !suggested.includes(c)).map(c => builtInCategoryButton(c))}
                       </div>
                     </div>
                   )}

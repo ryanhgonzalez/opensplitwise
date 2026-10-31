@@ -268,3 +268,15 @@ describe('parseReceiptText: currency', () => {
     expect(parseReceiptText(DINEFINE).currency).toBeUndefined();
   });
 });
+
+describe('category guesses for the newer categories', () => {
+  it('reads a fuel receipt as Gas, and a ride as Transport', () => {
+    expect(parseReceiptText('SHELL\nPUMP 4 UNLEADED\nTOTAL 41.20').category).toBe('gas');
+    expect(parseReceiptText('Uber trip\nTotal 18.40').category).toBe('transport');
+  });
+
+  it('knows pet shops and childcare', () => {
+    expect(parseReceiptText('PETCO #1123\nDOG FOOD 32.99\nTOTAL 32.99').category).toBe('pets');
+    expect(parseReceiptText('Little Oaks Daycare\nWeek of 3/4\nTotal 220.00').category).toBe('kids');
+  });
+});
