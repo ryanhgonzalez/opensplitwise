@@ -1,11 +1,18 @@
 .exf {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+/* Search box and Filter button, side by side */
+.exf-top {
+  display: flex;
   gap: 8px;
 }
 
-/* Search */
 .exf-search {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -28,7 +35,7 @@
   border: 0;
   outline: none;
   background: transparent;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--ink);
 }
 
@@ -55,103 +62,136 @@
   background: var(--panel);
 }
 
-/* Date presets: one segmented control */
-.exf-presets {
-  display: inline-flex;
-  align-self: flex-start;
-  max-width: 100%;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.exf-presets::-webkit-scrollbar {
-  display: none;
-}
-
-.exf-chip {
-  flex-shrink: 0;
-  min-height: 40px;
-  padding: 0 12px;
-  border: 0;
-  background: var(--paper);
-  color: var(--ink);
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.exf-chip + .exf-chip {
-  border-left: 1px solid var(--border);
-}
-
-.exf-chip:hover {
-  background: var(--panel);
-}
-
-.exf-chip.active {
-  background: var(--ink);
-  color: var(--on-ink);
-}
-
-/* Categories: separate toggles (several can be on), one scrolling row */
-.exf-categories {
-  display: flex;
-  gap: 6px;
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.exf-categories::-webkit-scrollbar {
-  display: none;
-}
-
-.exf-cat {
+.exf-open {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
-  padding: 0 10px;
+  min-height: 44px;
+  padding: 0 14px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--paper);
   color: var(--ink);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
   white-space: nowrap;
 }
 
-.exf-cat:hover {
+.exf-open:hover {
   background: var(--panel);
 }
 
-.exf-cat-count {
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.exf-cat.active {
+.exf-open.active {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--on-ink);
 }
 
-.exf-cat.active .exf-cat-count {
+/* What's set, as chips that clear with a tap */
+.exf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.exf-applied {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--ink);
+  border-radius: 17px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.exf-applied:hover {
+  background: var(--panel);
+}
+
+/* The sheet */
+.exf-sheet {
+  max-height: 88vh;
+  max-height: 88dvh;
+}
+
+.exf-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.exf-label {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.exf-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.exf-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 19px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.exf-option:hover {
+  background: var(--panel);
+}
+
+.exf-option.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
+  font-weight: 500;
+}
+
+.exf-count {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.exf-option.active .exf-count {
   color: inherit;
   opacity: 0.75;
 }
 
-/* Custom range */
-.exf-range {
-  overflow: hidden;
+.exf-reset {
+  min-height: 36px;
+  padding: 0 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--owed);
 }
 
+.exf-reset:hover {
+  text-decoration: underline;
+}
+
+/* Custom range */
 .exf-range-inner {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  padding-top: 2px;
+  margin-top: 12px;
 }
 
 .exf-range-field {
@@ -177,23 +217,6 @@
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
-/* Summary + reset */
-.exf-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.exf-reset {
-  min-height: 32px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--owed);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 .exf-visually-hidden {
   position: absolute;
   width: 1px;
@@ -201,21 +224,4 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
-}
-
-@media (min-width: 1024px) {
-  .exf {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-
-  .exf-search {
-    flex: 1 1 260px;
-  }
-
-  .exf-range,
-  .exf-summary {
-    flex-basis: 100%;
-  }
 }

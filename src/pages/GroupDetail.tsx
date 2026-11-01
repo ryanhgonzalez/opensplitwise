@@ -1,6 +1,6 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useStore, selectCurrentUser, selectTotalsForGroup } from '../store';
 import {
   calculateBalances,
@@ -15,6 +15,7 @@ import {
 } from '../lib/calculations';
 import { EMPTY_FILTER, categoryOptions, filterExpenses, isFilterActive, type ExpenseFilter } from '../lib/expenseFilter';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned, getNetAmountForUser } from '../utils';
+import '../styles/sheet.css';
 import { categoryLabel } from '../lib/categories';
 import type { PaymentMethod } from '../types';
 import Avatar from '../components/Avatar';
@@ -53,18 +54,90 @@ const RECEIPT_ICON = (
 );
 
 const REPORT_ICON = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
     <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
     <path d="M14 3v5h5M12 11v6M9.5 14.5L12 17l2.5-2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
 const SHARE_ICON = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
     <path d="M12 3v12M7 8l5-5 5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
   </svg>
 );
+
+const DOTS_ICON = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <circle cx="5" cy="12" r="1.7" fill="currentColor" />
+    <circle cx="12" cy="12" r="1.7" fill="currentColor" />
+    <circle cx="19" cy="12" r="1.7" fill="currentColor" />
+  </svg>
+);
+
+/** "Ben", "Ben and Carla", "Ben, Carla and Dana", "4 people". */
+function joinNames(names: string[]): string {
+  if (names.length > 3) return `${names.length} people`;
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+interface MenuItem {
+  label: string;
+  icon: ReactNode;
+  onSelect: () => void;
+  disabled?: boolean;
+}
+
+/** The "⋯" button: the group's less-used actions, in a small list under it. */
+function MoreMenu({ items, className }: { items: MenuItem[]; className: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+
+  return (
+    <div className="gd-menu" ref={ref}>
+      <button
+        className={className}
+        onClick={() => setOpen(v => !v)}
+        aria-label="More actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        {DOTS_ICON}
+      </button>
+      {open && (
+        <div className="gd-menu-list" role="menu">
+          {items.map(item => (
+            <button
+              key={item.label}
+              role="menuitem"
+              className="gd-menu-item"
+              disabled={item.disabled}
+              onClick={() => { setOpen(false); item.onSelect(); }}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function GroupDetail() {
   const { id } = useParams<{ id: string }>();
@@ -81,6 +154,7 @@ export default function GroupDetail() {
   const [showAllExpenses, setShowAllExpenses] = useState(false);
   const [showPayments, setShowPayments] = useState(false);
   const [showRepeating, setShowRepeating] = useState(false);
+  const [showEveryone, setShowEveryone] = useState(false);
   const { downloadReport, makingId } = useGroupReport();
 
   const users = useStore(s => s.users);
@@ -216,6 +290,129 @@ export default function GroupDetail() {
     </svg>
   );
 
+  const menuItems: MenuItem[] = [
+    { label: 'Share group', icon: SHARE_ICON, onSelect: () => navigate(`/share?group=${group.id}`) },
+    ...(hasExpenses
+      ? [{
+          label: makingId === group.id ? 'Making PDF…' : 'PDF report',
+          icon: REPORT_ICON,
+          onSelect: () => downloadReport(group.id),
+          disabled: !!makingId,
+        }]
+      : []),
+  ];
+
+  // The line at the top: where you stand, in words, then the amount.
+  const even = Math.abs(myBalance) < 0.005;
+  const owesMe = settlements.filter(s => s.to === currentUser.id).map(s => nameOf(s.from));
+  const iOwe = settlements.filter(s => s.from === currentUser.id).map(s => nameOf(s.to));
+  let standingLead: string;
+  let standingFigure: string;
+  if (even) {
+    standingLead = settlements.length ? "You don't owe or get anything" : 'Nobody owes anything';
+    standingFigure = settlements.length ? "You're settled up" : 'All settled up';
+  } else {
+    standingFigure = formatCurrency(Math.abs(myBalance), cur);
+    if (owesMe.length && !iOwe.length) {
+      standingLead = `${joinNames(owesMe)} ${owesMe.length === 1 ? 'owes' : 'owe'} you`;
+    } else if (iOwe.length && !owesMe.length) {
+      standingLead = `You owe ${joinNames(iOwe)}`;
+    } else {
+      standingLead = myBalance > 0 ? "You're owed overall" : 'You owe overall';
+    }
+  }
+  const paymentsMade = sortedPayments.length
+    ? `${sortedPayments.length} ${sortedPayments.length === 1 ? 'payment' : 'payments'} made`
+    : '';
+
+  // Everyone's balance, the note on simplifying, and past payments. In the side
+  // column on desktop; in a sheet on phones.
+  const everyone = (
+    <>
+      <div className="ruled gd-balances">
+        {group.members.map(m => {
+          const u = getUserById(m.userId);
+          if (!u) return null;
+          const bal = balances[m.userId] ?? 0;
+          const settled = Math.abs(bal) < 0.005;
+          return (
+            <button
+              key={m.userId}
+              className="gd-balance"
+              onClick={() => { setShowEveryone(false); setSelectedMemberId(m.userId); }}
+            >
+              <Avatar user={u} size="sm" />
+              <span className="gd-balance-info">
+                <span className="gd-balance-name">{nameOf(m.userId)}</span>
+                <span className="gd-balance-meta">
+                  Paid {formatCurrency(paidBy[m.userId] ?? 0, cur)} · share {formatCurrency(shareOf[m.userId] ?? 0, cur)}
+                </span>
+              </span>
+              <span className={`gd-balance-amount ${settled ? 'zero' : `num ${signClass(bal)}`}`}>
+                {settled ? 'settled up' : formatSigned(bal, cur)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {simplified && settlements.length > 0 && (
+        <p className="gd-simplified-note">
+          Payments are simplified, so it takes fewer of them. Someone may pay a person they don't owe directly.{' '}
+          <button className="gd-note-link" onClick={() => { setShowEveryone(false); setShowEditGroup(true); }}>
+            Turn off in settings
+          </button>
+        </p>
+      )}
+
+      {sortedPayments.length > 0 && (
+        <>
+          <button
+            className="gd-toggle"
+            onClick={() => setShowPayments(v => !v)}
+            aria-expanded={showPayments}
+          >
+            <span>{paymentsMade}</span>
+            <span className="gd-toggle-action">{showPayments ? 'Hide' : 'Show'}</span>
+          </button>
+          {showPayments && (
+            <div className="gd-payments">
+              {sortedPayments.map(p => {
+                const confirming = undoPaymentId === p.id;
+                return (
+                  <div key={p.id} className="gd-payment">
+                    <span className="gd-payment-info">
+                      <span>
+                        <strong>{nameOf(p.fromUserId)}</strong>
+                        <span className="text-secondary"> paid </span>
+                        <strong>{nameOf(p.toUserId, true)}</strong>
+                      </span>
+                      <span className="num gd-payment-meta">
+                        {formatLedgerDate(p.date)}
+                        {p.paymentMethod ? ` · ${PAYMENT_METHOD_LABELS[p.paymentMethod].toUpperCase()}` : ''}
+                      </span>
+                    </span>
+                    <span className="num gd-payment-amount">{formatCurrency(p.amount, cur)}</span>
+                    {confirming ? (
+                      <span className="gd-payment-confirm">
+                        <button className="btn btn-secondary btn-sm" onClick={() => setUndoPaymentId(null)}>Keep</button>
+                        <button className="btn btn-danger-solid btn-sm" onClick={() => handleUndoPayment(p.id)}>Undo</button>
+                      </span>
+                    ) : (
+                      <button className="gd-undo" onClick={() => setUndoPaymentId(p.id)} aria-label="Undo this payment">
+                        Undo
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </>
+  );
+
   return (
     <div className="gd-shell">
       <div className="page-content">
@@ -228,35 +425,23 @@ export default function GroupDetail() {
                 <GroupTile group={group} size={40} />
                 <h1 className="gd-title">{group.name}</h1>
                 {/* Phones only: desktop has labelled buttons */}
-                {hasExpenses && (
-                  <button
-                    className="gd-icon-btn gd-settings-mobile gd-share-mobile"
-                    onClick={() => downloadReport(group.id)}
-                    disabled={!!makingId}
-                    aria-label="Download PDF report"
-                  >
-                    {REPORT_ICON}
-                  </button>
-                )}
-                <button className="gd-icon-btn gd-settings-mobile gd-share-mobile" onClick={() => navigate(`/share?group=${group.id}`)} aria-label="Share group">
-                  {SHARE_ICON}
-                </button>
-                <button className="gd-icon-btn gd-settings-mobile" onClick={() => setShowEditGroup(true)} aria-label="Group settings">
+                <button className="gd-icon-btn gd-mobile-only gd-settings-mobile" onClick={() => setShowEditGroup(true)} aria-label="Group settings">
                   {settingsIcon}
                 </button>
+                <div className="gd-mobile-only gd-menu-mobile">
+                  <MoreMenu items={menuItems} className="gd-icon-btn" />
+                </div>
               </div>
               <p className="gd-subline">
                 {group.members.map(m => nameOf(m.userId)).join(', ')} · {cur}
               </p>
             </div>
             <div className="gd-header-actions">
-              <button className="btn btn-secondary" onClick={() => navigate(`/share?group=${group.id}`)}>Share</button>
-              {hasExpenses && (
-                <button className="btn btn-secondary" onClick={() => downloadReport(group.id)} disabled={!!makingId}>
-                  {makingId === group.id ? 'Making…' : 'PDF report'}
-                </button>
-              )}
-              <button className="btn btn-secondary" onClick={() => setShowEditGroup(true)}>Settings</button>
+              <button className="btn btn-secondary" onClick={() => setShowEditGroup(true)}>
+                {settingsIcon}
+                Settings
+              </button>
+              <MoreMenu items={menuItems} className="btn btn-secondary gd-more-btn" />
               <button className="btn btn-primary" onClick={openAddExpense}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -266,30 +451,60 @@ export default function GroupDetail() {
             </div>
           </header>
 
-          {/* Summary */}
-          <section className="statement gd-statement" aria-label="Group summary">
-            <div>
-              <span className="cap">Total spent</span>
-              <span className="num gd-figure">{formatCurrency(totalSpent, cur)}</span>
-              {hasExpenses && (
-                <Link to={`/insights?group=${group.id}`} className="gd-insights-link">Insights →</Link>
-              )}
-            </div>
-            <div>
-              <span className="cap">
-                {Math.abs(myBalance) < 0.005 ? 'Your balance' : myBalance > 0 ? 'You are owed' : 'You owe'}
-              </span>
-              <span className={`gd-figure gd-figure-strong ${Math.abs(myBalance) < 0.005 ? 'zero' : `num ${signClass(myBalance)}`}`}>
-                {Math.abs(myBalance) < 0.005 ? 'Settled up' : formatSigned(myBalance, cur)}
-              </span>
-            </div>
-            <div>
-              <span className="cap">Expenses</span>
-              <span className="num gd-figure">{expenses.length}</span>
-            </div>
-          </section>
-
           <div className="gd-grid">
+            {/* Where you stand, and who pays whom */}
+            {hasExpenses && (
+              <section className="gd-area-settle" id="balances" aria-label="Balances and settling up">
+                <div className="gd-standing">
+                  <p className="gd-standing-lead">{standingLead}</p>
+                  <p className={`gd-standing-figure ${even ? 'even' : `num ${signClass(myBalance)}`}`}>{standingFigure}</p>
+                  <p className="gd-standing-sub">
+                    {formatCurrency(totalSpent, cur)} spent ·{' '}
+                    <Link to={`/insights?group=${group.id}`} className="gd-insights-link">Insights →</Link>
+                  </p>
+                </div>
+
+                {settlements.length > 0 ? (
+                  <div className="gd-settle-card">
+                    {settlements.map((s, i) => {
+                      const isMyDebt = s.from === currentUser.id;
+                      const isMyCredit = s.to === currentUser.id;
+                      const mine = isMyDebt || isMyCredit;
+                      return (
+                        <div key={i} className={`gd-transfer ${mine ? '' : 'others'}`}>
+                          <button className="gd-transfer-text" onClick={() => setExplaining(s)}>
+                            {nameOf(s.from)} {isMyDebt ? 'pay' : 'pays'} {nameOf(s.to, true)}
+                            {!isDirectTransfer(s) && <span className="gd-transfer-why">Why?</span>}
+                          </button>
+                          <span className="num gd-transfer-amount">{formatCurrency(s.amount, cur)}</span>
+                          <button
+                            className={`btn btn-sm ${isMyDebt ? 'btn-primary' : 'btn-outline'}`}
+                            onClick={() => setSettling({ from: s.from, to: s.to, amount: s.amount })}
+                          >
+                            {isMyDebt ? 'Pay' : isMyCredit ? 'Received' : 'Settle'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                    <div className="gd-settle-foot gd-mobile-only">
+                      <button className="gd-everyone-link" onClick={() => setShowEveryone(true)}>Everyone's balance</button>
+                      {paymentsMade && <span>{paymentsMade}</span>}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="gd-settle-foot gd-settle-foot-plain gd-mobile-only">
+                    <button className="gd-everyone-link" onClick={() => setShowEveryone(true)}>Everyone's balance</button>
+                    {paymentsMade && <span>{paymentsMade}</span>}
+                  </div>
+                )}
+
+                <div className="gd-everyone-inline">
+                  <p className="cap gd-everyone-head">Everyone</p>
+                  {everyone}
+                </div>
+              </section>
+            )}
+
             {/* Expenses */}
             <section className="gd-area-expenses">
               <div className="gd-section-head">
@@ -306,8 +521,8 @@ export default function GroupDetail() {
                   value={expenseFilter}
                   onChange={setExpenseFilter}
                   matchCount={visibleExpenses.length}
-                  totalCount={expenses.length}
                   categories={expenseCategories}
+                  people={group.members.map(m => ({ id: m.userId, name: nameOf(m.userId) }))}
                 />
               )}
 
@@ -362,7 +577,6 @@ export default function GroupDetail() {
                                 </button>
                               )}
                             </span>
-                            <span className="num gd-cat gd-col-wide-inline">{categoryLabel(expense.category, group)}</span>
                             <span className="text-xs text-secondary gd-meta-mobile">
                               {nameOf(expense.paidBy)} {expense.refund ? 'got back' : 'paid'} {expenseAmountLabel(expense)}
                             </span>
@@ -373,14 +587,8 @@ export default function GroupDetail() {
                           </span>
                           <span role="cell" className="gd-right gd-share">
                             <span className={`num ${signClass(net)}`}>{formatSigned(net, cur)}</span>
-                            <span className="gd-share-label">
-                              {expense.refund
-                                ? net > 0.005 ? 'back to you' : net < -0.005 ? 'you pass on' : 'not involved'
-                                : net > 0.005 ? 'you lent' : net < -0.005 ? 'you borrowed' : 'not involved'}
-                            </span>
                           </span>
                         </div>
-
                       </div>
                     );
                   })}
@@ -390,119 +598,6 @@ export default function GroupDetail() {
                 <button className="gd-more" onClick={() => setShowAllExpenses(true)}>
                   Show all {visibleExpenses.length}
                 </button>
-              )}
-            </section>
-
-            {/* Who pays whom, where everyone stands, and what's been paid */}
-            <section className="gd-area-settle" id="balances">
-              <h2 className="gd-h2">Balances &amp; settling</h2>
-              {!hasExpenses ? (
-                <p className="text-sm text-secondary gd-balances-empty">Add an expense to see balances</p>
-              ) : (
-                <>
-                  {settlements.length > 0 && (
-                    <div className="ruled">
-                      {settlements.map((s, i) => {
-                        const isMyDebt = s.from === currentUser.id;
-                        const isMyCredit = s.to === currentUser.id;
-                        return (
-                          <div key={i} className="gd-transfer">
-                            <button className="gd-transfer-text" onClick={() => setExplaining(s)}>
-                              {nameOf(s.from)} {isMyDebt ? 'pay' : 'pays'} {nameOf(s.to, true)}
-                              {!isDirectTransfer(s) && <span className="gd-transfer-why">Why?</span>}
-                            </button>
-                            <span className="num gd-transfer-amount">{formatCurrency(s.amount, cur)}</span>
-                            <button
-                              className={`btn btn-sm ${isMyDebt ? 'btn-primary' : 'btn-outline'}`}
-                              onClick={() => setSettling({ from: s.from, to: s.to, amount: s.amount })}
-                            >
-                              {isMyDebt ? 'Pay' : isMyCredit ? 'Received' : 'Settle'}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {simplified && settlements.length > 0 && (
-                    <p className="gd-simplified-note text-sm text-secondary">
-                      Simplified to fewer payments, so some people pay someone they don't owe directly. Tap a payment to see why.
-                    </p>
-                  )}
-                  <div className="ruled gd-balances">
-                    {group.members.map(m => {
-                      const u = getUserById(m.userId);
-                      if (!u) return null;
-                      const bal = balances[m.userId] ?? 0;
-                      const even = Math.abs(bal) < 0.005;
-                      return (
-                        <button key={m.userId} className="gd-balance" onClick={() => setSelectedMemberId(m.userId)}>
-                          <Avatar user={u} size="sm" />
-                          <span className="gd-balance-info">
-                            <span className="gd-balance-name">{nameOf(m.userId)}</span>
-                            <span className="num gd-balance-meta">
-                              paid {formatCurrency(paidBy[m.userId] ?? 0, cur)} · share {formatCurrency(shareOf[m.userId] ?? 0, cur)}
-                            </span>
-                          </span>
-                          <span className={`gd-balance-amount ${even ? 'zero' : `num ${signClass(bal)}`}`}>
-                            {even ? 'settled up' : formatSigned(bal, cur)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-
-              {sortedPayments.length > 0 && (
-                <>
-                  <button
-                    className="gd-toggle"
-                    onClick={() => setShowPayments(v => !v)}
-                    aria-expanded={showPayments}
-                  >
-                    <span>
-                      {sortedPayments.length} completed {sortedPayments.length === 1 ? 'payment' : 'payments'}
-                    </span>
-                    <span className="gd-toggle-action">{showPayments ? 'Hide' : 'Show'}</span>
-                  </button>
-                  {showPayments && (
-                    <div className="gd-payments">
-                      {sortedPayments.map(p => {
-                        const confirming = undoPaymentId === p.id;
-                        return (
-                          <div key={p.id} className="gd-payment">
-                            <span className="gd-payment-info">
-                              <span>
-                                <strong>{nameOf(p.fromUserId)}</strong>
-                                <span className="text-secondary"> paid </span>
-                                <strong>{nameOf(p.toUserId, true)}</strong>
-                              </span>
-                              <span className="num gd-payment-meta">
-                                {formatLedgerDate(p.date)}
-                                {p.paymentMethod ? ` · ${PAYMENT_METHOD_LABELS[p.paymentMethod].toUpperCase()}` : ''}
-                              </span>
-                            </span>
-                            <span className="num gd-payment-amount">{formatCurrency(p.amount, cur)}</span>
-                            {confirming ? (
-                              <span className="gd-payment-confirm">
-                                <button className="btn btn-secondary btn-sm" onClick={() => setUndoPaymentId(null)}>Keep</button>
-                                <button className="btn btn-danger-solid btn-sm" onClick={() => handleUndoPayment(p.id)}>Undo</button>
-                              </span>
-                            ) : (
-                              <button
-                                className="gd-undo"
-                                onClick={() => setUndoPaymentId(p.id)}
-                                aria-label="Undo this payment"
-                              >
-                                Undo
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
               )}
             </section>
 
@@ -595,6 +690,41 @@ export default function GroupDetail() {
             userId={selectedMemberId}
             groupId={id!}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Phones: everyone's balance and past payments */}
+      <AnimatePresence>
+        {showEveryone && (
+          <motion.div
+            className="sheet-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowEveryone(false)}
+          >
+            <motion.div
+              className="sheet-panel gd-everyone-sheet"
+              role="dialog"
+              aria-label="Everyone's balance"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 32, stiffness: 340 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sheet-handle" />
+              <div className="sheet-header">
+                <span className="sheet-title">Everyone's balance</span>
+                <button className="sheet-close" onClick={() => setShowEveryone(false)} aria-label="Close">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+              <div className="sheet-body">{everyone}</div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

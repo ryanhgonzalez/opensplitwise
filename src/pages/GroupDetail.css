@@ -62,16 +62,57 @@
 .gd-settings-mobile {
   flex-shrink: 0;
   margin-left: auto;
+}
+
+.gd-menu-mobile {
+  flex-shrink: 0;
   margin-right: -10px;
 }
 
-/* Share sits just before settings */
-.gd-share-mobile {
-  margin-right: 0;
+/* The "⋯" menu: Share and PDF report */
+.gd-menu {
+  position: relative;
 }
 
-.gd-share-mobile + .gd-settings-mobile {
-  margin-left: 0;
+.gd-menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.gd-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--ink);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.gd-menu-item:hover:not(:disabled) {
+  background: var(--panel);
+}
+
+.gd-menu-item:disabled {
+  color: var(--faint);
+}
+
+.gd-more-btn {
+  width: 44px;
+  padding: 0;
+  justify-content: center;
 }
 
 .gd-title {
@@ -93,32 +134,104 @@
   flex-wrap: wrap;
 }
 
-/* Statement */
-.gd-statement {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+/* Where you stand */
+.gd-standing {
+  padding-top: 14px;
+  border-top: 2px solid var(--ink);
 }
 
-.gd-statement > * {
-  padding: 12px 10px;
+.gd-standing-lead {
+  font-size: 14px;
+  color: var(--muted);
 }
 
-.gd-figure {
-  font-size: 16px;
+.gd-standing-figure {
+  margin-top: 2px;
+  font-size: 34px;
   font-weight: 500;
-  white-space: nowrap;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
 }
 
-.gd-figure-strong {
+/* "All settled up" is words, not money */
+.gd-standing-figure.even {
+  font-size: 26px;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
-/* Expenses first, then balances & settling, then repeating */
+.gd-standing-sub {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Who pays whom */
+.gd-settle-card {
+  margin-top: 16px;
+  padding: 2px 14px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+}
+
+.gd-settle-card .gd-transfer + .gd-transfer {
+  border-top: 1px solid var(--rule);
+}
+
+/* A payment between two other people: there, but quieter */
+.gd-transfer.others .gd-transfer-text {
+  color: var(--muted);
+}
+
+.gd-settle-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.gd-settle-foot-plain {
+  margin-top: 12px;
+  border-top: 0;
+}
+
+.gd-everyone-link {
+  min-height: 36px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--owed);
+}
+
+.gd-everyone-link:hover {
+  text-decoration: underline;
+}
+
+/* Desktop shows everyone's balance in the side column; phones open a sheet */
+.gd-everyone-inline {
+  display: none;
+}
+
+.gd-everyone-head {
+  margin-bottom: 6px;
+}
+
+.gd-everyone-sheet {
+  max-height: 88vh;
+  max-height: 88dvh;
+}
+
+/* Phones: you, then who pays, then the list, then repeating */
 .gd-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
-    'expenses'
     'settle'
+    'expenses'
     'repeating';
   gap: 28px;
 }
@@ -176,7 +289,24 @@
 }
 
 .gd-simplified-note {
-  margin: 10px 0 14px;
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.gd-note-link {
+  padding: 0;
+  font-size: inherit;
+  font-weight: 500;
+  color: var(--owed);
+}
+
+.gd-note-link:hover {
+  text-decoration: underline;
 }
 
 .gd-transfer-text strong,
@@ -186,11 +316,6 @@
 
 .gd-transfer-amount {
   font-weight: 600;
-}
-
-/* Member balances follow the transfers as one list */
-.ruled + .gd-balances {
-  border-top: 0;
 }
 
 .gd-balances .gd-balance {
@@ -383,12 +508,6 @@
   font-weight: 600;
 }
 
-.gd-share-label {
-  display: none;
-  font-size: 11px;
-  color: var(--muted);
-}
-
 .gd-amount {
   font-weight: 500;
 }
@@ -424,7 +543,7 @@
 }
 
 .gd-balance-meta {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -439,8 +558,17 @@
 
 /* ── Desktop ───────────────────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
-  .gd-settings-mobile {
+  .gd-mobile-only {
     display: none;
+  }
+
+  .gd-everyone-inline {
+    display: block;
+    margin-top: 24px;
+  }
+
+  .gd-standing-figure {
+    font-size: 36px;
   }
 
   .gd-title-block {
@@ -465,18 +593,6 @@
 
   .gd-header-actions {
     display: flex;
-  }
-
-  .gd-statement > * {
-    padding: 14px 20px;
-  }
-
-  .gd-statement > :first-child {
-    padding-left: 0;
-  }
-
-  .gd-figure {
-    font-size: 24px;
   }
 
   .gd-grid {
@@ -518,10 +634,6 @@
 
   .gd-meta-mobile {
     display: none;
-  }
-
-  .gd-share-label {
-    display: block;
   }
 
   .gd-date {

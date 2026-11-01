@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   EMPTY_FILTER,
+  activeFilterCount,
   categoryOptions,
   filterExpenses,
   isFilterActive,
@@ -254,5 +255,28 @@ describe('search by receipt item', () => {
     const e = { ...ALL[0], items: [{ description: 'Pastéis de nata', amount: 6, assigned: [] }] };
     expect(matchesQuery(e, 'nata', payerName)).toBe(true);
     expect(matchesQuery(ALL[0], 'nata', payerName)).toBe(false);
+  });
+});
+
+describe('paid-by filter', () => {
+  it('keeps only expenses the chosen people paid', () => {
+    const f = filter({ payers: ['bob'] });
+    expect(isFilterActive(f)).toBe(true);
+    expect(ids(filterExpenses(ALL, f, payerName, NOW))).toEqual(['today']);
+    expect(ids(filterExpenses(ALL, filter({ payers: ['alice', 'bob'] }), payerName, NOW))).toEqual(ids(ALL));
+  });
+
+  it('treats an empty selection as no filter', () => {
+    expect(isFilterActive(filter({ payers: [] }))).toBe(false);
+  });
+});
+
+describe('activeFilterCount', () => {
+  it('counts the date, categories and payers, but not the search', () => {
+    expect(activeFilterCount(EMPTY_FILTER)).toBe(0);
+    expect(activeFilterCount(filter({ query: 'taxi' }))).toBe(0);
+    expect(activeFilterCount(filter({ preset: '30d', categories: ['food'] }))).toBe(2);
+    expect(activeFilterCount(filter({ preset: 'custom' }))).toBe(0);
+    expect(activeFilterCount(filter({ preset: 'custom', from: '2026-08-01', payers: ['bob'] }))).toBe(2);
   });
 });

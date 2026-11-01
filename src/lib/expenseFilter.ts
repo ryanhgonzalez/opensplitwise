@@ -23,6 +23,8 @@ export interface ExpenseFilter {
   to?: string;
   /** Only expenses in one of these categories. Empty or absent: any category. */
   categories?: CategoryId[];
+  /** Only expenses paid by one of these people. Empty or absent: anyone. */
+  payers?: string[];
 }
 
 export const EMPTY_FILTER: ExpenseFilter = { query: '', preset: 'all' };
@@ -32,7 +34,7 @@ export const DATE_PRESET_LABELS: Record<DatePreset, string> = {
   '7d': '7 days',
   '30d': '30 days',
   '3m': '3 months',
-  custom: 'Range',
+  custom: 'Pick dates',
 };
 
 /** How many people paid for the expenses on screen — used to name the payer in search. */
@@ -138,10 +140,17 @@ export function matchesQuery(
   return terms.every((term) => target.includes(term));
 }
 
+/** How many separate things are narrowing the list: the date, categories, payers. Search is counted apart. */
+export function activeFilterCount(filter: ExpenseFilter): number {
+  const date = filter.preset === 'custom' ? Boolean(filter.from || filter.to) : filter.preset !== 'all';
+  return Number(date) + Number(!!filter.categories?.length) + Number(!!filter.payers?.length);
+}
+
 /** True when the filter would narrow the list at all. */
 export function isFilterActive(filter: ExpenseFilter): boolean {
   if (filter.query.trim() !== '') return true;
   if (filter.categories?.length) return true;
+  if (filter.payers?.length) return true;
   if (filter.preset === 'custom') return Boolean(filter.from || filter.to);
   return filter.preset !== 'all';
 }
@@ -167,6 +176,7 @@ export function filterExpenses(
     if (start && when < start.getTime()) return false;
     if (end && when > end.getTime()) return false;
     if (filter.categories?.length && !filter.categories.includes(expense.category)) return false;
+    if (filter.payers?.length && !filter.payers.includes(expense.paidBy)) return false;
     return matchesQuery(expense, filter.query, payerName, categoryName);
   });
 }
