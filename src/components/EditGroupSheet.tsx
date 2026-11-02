@@ -8,7 +8,7 @@ import { simplifies } from '../lib/calculations';
 import { GROUP_TYPES, groupTypeHint } from '../lib/groupTypes';
 import CurrencySelect from './CurrencySelect';
 import { GROUP_COLORS } from '../types';
-import type { CustomCategoryId, Group, GroupType } from '../types';
+import type { CustomCategoryId, DefaultSplit, Group, GroupType } from '../types';
 import Avatar from './Avatar';
 import '../styles/sheet.css';
 import './CreateGroupSheet.css';
@@ -51,6 +51,11 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
   const [removedCategories, setRemovedCategories] = useState<Set<CustomCategoryId>>(new Set());
   const [addedCategories, setAddedCategories] = useState<string[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
+  // How new expenses start out split.
+  const [splitKind, setSplitKind] = useState<'equal' | DefaultSplit['type']>(group.defaultSplit?.type ?? 'equal');
+  const [splitValues, setSplitValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries((group.defaultSplit?.entries ?? []).map(e => [e.userId, String(e.value)])),
+  );
   const newPersonRef = useRef<HTMLInputElement>(null);
   const emojiInputRef = useRef<HTMLInputElement>(null);
   const emojiBtnWrapRef = useRef<HTMLDivElement>(null);
@@ -66,6 +71,30 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
   }, [showEmojiInput]);
 
   const friends = users.filter(u => u.id !== currentUser.id);
+
+  // Everyone in the group as it will be saved, you first.
+  const splitPeople = [currentUser, ...friends.filter(u => memberIds.has(u.id))];
+  const splitValue = (uid: string) => {
+    const typed = splitValues[uid];
+    if (typed !== undefined && typed.trim() !== '') return Math.max(0, parseFloat(typed) || 0);
+    return splitKind === 'shares' ? 1 : 0;
+  };
+  const pctLeft = Math.round((100 - splitPeople.reduce((s, u) => s + splitValue(u.id), 0)) * 100) / 100;
+  const totalShares = splitPeople.reduce((s, u) => s + splitValue(u.id), 0);
+  const splitValid =
+    splitKind === 'equal' || (splitKind === 'shares' ? totalShares > 0 : Math.abs(pctLeft) < 0.01);
+
+  const chooseSplitKind = (kind: typeof splitKind) => {
+    setSplitKind(kind);
+    if (kind === 'shares') setSplitValues({});
+    if (kind === 'percentage') {
+      // Starts even, the odd tenths on you, so it adds up from the start.
+      const n = splitPeople.length;
+      const each = Math.floor((100 / n) * 10) / 10;
+      const first = Math.round((100 - each * (n - 1)) * 10) / 10;
+      setSplitValues(Object.fromEntries(splitPeople.map((u, i) => [u.id, String(i === 0 ? first : each)])));
+    }
+  };
 
   const categoryUse = (id: CustomCategoryId) =>
     expenses.filter(e => e.groupId === group.id && e.category === id).length;
@@ -105,9 +134,13 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
   };
 
   const handleSave = () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !splitValid) return;
 
-    updateGroup(group.id, { name: name.trim(), emoji, color, type, currency, simplifyDebts: simplify });
+    const defaultSplit: DefaultSplit | undefined =
+      splitKind === 'equal'
+        ? undefined
+        : { type: splitKind, entries: splitPeople.map(u => ({ userId: u.id, value: splitValue(u.id) })) };
+    updateGroup(group.id, { name: name.trim(), emoji, color, type, currency, simplifyDebts: simplify, defaultSplit });
 
     // Diff members: add newly selected, remove deselected.
     const origIds = new Set(group.members.map(m => m.userId));
@@ -343,6 +376,82 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
               </div>
               )}
 
+              {/* Default split */}
+              <div className="field-group">
+                <div className="field-label">Default split</div>
+                <p className="egs-cat-intro">How new expenses start out. You can still change any one of them.</p>
+                <div className="egs-split-tabs" role="radiogroup" aria-label="Default split">
+                  {([['equal', 'Equally'], ['shares', 'Shares'], ['percentage', 'Percent']] as const).map(([k, label]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      role="radio"
+                      aria-checked={splitKind === k}
+                      className={`egs-split-tab ${splitKind === k ? 'active' : ''}`}
+                      onClick={() => chooseSplitKind(k)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {splitKind !== 'equal' && (
+                  <>
+                    <div className="egs-split-rows">
+                      {splitPeople.map(u => {
+                        const v = splitValue(u.id);
+                        const label = u.id === currentUser.id ? 'You' : u.name;
+                        return (
+                          <div key={u.id} className="egs-split-row">
+                            <Avatar user={u} size="sm" />
+                            <span className="egs-split-name">{label}</span>
+                            {splitKind === 'shares' && totalShares > 0 && (
+                              <span className="egs-split-pct">{Math.round((v / totalShares) * 100)}%</span>
+                            )}
+                            <div className="egs-split-field">
+                              {splitKind === 'shares' && (
+                                <button
+                                  type="button"
+                                  className="egs-step"
+                                  disabled={v <= 0}
+                                  onClick={() => setSplitValues(p => ({ ...p, [u.id]: String(Math.max(0, v - 1)) }))}
+                                  aria-label={`One less share for ${label}`}
+                                >−</button>
+                              )}
+                              <input
+                                className="egs-split-input"
+                                type="number"
+                                inputMode="decimal"
+                                min="0"
+                                placeholder={splitKind === 'shares' ? '1' : '0'}
+                                value={splitValues[u.id] ?? ''}
+                                onChange={e => setSplitValues(p => ({ ...p, [u.id]: e.target.value }))}
+                                aria-label={`${label}'s ${splitKind === 'shares' ? 'shares' : 'percent'}`}
+                              />
+                              {splitKind === 'shares' ? (
+                                <button
+                                  type="button"
+                                  className="egs-step"
+                                  onClick={() => setSplitValues(p => ({ ...p, [u.id]: String(v + 1) }))}
+                                  aria-label={`One more share for ${label}`}
+                                >+</button>
+                              ) : (
+                                <span className="egs-split-suffix">%</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {splitKind === 'percentage' && Math.abs(pctLeft) >= 0.01 && (
+                      <p className="egs-split-warn">{Math.abs(pctLeft)}% {pctLeft > 0 ? 'left to give someone' : 'too much'}</p>
+                    )}
+                    {splitKind === 'shares' && totalShares === 0 && (
+                      <p className="egs-split-warn">Give someone at least one share.</p>
+                    )}
+                  </>
+                )}
+              </div>
+
               {/* Custom categories */}
               <div className="field-group">
                 <div className="field-label">Categories</div>
@@ -438,7 +547,7 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
             </div>
 
             <div className="sheet-footer">
-              <button className="sheet-cta" onClick={handleSave} disabled={!name.trim()}>
+              <button className="sheet-cta" onClick={handleSave} disabled={!name.trim() || !splitValid}>
                 Save Changes
               </button>
             </div>

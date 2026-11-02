@@ -226,7 +226,7 @@
 
 .aes-split-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -234,7 +234,7 @@
 
 .aes-split-tab {
   min-height: 42px;
-  padding: 0 6px;
+  padding: 0 2px;
   border: 0;
   background: var(--paper);
   color: var(--ink);
@@ -1122,4 +1122,65 @@ button.aes-row:disabled {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+}
+
+/* Split by shares: a count with − and + either side, and what it comes to */
+.aes-share-amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.aes-share-stepper {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+}
+
+.aes-share-stepper:focus-within {
+  border-color: var(--ink);
+}
+
+.aes-step-btn {
+  width: 34px;
+  height: 38px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.aes-step-btn:disabled {
+  color: var(--faint);
+}
+
+.aes-value-input.aes-share-input {
+  width: 32px;
+  text-align: center;
+}
+
+/* Note */
+.aes-note-row {
+  cursor: text;
+}
+
+.aes-note {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  resize: vertical;
+  outline: none;
+}
+
+.aes-note:focus {
+  border-color: var(--ink);
 }

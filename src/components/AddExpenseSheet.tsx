@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, selectCurrentUser, selectMainCurrency } from '../store';
-import { buildSplit, round, splitByItems, splitEvenly } from '../lib/calculations';
+import { buildSplit, round, splitByItems, splitByShares, splitEvenly } from '../lib/calculations';
 import { CATEGORY_ICONS, CATEGORY_LABELS } from '../types';
 import type { CategoryId, Expense, ExpenseCategory, Group, SplitType, ExpenseSplit } from '../types';
 import { BUILT_IN_CATEGORIES, CUSTOM_CATEGORY_ICON, MAX_CATEGORY_NAME, categoryInfo, isCustomCategory } from '../lib/categories';
@@ -25,12 +25,13 @@ import './AddExpenseSheet.css';
 
 // Local UI split mode — adds "items" on top of the persisted SplitType values.
 // Itemized entry produces an `exact` split on save, so it's never persisted as a type.
-type SplitMode = 'equal' | 'exact' | 'percentage' | 'items';
+type SplitMode = 'equal' | 'exact' | 'percentage' | 'shares' | 'items';
 
 const SPLIT_TYPES: { value: SplitMode; label: string }[] = [
   { value: 'equal',      label: 'Equally' },
   { value: 'exact',      label: 'Amounts' },
   { value: 'percentage', label: 'Percent' },
+  { value: 'shares',     label: 'Shares' },
   { value: 'items',      label: 'Items' },
 ];
 
@@ -111,7 +112,10 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
   const initSplitType = (e?: Expense): SplitMode =>
     e?.items?.length ? 'items'
-    : e?.split.type === 'percentage' ? 'exact' : (e?.split.type === 'shares' ? 'exact' : (e?.split.type ?? 'equal'));
+    : e?.split.type === 'percentage' ? 'exact'
+    // Shares reopen as shares when each person's count was kept; older ones as amounts.
+    : e?.split.type === 'shares' ? (e.split.entries.every(en => en.shares !== undefined) ? 'shares' : 'exact')
+    : (e?.split.type ?? 'equal');
 
   // Paid in another currency than the group's: the form shows and edits what was
   // actually paid; balances get the converted figures on save.
@@ -121,6 +125,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
       : undefined;
 
   const [description, setDescription] = useState(source?.description ?? refundOf?.description ?? '');
+  const [notes, setNotes] = useState(editExpense?.notes ?? template?.notes ?? '');
   /** Money coming back rather than spent. */
   const [isRefund, setIsRefund] = useState(!!source?.refund || !!refundOf);
   const refundEqual = !!refundOf && refundOf.split.type === 'equal' && !refundOf.items?.length;
@@ -329,7 +334,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
           return {
             userId: m.userId,
             checked: !!entry,
-            value: entry && eSplitType !== 'equal' ? String(entry.amount) : '',
+            value: !entry || eSplitType === 'equal' ? '' : eSplitType === 'shares' ? String(entry.shares) : String(entry.amount),
           };
         })
       );
@@ -342,7 +347,20 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
           return { userId: m.userId, checked: inIt, value: refundEqual || !inIt ? '' : pct[m.userId] ?? '' };
         })
       );
+    } else if (selectedGroup.defaultSplit && splitType !== 'items') {
+      // The group's usual split: 2:1 or 60/40. Someone left out of it has 1 share, or 0%.
+      const preset = selectedGroup.defaultSplit;
+      setSplitType(preset.type);
+      setParticipants(
+        selectedGroup.members.map(m => {
+          const v = preset.entries.find(e => e.userId === m.userId)?.value ?? (preset.type === 'shares' ? 1 : 0);
+          return { userId: m.userId, checked: v > 0, value: String(v) };
+        })
+      );
+      if (!selectedGroup.members.some(m => m.userId === paidBy)) setPaidBy(currentUser.id);
     } else {
+      // Another group's usual split doesn't carry over.
+      if (splitType === 'shares' || splitType === 'percentage') setSplitType('equal');
       setParticipants(
         selectedGroup.members.map(m => ({ userId: m.userId, checked: true, value: '' }))
       );
@@ -370,6 +388,13 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   // doesn't divide evenly the extra cents show on the people who get them.
   const equalShares = new Map(
     splitEvenly(parsedAmount, checkedParticipants.map(p => p.userId)).map(e => [e.userId, e.amount]),
+  );
+
+  // By shares: what each person's count comes to. A blank count is 1.
+  const shareCount = (p: Participant) => (p.value.trim() === '' ? 1 : Math.max(0, parseFloat(p.value) || 0));
+  const totalShares = checkedParticipants.reduce((s, p) => s + shareCount(p), 0);
+  const shareAmounts = new Map(
+    splitByShares(parsedAmount, checkedParticipants.map(p => ({ userId: p.userId, shares: shareCount(p) }))).map(e => [e.userId, e.amount]),
   );
 
   // Running total for exact / percentage modes. Amounts count in cents, as saving keeps them.
@@ -415,8 +440,9 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     if (splitType === 'equal') return parsedAmount > 0;
     if (splitType === 'exact') return Math.abs(remainder) < 0.01 && parsedAmount > 0;
     if (splitType === 'percentage') return Math.abs(remainder) < 0.01;
+    if (splitType === 'shares') return parsedAmount > 0 && totalShares > 0;
     return false;
-  }, [splitType, remainder, parsedAmount, checkedCount]);
+  }, [splitType, remainder, parsedAmount, checkedCount, totalShares]);
 
   const pricedItems = lineItems.filter(it => (parseFloat(it.price) || 0) > 0);
   const allPricedAssigned = pricedItems.every(it => it.assigned.some(id => groupMemberIds.includes(id)));
@@ -586,7 +612,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         .filter(p => p.checked)
         .map(p => ({
           userId: p.userId,
-          value: splitType !== 'equal' ? (parseFloat(p.value) || 0) : undefined,
+          value: splitType === 'equal' ? undefined : splitType === 'shares' ? shareCount(p) : (parseFloat(p.value) || 0),
         }));
       split = buildSplit(parsedAmount, splitType as SplitType, activeParticipants);
     }
@@ -616,6 +642,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         items,
         refund: isRefund ? { of: editExpense.refund?.of } : undefined,
         location,
+        notes: notes.trim() || undefined,
       });
       if (newPhoto) void savePhoto(editExpense.id, newPhoto.blob);
     } else if (repeat && targetGroupId && !isRefund) {
@@ -625,7 +652,10 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         groupId: targetGroupId,
         frequency: repeat,
         startDate: start,
-        template: { description: description.trim(), amount, currency: groupCur, original, paidBy, split, category, items },
+        template: {
+          description: description.trim(), amount, currency: groupCur, original, paidBy, split, category, items,
+          ...(notes.trim() && { notes: notes.trim() }),
+        },
         receipt,
       });
       // Kept under the first repeat's id, which it has even before its date comes.
@@ -649,6 +679,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         items,
         ...(isRefund && { refund: { of: refundOf?.id ?? template?.refund?.of } }),
         ...(location && { location }),
+        ...(notes.trim() && { notes: notes.trim() }),
       });
       // Saved under the new expense's id, which exists only now.
       if (newPhoto) void savePhoto(added.id, newPhoto.blob);
@@ -665,6 +696,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     setViewingPhoto(false);
     setPhotoError(null);
     setDescription(source?.description ?? refundOf?.description ?? '');
+    setNotes(editExpense?.notes ?? template?.notes ?? '');
     setIsRefund(!!source?.refund || !!refundOf);
     setAmountStr(source ? String(sourceForeign?.amount ?? source.amount) : '');
     setEntryCurrency(sourceForeign?.currency ?? null);
@@ -713,6 +745,11 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
       const first = checkedParticipants[0] && equalShares.get(checkedParticipants[0].userId);
       return { text: parsedAmount > 0 && first ? `Equally · ${formatCurrency(first, cur)} each${some}` : `Equally${some}` };
     }
+    if (splitType === 'shares') {
+      return totalShares > 0
+        ? { text: `By shares · ${totalShares} ${totalShares === 1 ? 'share' : 'shares'}${some}` }
+        : { text: 'By shares · nobody has a share', warn: true };
+    }
     const label = splitType === 'exact' ? 'By amount' : 'By percent';
     if (parsedAmount <= 0 || Math.abs(remainder) < 0.01) return { text: `${label}${some}` };
     const left = splitType === 'exact' ? formatCurrency(Math.abs(remainder), cur) : `${Math.abs(remainder).toFixed(1)}%`;
@@ -731,6 +768,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     showLocation ? (location ? location.place?.name ?? 'location saved' : 'no location') : null,
     isRefund ? 'refund' : repeat ? FREQUENCY_LABELS[repeat].toLowerCase() : canRepeat ? "doesn't repeat" : editRule ? `repeats ${FREQUENCY_LABELS[editRule.frequency].toLowerCase()}` : null,
     hasPhoto ? 'receipt photo' : null,
+    notes.trim() ? 'note' : null,
   ].filter(Boolean).join(' · ');
 
   // The rest of an amount or percent split, to the person most likely to take it.
@@ -1041,6 +1079,19 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                                 />
                               </span>
                             </div>
+
+                            {/* A note: anything worth remembering, shown on the expense */}
+                            <label className="aes-row aes-row-static aes-row-tall aes-note-row">
+                              <span className="aes-row-key">Note</span>
+                              <textarea
+                                className="aes-note"
+                                rows={2}
+                                maxLength={500}
+                                placeholder="Optional, e.g. who still owes the deposit"
+                                value={notes}
+                                onChange={e => setNotes(e.target.value)}
+                              />
+                            </label>
 
                             {/* Location: the phone's own position, kept as a map pin */}
                             {showLocation && (
@@ -1377,6 +1428,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                         {splitType === 'equal' && 'Everyone ticked pays the same. Untick anyone who wasn’t part of it.'}
                         {splitType === 'exact' && 'Type what each person’s share was. Untick anyone who wasn’t part of it.'}
                         {splitType === 'percentage' && 'Type each person’s percentage. Untick anyone who wasn’t part of it.'}
+                        {splitType === 'shares' && 'Give each person a number of shares: 2 for a couple, 1 for one person. The cost is split in that ratio.'}
                         {splitType === 'items' && 'Add each item and tap who had it. Tax and tip are shared like the items.'}
                       </p>
 
@@ -1415,6 +1467,43 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                                     </span>
                                   )}
 
+                                  {splitType === 'shares' && (p.checked ? (
+                                    <>
+                                      {parsedAmount > 0 && (
+                                        <span className="aes-share-amount text-secondary text-sm">
+                                          {formatCurrency(shareAmounts.get(p.userId) ?? 0, cur)}
+                                        </span>
+                                      )}
+                                      <div className="aes-share-stepper">
+                                        <button
+                                          type="button"
+                                          className="aes-step-btn"
+                                          onClick={() => setParticipantValue(p.userId, String(Math.max(0, shareCount(p) - 1)))}
+                                          disabled={shareCount(p) <= 0}
+                                          aria-label={`One less share for ${nameOf(p.userId)}`}
+                                        >−</button>
+                                        <input
+                                          className="aes-value-input aes-share-input"
+                                          type="number"
+                                          inputMode="decimal"
+                                          placeholder="1"
+                                          min="0"
+                                          value={p.value}
+                                          onChange={e => setParticipantValue(p.userId, e.target.value)}
+                                          aria-label={`${nameOf(p.userId)}'s shares`}
+                                        />
+                                        <button
+                                          type="button"
+                                          className="aes-step-btn"
+                                          onClick={() => setParticipantValue(p.userId, String(shareCount(p) + 1))}
+                                          aria-label={`One more share for ${nameOf(p.userId)}`}
+                                        >+</button>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <span className="aes-equal-share text-secondary text-sm">not in it</span>
+                                  ))}
+
                                   {(splitType === 'exact' || splitType === 'percentage') && (p.checked ? (
                                     <div className="aes-value-input-wrap">
                                       <span className="aes-value-prefix">{splitType === 'exact' ? sym : ''}</span>
@@ -1439,7 +1528,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                           </div>
 
                           {/* What's left to give someone */}
-                          {splitType !== 'equal' && parsedAmount > 0 && (
+                          {(splitType === 'exact' || splitType === 'percentage') && parsedAmount > 0 && (
                             <div className={`aes-remainder ${Math.abs(remainder) < 0.01 ? 'ok' : 'warn'}`}>
                               {Math.abs(remainder) < 0.01 ? (
                                 <span>It all adds up</span>

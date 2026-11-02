@@ -92,8 +92,20 @@ export function splitByShares(
 ): SplitEntry[] {
   const total = shares.reduce((s, e) => s + e.shares, 0);
   if (total === 0) return shares.map(({ userId }) => ({ userId, amount: 0 }));
-  const pcts = shares.map(({ userId, shares: s }) => ({ userId, pct: (s / total) * 100 }));
-  return splitByPercentage(amount, pcts);
+  // Worked out in whole cents, so 2:1 of $90 is $60 and $30 exactly. Going
+  // through rounded percentages would give $60.01 and $29.99.
+  const cents = Math.round(amount * 100);
+  const exact = shares.map(({ shares: s }) => (cents * s) / total);
+  const whole = exact.map((x) => Math.floor(x + 1e-9));
+  let left = cents - whole.reduce((s, c) => s + c, 0);
+  // Leftover cents go to the biggest fractions first, then in order.
+  const byFraction = exact.map((x, i) => ({ i, f: x - whole[i] })).sort((a, b) => b.f - a.f || a.i - b.i);
+  for (const { i } of byFraction) {
+    if (left <= 0) break;
+    whole[i] += 1;
+    left -= 1;
+  }
+  return shares.map(({ userId }, i) => ({ userId, amount: whole[i] / 100 }));
 }
 
 /**
@@ -120,12 +132,15 @@ export function buildSplit(
         participants.map(({ userId, value = 0 }) => ({ userId, pct: value })),
       );
       break;
-    case 'shares':
+    case 'shares': {
+      // Kept with each amount, so the expense reopens as shares.
+      const counts = new Map(participants.map(({ userId, value = 1 }) => [userId, value]));
       entries = splitByShares(
         amount,
         participants.map(({ userId, value = 1 }) => ({ userId, shares: value })),
-      );
+      ).map((e) => ({ ...e, shares: counts.get(e.userId) }));
       break;
+    }
   }
 
   return { type, entries };

@@ -707,3 +707,25 @@ describe('simplify debts switch', () => {
     expect(outstandingByGroup([big, small], [], 'frank', 'ryan', undefined, off)).toEqual([]);
   });
 });
+
+describe('buildSplit by shares', () => {
+  it('splits in the ratio of the shares and keeps each count', () => {
+    const split = buildSplit(90, 'shares', [
+      { userId: 'a', value: 2 },
+      { userId: 'b', value: 1 },
+    ]);
+    expect(split.entries).toEqual([
+      { userId: 'a', amount: 60, shares: 2 },
+      { userId: 'b', amount: 30, shares: 1 },
+    ]);
+  });
+
+  it('adds up to the amount when it does not divide evenly', () => {
+    const split = buildSplit(10, 'shares', [
+      { userId: 'a', value: 1 },
+      { userId: 'b', value: 1 },
+      { userId: 'c', value: 1 },
+    ]);
+    expect(Math.round(split.entries.reduce((s, e) => s + e.amount, 0) * 100) / 100).toBe(10);
+  });
+});

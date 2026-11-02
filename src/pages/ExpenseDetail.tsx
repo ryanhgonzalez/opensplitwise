@@ -356,6 +356,9 @@ export default function ExpenseDetail() {
                       <span className="xd-share-name">
                         {firstName(en.userId)}
                         {en.userId === expense.paidBy && <span className="text-xs text-secondary"> · {paidWord}</span>}
+                        {expense.split.type === 'shares' && en.shares !== undefined && (
+                          <span className="text-xs text-secondary"> · {en.shares} {en.shares === 1 ? 'share' : 'shares'}</span>
+                        )}
                       </span>
                       <span className="num">{formatCurrency(en.amount, cur)}</span>
                     </div>

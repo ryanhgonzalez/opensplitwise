@@ -5,7 +5,7 @@ export type RepeatFrequency = 'weekly' | 'biweekly' | 'monthly' | 'yearly';
 /** What each repeat of a recurring expense is made from. */
 export type RecurringTemplate = Pick<
   Expense,
-  'description' | 'amount' | 'currency' | 'original' | 'paidBy' | 'split' | 'category' | 'items'
+  'description' | 'amount' | 'currency' | 'original' | 'paidBy' | 'split' | 'category' | 'items' | 'notes'
 >;
 
 /**

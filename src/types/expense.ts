@@ -83,6 +83,8 @@ export type SplitType = 'equal' | 'exact' | 'percentage' | 'shares';
 export interface SplitEntry {
   userId: string;
   amount: number;
+  /** Split by shares: how many this person has (2 for a couple), so it can be edited as shares. */
+  shares?: number;
 }
 
 export interface ExpenseSplit {

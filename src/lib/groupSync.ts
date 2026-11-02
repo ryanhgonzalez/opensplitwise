@@ -286,6 +286,7 @@ export function mergeBundle(
       type: details.type,
       currency: details.currency,
       simplifyDebts: details.simplifyDebts,
+      defaultSplit: details.defaultSplit,
       members,
       categories: categories.filter((c) => !isDeleted('category', c.id)),
       updatedAt: theirsNewer ? editedAt(bundle.group) : editedAt(local),

@@ -11,6 +11,12 @@ export interface GroupMember {
   joinedAt: Date;
 }
 
+export interface DefaultSplit {
+  type: 'shares' | 'percentage';
+  /** Shares, or percentages adding to 100. Someone not listed has 1 share, or 0%. */
+  entries: { userId: string; value: number }[];
+}
+
 export interface CustomCategory {
   id: CustomCategoryId;
   name: string;
@@ -31,6 +37,11 @@ export interface Group {
    * pays who they owe. Absent (older data, and new groups) means on.
    */
   simplifyDebts?: boolean;
+  /**
+   * How a new expense starts out split: by shares (2:1 for a couple) or by
+   * percent (60/40). Absent means equally. Each expense can still change it.
+   */
+  defaultSplit?: DefaultSplit;
   /** Categories made for this group, offered next to the built-in ones. Absent on older data. */
   categories?: CustomCategory[];
   /**

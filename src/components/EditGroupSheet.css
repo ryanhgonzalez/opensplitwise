@@ -158,3 +158,118 @@
   font-size: 12px;
   color: var(--text-secondary);
 }
+
+/* Default split */
+.egs-split-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.egs-split-tab {
+  min-height: 40px;
+  border: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.egs-split-tab + .egs-split-tab {
+  border-left: 1px solid var(--border);
+}
+
+.egs-split-tab.active {
+  background: var(--ink);
+  color: var(--on-ink);
+  font-weight: 600;
+}
+
+.egs-split-rows {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--rule);
+}
+
+.egs-split-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.egs-split-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.egs-split-pct {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.egs-split-field {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+}
+
+.egs-split-field:focus-within {
+  border-color: var(--ink);
+}
+
+.egs-split-input {
+  width: 44px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  -moz-appearance: textfield;
+}
+
+.egs-split-input::-webkit-outer-spin-button,
+.egs-split-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.egs-step {
+  width: 32px;
+  height: 36px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.egs-step:disabled {
+  color: var(--faint);
+}
+
+.egs-split-suffix {
+  padding-right: 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.egs-split-warn {
+  margin: 0;
+  font-size: 13px;
+  color: var(--owe);
+}
