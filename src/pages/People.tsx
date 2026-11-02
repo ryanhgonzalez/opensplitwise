@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { useStore, selectCurrentUser, selectFriendBalancesByCurrency, selectOverallBalances } from '../store';
+import { useStore, selectCurrentUser, selectFriendBalancesByCurrency } from '../store';
 import Avatar from '../components/Avatar';
-import PersonSheet from '../components/PersonSheet';
 import ContactImportSheet from '../components/ContactImportSheet';
 import AddPersonSheet from '../components/AddPersonSheet';
 import SearchField from '../components/SearchField';
 import { planImport, type Contact, type ImportRow } from '../lib/contacts';
-import { formatCurrency, formatSigned } from '../utils';
+import { formatCurrency } from '../utils';
 import './People.css';
 
 export default function People() {
@@ -16,11 +15,9 @@ export default function People() {
   const users = useStore(s => s.users);
   const groups = useStore(s => s.groups);
   const byCurrency = useStore(selectFriendBalancesByCurrency);
-  const overall = useStore(selectOverallBalances);
 
   const navigate = useNavigate();
   // Only your own row opens the sheet; everyone else has a page.
-  const [editingSelf, setEditingSelf] = useState(false);
   const [adding, setAdding] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [importing, setImporting] = useState<ImportRow[] | null>(null);
@@ -68,23 +65,18 @@ export default function People() {
     );
   };
 
-  const meSettled = overall.length === 0;
 
   // By name, or by a group you share ("lisbon" finds everyone on that trip).
   const query = searchQuery.trim().toLowerCase();
   const matches = (name: string, groupNames: string[]) =>
     !query || name.toLowerCase().includes(query) || groupNames.some((g) => g.toLowerCase().includes(query));
   const shown = sorted.filter((u) => matches(u.name, sharedGroupNames(u.id)));
-  const showMe = matches(currentUser.name, []);
 
   return (
     <div className="page-content">
       <div className="people-page">
         <header className="people-header">
-          <span className="people-header-text">
-            <h1 className="page-hero-title">People</h1>
-            <p className="text-secondary">Friends &amp; contacts</p>
-          </span>
+          <h1 className="page-hero-title">People</h1>
           <button className="btn btn-primary" onClick={() => setAdding(true)}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -101,31 +93,6 @@ export default function People() {
 
         {(others.length > 0 || query) && (
           <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search people..." label="Search people" />
-        )}
-
-        {/* You */}
-        {showMe && (
-          <section>
-            <h2 className="cap people-section-label">You</h2>
-            <button className="people-row" onClick={() => setEditingSelf(true)}>
-              <Avatar user={currentUser} size="md" />
-              <span className="people-row-info">
-                <span className="people-row-name">{currentUser.name}</span>
-                <span className="text-xs text-secondary">{currentUser.email ?? 'Your profile'}</span>
-              </span>
-              <span className="people-row-balance">
-                {meSettled ? (
-                  <span className="people-row-amount zero">Settled</span>
-                ) : (
-                  overall.map((b) => (
-                    <span key={b.currency} className={`num people-row-amount ${b.net > 0 ? 'pos' : 'neg'}`}>
-                      {formatSigned(b.net, b.currency)}
-                    </span>
-                  ))
-                )}
-              </span>
-            </button>
-          </section>
         )}
 
         {/* Everyone else */}
@@ -166,12 +133,10 @@ export default function People() {
             })}
           </section>
         ) : query ? (
-          !showMe && (
-            <div className="empty-box">
-              <span className="empty-box-title">No people found</span>
-              <span className="text-secondary">Nothing matches “{searchQuery.trim()}”.</span>
-            </div>
-          )
+          <div className="empty-box">
+            <span className="empty-box-title">No people found</span>
+            <span className="text-secondary">Nothing matches “{searchQuery.trim()}”.</span>
+          </div>
         ) : (
           <div className="empty-box">
             <span className="empty-box-title">No people yet</span>
@@ -181,9 +146,6 @@ export default function People() {
       </div>
 
       <AnimatePresence>
-        {editingSelf && (
-          <PersonSheet open={editingSelf} onClose={() => setEditingSelf(false)} userId={currentUser.id} />
-        )}
       </AnimatePresence>
       <AnimatePresence>
         {adding && (

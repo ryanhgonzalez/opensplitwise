@@ -7,64 +7,98 @@
 
 .ins-header {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.ins-sub {
-  margin-top: 4px;
-}
-
-/* Phones: both controls share one row, each button stretching to fill it. */
+/* One row of small dropdowns: group, period, whose spending (and currency) */
 .ins-controls {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
-  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -20px;
+  padding: 0 20px;
 }
 
-/* Phones: the group picker gets the first row to itself */
-.ins-group-pick {
-  order: -1;
-  flex: 1 1 100%;
+.ins-controls::-webkit-scrollbar {
+  display: none;
 }
 
-/* Phones: period and view stay side by side; the currency switch gets its own row */
-.ins-controls .seg.ins-currency-seg {
-  order: 3;
-  flex: 1 1 100%;
+.ins-pick {
+  flex-shrink: 0;
+  position: relative;
 }
 
-.ins-controls .seg {
-  flex: 1 1 0;
-  min-width: 0;
+.ins-pick select {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 38px;
+  padding: 0 32px 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 19px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
 }
 
-.ins-controls .seg > button {
-  flex: 1 1 auto;
-  padding: 0 6px;
-  font-size: 12px;
-  white-space: nowrap;
+.ins-pick select:focus-visible {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
-.ins-figure {
-  font-size: 18px;
+/* The dropdown's arrow */
+.ins-pick::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.6px solid var(--muted);
+  border-bottom: 1.6px solid var(--muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+/* The headline */
+.ins-standing {
+  padding-top: 14px;
+  border-top: 2px solid var(--ink);
+}
+
+.ins-standing-lead {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.ins-standing-figure {
+  margin-top: 2px;
+  font-size: 34px;
   font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
 }
 
-/* Three stats on one row, even on a phone */
-.insights-page .statement {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.ins-standing-sub {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--muted);
 }
 
-.insights-page .statement > * {
-  padding: 12px 10px;
+.ins-more {
+  min-height: 32px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--owed);
 }
 
-.insights-page .statement > :first-child {
-  padding-left: 0;
+.ins-more:hover {
+  text-decoration: underline;
 }
 
 .ins-charts {
@@ -486,40 +520,13 @@ a.ins-big-row:hover .ins-big-name {
   }
 
   .ins-controls {
-    width: auto;
+    margin: 0;
+    padding: 0;
+    flex-wrap: wrap;
   }
 
-  .ins-controls .seg {
-    flex: none;
-  }
-
-  .ins-controls .seg.ins-currency-seg {
-    order: 0;
-    flex: none;
-  }
-
-  .ins-group-pick {
-    order: 0;
-    flex: 0 1 220px;
-  }
-
-  .ins-controls .seg > button {
-    padding: 0 14px;
-    font-size: 13px;
-  }
-
-  .ins-figure {
-    font-size: 26px;
-  }
-
-  .insights-page .statement > * {
-    padding: 14px 16px;
-  }
-
-  .ins-charts {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 48px;
+  .ins-standing-figure {
+    font-size: 44px;
   }
 
   .ins-cat-row {

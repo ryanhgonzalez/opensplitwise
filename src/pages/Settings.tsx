@@ -1,21 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { useGroupReport } from '../components/useGroupReport';
 import { useStore, selectCurrentUser, type ThemeMode } from '../store';
 import Avatar from '../components/Avatar';
-import GroupTile from '../components/GroupTile';
 import ExportImportSheet from '../components/ExportImportSheet';
 import IdentityPicker from '../components/IdentityPicker';
+import PersonSheet from '../components/PersonSheet';
 import { downloadFullBackup } from '../lib/backupNow';
 import { backupStatus, lastBackupAt } from '../lib/dataSafety';
-import { formatBytes } from '../lib/receiptPhotos';
-import { isOcrDownloaded, RECEIPT_OCR } from '../lib/receiptOcr';
 import { shouldOfferInstall, showInstallGuide } from '../lib/pwa';
 import { formatRelativeDay } from '../utils/format';
 import { cleanHandle } from '../lib/reminder';
-import { versionLine } from '../lib/buildInfo';
 import type { PayHandles } from '../types';
+import '../styles/sheet.css';
 import './Settings.css';
 
 const THEMES: { value: ThemeMode; label: string }[] = [
@@ -38,51 +35,83 @@ const PAY_APPS: { key: keyof PayHandles; label: string; prefix: string; placehol
   { key: 'paypal', label: 'PayPal', prefix: 'paypal.me/', placeholder: 'name' },
 ];
 
+/** "Venmo @ana-r · Cash App and PayPal not set". */
+function payLinksSummary(handles: PayHandles | undefined): string {
+  const set = PAY_APPS.filter(({ key }) => handles?.[key]);
+  const unset = PAY_APPS.filter(({ key }) => !handles?.[key]).map((a) => a.label);
+  if (set.length === 0) return 'Not set up';
+  const named = set.map(({ key, label, prefix }) => `${label} ${prefix === 'paypal.me/' ? '' : prefix}${handles![key]}`.trim());
+  if (unset.length === 0) return named.join(' · ');
+  const missing = unset.length === 1 ? `${unset[0]} not set` : `${unset.join(' and ')} not set`;
+  return `${named.join(' · ')} · ${missing}`;
+}
+
 /** Your names on payment apps, so reminders can carry a link that pays you. */
-function GettingPaid() {
+function PaymentLinksSheet({ onClose }: { onClose: () => void }) {
   const currentUser = useStore(selectCurrentUser)!;
   const updateUser = useStore((s) => s.updateUser);
   const [draft, setDraft] = useState<PayHandles>(currentUser.payHandles ?? {});
 
-  const save = (key: keyof PayHandles) => {
-    const value = cleanHandle(draft[key] ?? '');
-    const next = { ...(currentUser.payHandles ?? {}), [key]: value || undefined };
-    setDraft((d) => ({ ...d, [key]: value }));
+  const saveAll = () => {
+    const next: PayHandles = {};
+    for (const { key } of PAY_APPS) {
+      const value = cleanHandle(draft[key] ?? '');
+      if (value) next[key] = value;
+    }
     updateUser(currentUser.id, { payHandles: next });
+  };
+  const done = () => {
+    saveAll();
+    onClose();
   };
 
   return (
-    <section className="settings-section" aria-labelledby="settings-paid">
-      <h2 id="settings-paid" className="settings-section-title">Getting paid</h2>
-      <div className="settings-section-body">
-        <p className="settings-section-intro">
-          Reminders include a link that opens a payment to you, amount filled in. Venmo and Cash App only work for
-          dollars. These stay on this device.
-        </p>
-        <div className="settings-rows">
-          {PAY_APPS.map(({ key, label, prefix, placeholder }) => (
-            <label key={key} className="settings-row settings-pay-row">
-              <span className="settings-row-label">{label}</span>
-              <span className="settings-pay-field">
-                <span className="settings-pay-prefix" aria-hidden>{prefix}</span>
-                <input
-                  className="settings-pay-input"
-                  value={draft[key] ?? ''}
-                  onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
-                  onBlur={() => save(key)}
-                  onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                  placeholder={placeholder}
-                  aria-label={`Your ${label} ${placeholder}`}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                />
-              </span>
-            </label>
-          ))}
+    <motion.div className="sheet-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={done}>
+      <motion.div
+        className="sheet-panel"
+        role="dialog"
+        aria-label="Payment links"
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 32, stiffness: 340 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sheet-handle" />
+        <div className="sheet-header">
+          <span className="sheet-title">Payment links</span>
         </div>
-      </div>
-    </section>
+        <form className="sheet-body" id="pay-links-form" onSubmit={(e) => { e.preventDefault(); done(); }}>
+          <p className="settings-section-intro">
+            Reminders link here so people can pay you, amount filled in. Venmo and Cash App are dollars only. Stays on
+            this device.
+          </p>
+          <div className="settings-rows">
+            {PAY_APPS.map(({ key, label, prefix, placeholder }) => (
+              <label key={key} className="settings-row settings-pay-row">
+                <span className="settings-row-label">{label}</span>
+                <span className="settings-pay-field">
+                  <span className="settings-pay-prefix" aria-hidden>{prefix}</span>
+                  <input
+                    className="settings-pay-input"
+                    value={draft[key] ?? ''}
+                    onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    aria-label={`Your ${label} ${placeholder}`}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                </span>
+              </label>
+            ))}
+          </div>
+        </form>
+        <div className="sheet-footer">
+          <button className="sheet-cta" type="submit" form="pay-links-form">Done</button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -97,18 +126,12 @@ export default function Settings() {
 
   const [showDataSheet, setShowDataSheet] = useState(false);
   const [showIdentityPicker, setShowIdentityPicker] = useState(false);
-  const { downloadReport: generatePdf, makingId: pdfLoadingId } = useGroupReport();
+  const [editingSelf, setEditingSelf] = useState(false);
+  const [showPayLinks, setShowPayLinks] = useState(false);
   const [showWipeConfirm, setShowWipeConfirm] = useState(false);
   const [wipeNameInput, setWipeNameInput] = useState('');
   // Backup times live in localStorage, not the store; bump this to re-read them.
   const [, setTick] = useState(0);
-  const [persisted, setPersisted] = useState<boolean | null>(null);
-  const [ocrReady, setOcrReady] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    navigator.storage?.persisted?.().then(setPersisted, () => setPersisted(false));
-    void isOcrDownloaded().then(setOcrReady);
-  }, []);
 
   const last = lastBackupAt();
   const status = useMemo(
@@ -122,10 +145,6 @@ export default function Settings() {
       ? `Up to date · last backup ${formatRelativeDay(last)}`
       : `Last backup ${formatRelativeDay(last)} · ${changes} since`;
 
-  const photos = expenses.filter((e) => e.receipt);
-  const photoBytes = photos.reduce((n, e) => n + (e.receipt?.bytes ?? 0), 0);
-  const offlineReady = typeof navigator !== 'undefined' && !!navigator.serviceWorker?.controller;
-  const myGroups = groups.filter((g) => g.members.some((m) => m.userId === currentUser.id));
 
   const backUp = async () => {
     await downloadFullBackup();
@@ -150,17 +169,32 @@ export default function Settings() {
         <h1 className="page-hero-title">Settings</h1>
 
         <div className="settings-profile">
-          <Avatar user={currentUser} size="lg" />
-          <span className="settings-profile-info">
-            <span className="settings-profile-name">{currentUser.name}</span>
-            <span className="text-sm text-secondary">You, on this device</span>
-          </span>
+          <button className="settings-profile-edit" onClick={() => setEditingSelf(true)} aria-label="Edit your name and details">
+            <Avatar user={currentUser} size="lg" />
+            <span className="settings-profile-info">
+              <span className="settings-profile-name">{currentUser.name}</span>
+              <span className="text-sm text-secondary">
+                You, on this device · <span className="settings-profile-edit-word">Edit</span>
+              </span>
+            </span>
+          </button>
           <button className="btn btn-secondary settings-small-btn" onClick={() => setShowIdentityPicker(true)}>
             Switch person
           </button>
         </div>
 
-        <GettingPaid key={currentUser.id} />
+        <section className="settings-section" aria-labelledby="settings-paid">
+          <h2 id="settings-paid" className="settings-section-title">Getting paid</h2>
+          <div className="settings-rows">
+            <button className="settings-row" onClick={() => setShowPayLinks(true)}>
+              <span className="settings-row-text">
+                <span className="settings-row-label">Payment links</span>
+                <span className="settings-row-sub">{payLinksSummary(currentUser.payHandles)}</span>
+              </span>
+              <Chevron />
+            </button>
+          </div>
+        </section>
 
         <section className="settings-section" aria-labelledby="settings-appearance">
           <h2 id="settings-appearance" className="settings-section-title">Appearance</h2>
@@ -200,64 +234,6 @@ export default function Settings() {
               </span>
               <Chevron />
             </button>
-            <div className="settings-row">
-              <span className="settings-row-text">
-                <span className="settings-row-label">Storage on this device</span>
-                <span className="settings-row-sub">
-                  {persisted === null ? '' : persisted ? 'Protected · ' : 'Not protected yet · '}
-                  {expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'}
-                  {photos.length > 0 && ` · ${photos.length} ${photos.length === 1 ? 'photo' : 'photos'} (${formatBytes(photoBytes)})`}
-                </span>
-              </span>
-            </div>
-            <div className="settings-row">
-              <span className="settings-row-text">
-                <span className="settings-row-label">Receipt reader</span>
-                <span className="settings-row-sub">
-                  {ocrReady === null
-                    ? ''
-                    : ocrReady
-                      ? `Downloaded · ${Math.round(RECEIPT_OCR.approxBytes / 1e6)} MB`
-                      : 'Downloads the first time you scan a receipt'}
-                </span>
-              </span>
-            </div>
-          </div>
-        </section>
-
-        <section className="settings-section" aria-labelledby="settings-reports">
-          <h2 id="settings-reports" className="settings-section-title">Group reports (PDF)</h2>
-          <div className="settings-rows">
-            {myGroups.length === 0 ? (
-              <p className="settings-row settings-row-sub">No groups yet.</p>
-            ) : (
-              myGroups.map((g) => {
-                const hasExpenses = expenses.some((e) => e.groupId === g.id);
-                return (
-                  <button
-                    key={g.id}
-                    className="settings-row"
-                    onClick={() => generatePdf(g.id)}
-                    disabled={!hasExpenses || !!pdfLoadingId}
-                  >
-                    <GroupTile group={g} size={28} />
-                    <span className="settings-row-text">
-                      <span className="settings-row-label">{g.name}</span>
-                      {!hasExpenses && <span className="settings-row-sub">No expenses yet</span>}
-                    </span>
-                    <span className="settings-row-action">
-                      {pdfLoadingId === g.id ? 'Making…' : hasExpenses ? 'Download' : ''}
-                    </span>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </section>
-
-        <section className="settings-section" aria-labelledby="settings-app">
-          <h2 id="settings-app" className="settings-section-title">App</h2>
-          <div className="settings-rows">
             {shouldOfferInstall() && (
               <button className="settings-row" onClick={showInstallGuide}>
                 <span className="settings-row-text">
@@ -266,16 +242,10 @@ export default function Settings() {
                 <Chevron />
               </button>
             )}
-            <div className="settings-row">
-              <span className="settings-row-text">
-                <span className="settings-row-label">Works offline</span>
-              </span>
-              <span className="settings-row-sub">{offlineReady ? 'Ready' : 'After the next visit'}</span>
-            </div>
             <Link className="settings-row settings-link-row" to="/settings/about">
               <span className="settings-row-text">
                 <span className="settings-row-label">About OpenSplitwise</span>
-                <span className="settings-row-sub">Version, privacy, source code</span>
+                <span className="settings-row-sub">Version, storage, offline, privacy</span>
               </span>
               <Chevron />
             </Link>
@@ -287,14 +257,16 @@ export default function Settings() {
             Erase all data on this device
           </button>
         </div>
-
-        <p className="num settings-build">OpenSplitwise · {versionLine()}</p>
       </div>
 
       <AnimatePresence>
         {showIdentityPicker && (
           <IdentityPicker variant="switch" onClose={() => setShowIdentityPicker(false)} />
         )}
+        {editingSelf && (
+          <PersonSheet open={editingSelf} onClose={() => setEditingSelf(false)} userId={currentUser.id} />
+        )}
+        {showPayLinks && <PaymentLinksSheet key={currentUser.id} onClose={() => setShowPayLinks(false)} />}
       </AnimatePresence>
 
       <AnimatePresence>

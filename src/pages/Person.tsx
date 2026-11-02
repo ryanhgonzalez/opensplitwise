@@ -23,8 +23,8 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   other: 'Other',
 };
 
-/** History rows listed before "Show older". */
-const HISTORY_SHOWN = 15;
+/** History rows listed before "Show all". */
+const HISTORY_SHOWN = 5;
 
 const signClass = (n: number) => (Math.abs(n) < 0.005 ? 'zero' : n > 0 ? 'pos' : 'neg');
 
@@ -167,8 +167,6 @@ export default function Person() {
 
   const firstName = person.name.split(' ')[0];
   const shownHistory = showAllHistory ? history : history.slice(0, HISTORY_SHOWN);
-  // With one currency the header's buttons act on it; with several, each row has its own.
-  const single = between.length === 1 ? between[0] : undefined;
 
   const openSettle = (b: { currency: string; amount: number }) =>
     setSettling({ currency: b.currency, amount: Math.abs(b.amount), theyOwe: b.amount > 0 });
@@ -192,108 +190,112 @@ export default function Person() {
     });
   };
 
-  const actions = (b: (typeof between)[number], small = false) => (
-    <>
+  const actions = (b: (typeof between)[number]) => (
+    <div className="person-actions">
       {b.amount > 0 && (
         <button
-          className={`btn btn-secondary ${small ? 'btn-sm' : ''}`}
+          className="btn btn-secondary"
           onClick={() => setReminding({ currency: b.currency, amount: b.amount, groupIds: b.groups.map((g) => g.id) })}
         >
           Remind
         </button>
       )}
-      <button className={`btn btn-primary ${small ? 'btn-sm' : ''}`} onClick={() => openSettle(b)}>
+      <button className="btn btn-primary" onClick={() => openSettle(b)}>
         Settle up
       </button>
-    </>
+    </div>
   );
+
+  // Groups with something open between you; when they run both ways, settling up clears them all.
+  const openGroups = perGroup.filter((p) => Math.abs(p.net) >= 0.005);
+  const runsBothWays = openGroups.some((p) => p.net > 0) && openGroups.some((p) => p.net < 0);
 
   return (
     <div className="page-content">
       <div className="person-page">
         <header className="person-header">
-          <div className="person-title-block">
-            <Link to="/people" className="person-crumb">People /</Link>
-            <div className="person-title-row">
-              <Avatar user={person} size="lg" />
-              <span className="person-title-text">
-                <h1 className="person-name">{person.name}</h1>
-                <span className="text-sm text-secondary">
-                  {sharedGroups.length === 0
-                    ? 'No groups with you'
-                    : `In ${sharedGroups.length} ${sharedGroups.length === 1 ? 'group' : 'groups'} with you`}
-                </span>
+          <Link to="/people" className="person-crumb">People /</Link>
+          <div className="person-title-row">
+            <Avatar user={person} size="lg" />
+            <span className="person-title-text">
+              <h1 className="person-name">{person.name}</h1>
+              <span className="text-sm text-secondary">
+                {sharedGroups.length === 0
+                  ? 'No groups with you'
+                  : `In ${sharedGroups.length} ${sharedGroups.length === 1 ? 'group' : 'groups'} with you`}
               </span>
-            </div>
-          </div>
-          <div className="person-header-actions">
-            <button className="btn btn-secondary" onClick={() => setEditing(true)}>Edit</button>
-            {single && actions(single)}
+            </span>
+            <button className="person-edit" onClick={() => setEditing(true)} aria-label={`Edit ${firstName}`}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M4 20h4L19 9l-4-4L4 16v4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+              </svg>
+            </button>
           </div>
         </header>
 
         <div className="person-columns">
           <div className="person-col">
-            <section aria-labelledby="person-between">
-              <h2 id="person-between" className="cap person-label">Between you</h2>
-              <div className="person-between">
-                {between.length === 0 ? (
-                  <p className="person-settled">You and {firstName} are settled up.</p>
-                ) : (
-                  between.map((b) => (
-                    <div key={b.currency} className="person-between-row">
-                      <span className="person-between-text">
-                        <span className="person-between-who">
-                          {b.amount > 0 ? `${firstName} owes you` : `You owe ${firstName}`}
-                        </span>
-                        {b.groups.length > 0 && <span className="text-xs text-secondary">{b.groups.map((g) => g.name).join(', ')}</span>}
-                      </span>
-                      <span className={`num person-between-amount ${signClass(b.amount)}`}>
-                        {formatCurrency(Math.abs(b.amount), b.currency)}
-                      </span>
-                      {!single && <span className="person-row-actions">{actions(b, true)}</span>}
-                    </div>
-                  ))
-                )}
-              </div>
-              {perGroup
-                .filter((p) => p.rerouted && p.transfer)
-                .map((p) => (
-                  <p key={p.group.id} className="text-xs text-secondary person-note">
-                    In {p.group.name}, this includes money owed to other people, sent this way to keep payments down.{' '}
-                    <button
-                      className="person-why"
-                      onClick={() => setExplaining({ groupId: p.group.id, transfer: p.transfer! })}
-                    >
-                      Why?
-                    </button>
-                  </p>
-                ))}
-              {remindedLine && between.some((b) => b.amount > 0) && (
-                <p className="text-xs text-secondary person-note">{remindedLine}</p>
+            {/* Where you stand with them */}
+            <section className="person-standing" aria-label="Between you">
+              {between.length === 0 ? (
+                <>
+                  <p className="person-standing-lead">Nothing between you</p>
+                  <p className="person-standing-figure even">Settled up</p>
+                </>
+              ) : (
+                between.map((b) => (
+                  <div key={b.currency} className="person-standing-block">
+                    <p className="person-standing-lead">{b.amount > 0 ? `${firstName} owes you` : `You owe ${firstName}`}</p>
+                    <p className={`num person-standing-figure ${between.length > 1 ? 'multi' : ''} ${signClass(b.amount)}`}>
+                      {formatCurrency(Math.abs(b.amount), b.currency)}
+                    </p>
+                    {actions(b)}
+                  </div>
+                ))
               )}
-              {between.length > 0 && (
-                <p className="text-xs text-secondary person-note">
-                  Settle up records a payment {between.length > 1 ? 'in one currency at a time' : 'either way'}. It's
-                  spread across the groups the balance sits in, and evens out any group where it runs the other way.
-                </p>
+              {remindedLine && between.some((b) => b.amount > 0) && (
+                <p className="person-note">{remindedLine}</p>
               )}
             </section>
 
             {perGroup.length > 0 && (
               <section aria-labelledby="person-groups">
-                <h2 id="person-groups" className="cap person-label">Groups together</h2>
+                <h2 id="person-groups" className="cap person-label">By group</h2>
                 <div className="ruled">
-                  {perGroup.map(({ group, currency, net }) => (
-                    <Link key={group.id} to={`/groups/${group.id}`} className="person-group">
-                      <GroupTile group={group} size={32} />
-                      <span className="person-group-name">{group.name}</span>
-                      <span className={`person-group-bal ${Math.abs(net) < 0.005 ? 'zero' : `num ${signClass(net)}`}`}>
-                        {Math.abs(net) < 0.005 ? 'settled' : formatSigned(net, currency)}
-                      </span>
-                    </Link>
-                  ))}
+                  {perGroup.map(({ group, currency, net, transfer, rerouted }) => {
+                    const settled = Math.abs(net) < 0.005;
+                    return (
+                      <div key={group.id} className="person-group">
+                        <Link to={`/groups/${group.id}`} className="person-group-link">
+                          <GroupTile group={group} size={32} />
+                          <span className="person-group-text">
+                            <span className="person-group-name">{group.name}</span>
+                            <span className="person-group-sub">
+                              {settled ? 'Settled' : net > 0 ? `${firstName} owes you` : `You owe ${firstName}`}
+                            </span>
+                          </span>
+                        </Link>
+                        {rerouted && transfer && (
+                          <button
+                            className="person-why"
+                            onClick={() => setExplaining({ groupId: group.id, transfer })}
+                            aria-label={`Why, in ${group.name}?`}
+                          >
+                            Why?
+                          </button>
+                        )}
+                        <span className={`person-group-bal ${settled ? 'zero' : `num ${signClass(net)}`}`}>
+                          {settled ? '' : formatCurrency(Math.abs(net), currency)}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
+                {runsBothWays && (
+                  <p className="person-note">
+                    Settling up clears {openGroups.length === 2 ? 'both groups' : `all ${openGroups.length} groups`}.
+                  </p>
+                )}
               </section>
             )}
           </div>
@@ -320,7 +322,7 @@ export default function Person() {
             )}
             {history.length > shownHistory.length && (
               <button className="person-more" onClick={() => setShowAllHistory(true)}>
-                Show older ({history.length - shownHistory.length})
+                Show all {history.length}
               </button>
             )}
           </section>

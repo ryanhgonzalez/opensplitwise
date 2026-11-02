@@ -136,13 +136,6 @@ export function SendPanel({ groupId: id }: { groupId: string }) {
               <li>Point the camera here until their phone says it's done.</li>
               <li className="sharing-step-wide">They check the changes and merge.</li>
             </ol>
-            <span className="sharing-meta">
-              <span className="sharing-narrow">
-                {expenseCount} {expenseCount === 1 ? 'expense' : 'expenses'} · {peopleCount}{' '}
-                {peopleCount === 1 ? 'person' : 'people'} ·{' '}
-              </span>
-              No internet needed. Turn your brightness up if it's slow to read. Sharing again later sends what's new.
-            </span>
 
             <div className="share-file">
               <span className="share-file-title">Not together?</span>

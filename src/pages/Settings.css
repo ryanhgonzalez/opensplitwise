@@ -13,6 +13,28 @@
   border-bottom: 1px solid var(--rule);
 }
 
+.settings-profile-edit {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+
+.settings-profile-edit:hover .settings-profile-name {
+  text-decoration: underline;
+}
+
+.settings-profile-edit-word {
+  color: var(--owed);
+  font-weight: 500;
+}
+
 .settings-profile-info {
   flex: 1;
   min-width: 0;

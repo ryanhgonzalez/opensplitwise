@@ -8,17 +8,68 @@
 /* Header */
 .person-header {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 16px;
-}
-
-.person-title-block {
-  flex: 1 1 280px;
-  min-width: 0;
-  display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.person-edit {
+  flex-shrink: 0;
+  margin-left: auto;
+  margin-right: -10px;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  color: var(--ink);
+}
+
+.person-edit:hover {
+  background: var(--panel);
+}
+
+/* Where you stand with them */
+.person-standing {
+  padding-top: 14px;
+  border-top: 2px solid var(--ink);
+}
+
+.person-standing-block + .person-standing-block {
+  margin-top: 18px;
+}
+
+.person-standing-lead {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.person-standing-figure {
+  margin-top: 2px;
+  font-size: 36px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.person-standing-figure.multi {
+  font-size: 26px;
+}
+
+.person-standing-figure.even {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.person-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.person-actions > .btn {
+  flex: 1;
 }
 
 .person-crumb {
@@ -52,58 +103,8 @@
   overflow-wrap: anywhere;
 }
 
-.person-header-actions {
-  flex: 1 1 100%;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-/* Phones: the actions fill the width under the name */
-.person-header-actions > .btn {
-  flex: 1;
-}
-
 .person-label {
   padding-bottom: 8px;
-}
-
-/* Between you */
-.person-between {
-  border-top: 2px solid var(--ink);
-}
-
-.person-between-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  min-height: 60px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--rule);
-}
-
-.person-between-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.person-between-who {
-  font-size: 15px;
-}
-
-.person-between-amount {
-  font-size: 22px;
-  font-weight: 600;
-}
-
-.person-row-actions {
-  display: flex;
-  gap: 6px;
-  flex-basis: 100%;
-  justify-content: flex-end;
 }
 
 .person-settled {
@@ -114,25 +115,47 @@
 
 .person-note {
   padding-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
 }
 
-/* Groups together */
+/* By group */
 .person-group {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 56px;
+  min-height: 60px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.person-group-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
   color: var(--ink);
   text-decoration: none;
 }
 
-.person-group:hover .person-group-name {
+.person-group-link:hover .person-group-name {
   text-decoration: underline;
 }
 
-.person-group-name {
-  flex: 1;
+.person-group-text {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.person-group-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.person-group-name {
   font-weight: 500;
 }
 
@@ -225,15 +248,7 @@ section.person-col {
     font-size: 34px;
   }
 
-  .person-header-actions {
-    flex: none;
-  }
-
-  .person-header-actions > .btn {
-    flex: none;
-  }
-
-  .person-columns {
+      .person-columns {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 40px;
@@ -244,18 +259,18 @@ section.person-col {
     gap: 32px;
   }
 
-  .person-row-actions {
-    flex-basis: auto;
   }
-}
 
 /* Opens the explanation for a balance simplifying sent this way */
 .person-why {
-  padding: 0;
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 4px;
   background: none;
   border: 0;
   font: inherit;
-  color: var(--ink);
+  font-size: 12px;
+  color: var(--muted);
   text-decoration: underline dotted;
   text-underline-offset: 3px;
   cursor: pointer;

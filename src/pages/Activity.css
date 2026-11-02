@@ -111,3 +111,19 @@
 .activity-row-link:hover .activity-content > span:first-child {
   text-decoration: underline;
 }
+
+/* Title, with Insights to its right */
+.activity-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.activity-insights {
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 14px;
+  text-decoration: none;
+}

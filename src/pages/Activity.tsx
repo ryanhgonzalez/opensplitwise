@@ -76,13 +76,21 @@ export default function ActivityPage() {
   return (
     <div className="page-content">
       <div className="activity-page">
-        <header>
-          <h1 className="page-hero-title">Activity</h1>
-          <p className="text-secondary activity-count">
-            {allActivities.length === 0
-              ? 'No activity yet'
-              : `${allActivities.length} event${allActivities.length !== 1 ? 's' : ''}`}
-          </p>
+        <header className="activity-header">
+          <div className="activity-title-row">
+            <h1 className="page-hero-title">Activity</h1>
+            <Link to="/insights" className="btn btn-secondary activity-insights">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M5 20V10M12 20V4M19 20v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+              Insights
+            </Link>
+          </div>
+          {allActivities.length > 0 && (
+            <p className="text-secondary activity-count">
+              {allActivities.length} event{allActivities.length !== 1 ? 's' : ''}
+            </p>
+          )}
         </header>
 
         <div className="activity-tabs" role="tablist" aria-label="Filter activity">
