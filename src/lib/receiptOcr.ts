@@ -6,23 +6,30 @@ import { boxesToLines, type Box } from './receiptLines';
 //
 // No WebGPU, ~45 MB downloaded on the first scan (models from /ocr, see
 // scripts/ocrModels.ts, plus ONNX Runtime's wasm), then kept in the browser's
-// Cache Storage for offline use. About 1 s per receipt in Chrome, Safari and Firefox on a laptop when
-// the page is cross-origin isolated, which lets ONNX Runtime use threads.
-// On the bench's sample receipts: totals 100%, items F1 0.81–0.91 (Tesseract:
-// 33% and 0.25).
+// Cache Storage for offline use. About 2 s for a 12-megapixel photo on a
+// laptop when the page is cross-origin isolated, which lets ONNX Runtime use
+// threads. On the bench's phone-sized test photos (straight, tilted, sideways,
+// dim): totals 100%, dates 86–100%, items F1 0.77–1.00; without straightening,
+// totals 64–91%.
 //
 // Pipeline, following PaddleOCR's own inference configs:
-//   1. Detection (DB): the image (BGR, ImageNet-normalised) → a per-pixel
+//   1. A first look at low resolution: which way the text runs (textAngle),
+//      and where on the photo it is. A tilted or sideways photo is turned
+//      level, and the next step looks only at the receipt, not the table.
+//   2. Detection (DB): the image (BGR, ImageNet-normalised) → a per-pixel
 //      "is text" probability map. Pixels above `thresh` are grouped into
 //      boxes, kept if their mean probability clears `boxThresh`, then grown
 //      by the "unclip" distance, since DB maps cover only the text's core.
-//   2. Recognition (CTC): each box, cropped from the full-resolution image,
+//   3. Which way up: the start of a few lines is read; if that reads poorly,
+//      it's read upside down too, and the better way is kept.
+//   4. Recognition (CTC): each box, cropped from the full-resolution photo,
 //      resized to 48 px tall, scaled to [-1, 1] → per-column character
 //      scores → greedy CTC decode.
-//   3. The boxes become text lines (boxesToLines) for parseReceiptText.
+//   5. The boxes become text lines (boxesToLines) for parseReceiptText.
 //
-// Simplification: boxes are axis-aligned (PaddleOCR fits rotated rectangles),
-// which is fine for receipts photographed roughly straight.
+// Boxes are axis-aligned (PaddleOCR fits rotated rectangles); once the photo
+// is level, that's enough. Without levelling, a 5° tilt was enough to make
+// boxes cut across lines.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface OcrModel {
@@ -63,6 +70,35 @@ export interface Region {
   x1: number;
   y1: number;
   score: number;
+  /** The direction the region runs in, degrees from horizontal, in (-90, 90]: a text line's slant. */
+  angle: number;
+  /** How line-like it is: 0 for a round blob, near 1 for a long thin line. */
+  elongation: number;
+  /** Its size in map pixels. */
+  pixels: number;
+}
+
+export interface DbOptions {
+  thresh: number;
+  boxThresh: number;
+  unclipRatio: number;
+  minSize?: number;
+}
+
+/** Direction and elongation of a set of pixels, from their second moments. */
+function shapeOf(sx: number, sy: number, sxx: number, syy: number, sxy: number, n: number) {
+  const cx = sx / n;
+  const cy = sy / n;
+  const mu20 = sxx / n - cx * cx;
+  const mu02 = syy / n - cy * cy;
+  const mu11 = sxy / n - cx * cy;
+  const half = (mu20 - mu02) / 2;
+  const root = Math.sqrt(half * half + mu11 * mu11);
+  const l1 = (mu20 + mu02) / 2 + root;
+  const l2 = (mu20 + mu02) / 2 - root;
+  let angle = (Math.atan2(2 * mu11, mu20 - mu02) / 2) * (180 / Math.PI);
+  if (angle <= -90) angle += 180;
+  return { angle, elongation: l1 > 0 ? 1 - Math.max(0, l2) / l1 : 0 };
 }
 
 /**
@@ -70,12 +106,7 @@ export interface Region {
  * above-threshold pixels into 4-connected regions and returns each region's
  * bounding box, grown by the unclip distance (area × ratio / perimeter).
  */
-export function dbBoxes(
-  prob: Float32Array,
-  w: number,
-  h: number,
-  opts: { thresh: number; boxThresh: number; unclipRatio: number; minSize?: number },
-): Region[] {
+export function dbBoxes(prob: Float32Array, w: number, h: number, opts: DbOptions): Region[] {
   const minSize = opts.minSize ?? 3;
   const seen = new Uint8Array(w * h);
   const stack: number[] = [];
@@ -84,6 +115,7 @@ export function dbBoxes(
   for (let start = 0; start < w * h; start++) {
     if (seen[start] || prob[start] <= opts.thresh) continue;
     let x0 = w, y0 = h, x1 = -1, y1 = -1, sum = 0, n = 0;
+    let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
     seen[start] = 1;
     stack.push(start);
     while (stack.length) {
@@ -92,6 +124,11 @@ export function dbBoxes(
       const y = (i - x) / w;
       sum += prob[i];
       n++;
+      sx += x;
+      sy += y;
+      sxx += x * x;
+      syy += y * y;
+      sxy += x * y;
       if (x < x0) x0 = x;
       if (x > x1) x1 = x;
       if (y < y0) y0 = y;
@@ -113,6 +150,8 @@ export function dbBoxes(
       x1: Math.min(w, x1 + 1 + d),
       y1: Math.min(h, y1 + 1 + d),
       score,
+      pixels: n,
+      ...shapeOf(sx, sy, sxx, syy, sxy, n),
     });
   }
   return out;
@@ -123,6 +162,27 @@ export function dbBoxes(
       stack.push(j);
     }
   }
+}
+
+/**
+ * The slant of the text, degrees in (-90, 90]: the average direction of the
+ * line-like regions, weighted by size. Directions are averaged doubled, so
+ * 89° and -89° (both nearly vertical) agree rather than cancel.
+ */
+export function textAngle(regions: Pick<Region, 'angle' | 'elongation' | 'pixels'>[]): number {
+  let c = 0;
+  let s = 0;
+  for (const r of regions) {
+    if (r.elongation < 0.6) continue;
+    const wgt = r.pixels * r.elongation;
+    const a = (2 * r.angle * Math.PI) / 180;
+    c += wgt * Math.cos(a);
+    s += wgt * Math.sin(a);
+  }
+  if (c === 0 && s === 0) return 0;
+  let angle = ((Math.atan2(s, c) / 2) * 180) / Math.PI;
+  if (angle <= -90) angle += 180;
+  return angle;
 }
 
 /**
@@ -285,20 +345,89 @@ export function loadOcr(model: OcrModel, onProgress?: OcrProgress): Promise<Load
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
 
-/** Detector input size: short side ≥ 736 px (small photos get enlarged), long side ≤ 2400, both multiples of 32. */
-function detSize(w: number, h: number): [number, number] {
+export interface ReadOptions {
+  /**
+   * Straighten the photo first (on by default): a tilted receipt (even 5°)
+   * gets boxes that cut across lines, and a sideways or upside-down one
+   * reads as nonsense.
+   */
+  straighten?: boolean;
+  /**
+   * Look for the text only where the first look found some (the receipt, not
+   * the table it's on), on by default: fewer pixels for the detector, which
+   * makes up the time straightening takes.
+   */
+  cropToText?: boolean;
+  /** Filled in with where the time went, for the bench. */
+  stats?: ReadStats;
+}
+
+export interface ReadStats {
+  detMs: number;
+  recMs: number;
+  detRuns: number;
+  boxes: number;
+  /** How far the photo was turned to straighten it, degrees. */
+  turned: number;
+  /** Of recMs, the time spent checking which way up it is. */
+  flipMs: number;
+}
+
+/** Detector input size: short side ≥ 736 px (small photos get enlarged), long side ≤ maxSide, both multiples of 32. */
+function detSize(w: number, h: number, maxSide: number): [number, number] {
   let scale = Math.max(1, 736 / Math.min(w, h));
-  scale = Math.min(scale, 2400 / Math.max(w, h), 3);
+  scale = Math.min(scale, maxSide / Math.max(w, h), 3);
   const r32 = (n: number) => Math.max(32, Math.round((n * scale) / 32) * 32);
   return [r32(w), r32(h)];
 }
 
-function pixels(src: CanvasImageSource, sx: number, sy: number, sw: number, sh: number, dw: number, dh: number) {
+/**
+ * The photo as the reader sees it: turned by `angle` (radians, clockwise)
+ * about its centre, on a canvas of `w`×`h`. Parts of it are drawn from the
+ * original as needed, so a turned 12-megapixel photo never needs a canvas of
+ * its own (phones limit their size).
+ */
+interface View {
+  src: CanvasImageSource;
+  srcW: number;
+  srcH: number;
+  angle: number;
+  w: number;
+  h: number;
+}
+
+function turnedView(src: CanvasImageSource, srcW: number, srcH: number, angle: number): View {
+  const cos = Math.abs(Math.cos(angle));
+  const sin = Math.abs(Math.sin(angle));
+  return { src, srcW, srcH, angle, w: Math.round(srcW * cos + srcH * sin), h: Math.round(srcW * sin + srcH * cos) };
+}
+
+/** RGBA pixels of the view's rectangle (x, y, w, h), drawn at dw×dh. */
+function pixels(view: View, x: number, y: number, w: number, h: number, dw: number, dh: number) {
   const c = document.createElement('canvas');
   c.width = dw;
   c.height = dh;
   const ctx = c.getContext('2d', { willReadFrequently: true })!;
-  ctx.drawImage(src, sx, sy, sw, sh, 0, 0, dw, dh);
+  if (view.angle === 0) {
+    ctx.drawImage(view.src, x, y, w, h, 0, 0, dw, dh);
+  } else {
+    // Paper-white where the turned photo doesn't reach.
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, dw, dh);
+    // Only the part of the photo under this rectangle: drawing all of a large
+    // photo through the turn for each line of text was most of the reading time.
+    const corners = [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].map(([vx, vy]) => fromView(view, vx, vy));
+    const sx = Math.max(0, Math.floor(Math.min(...corners.map((c) => c[0]))) - 2);
+    const sy = Math.max(0, Math.floor(Math.min(...corners.map((c) => c[1]))) - 2);
+    const ex = Math.min(view.srcW, Math.ceil(Math.max(...corners.map((c) => c[0]))) + 2);
+    const ey = Math.min(view.srcH, Math.ceil(Math.max(...corners.map((c) => c[1]))) + 2);
+    if (ex > sx && ey > sy) {
+      ctx.setTransform(dw / w, 0, 0, dh / h, (-x * dw) / w, (-y * dh) / h);
+      ctx.translate(view.w / 2, view.h / 2);
+      ctx.rotate(view.angle);
+      ctx.drawImage(view.src, sx, sy, ex - sx, ey - sy, sx - view.srcW / 2, sy - view.srcH / 2, ex - sx, ey - sy);
+    }
+  }
   return ctx.getImageData(0, 0, dw, dh).data;
 }
 
@@ -314,44 +443,217 @@ function toChwBgr(rgba: Uint8ClampedArray, w: number, h: number, mean: number[],
   return out;
 }
 
+type Engine = Loaded & {
+  model: OcrModel;
+  options: ReadOptions;
+  stats: ReadStats;
+  /** Called as lines are read, with the share of them done. */
+  onLines?: (fraction: number) => void;
+};
+
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Text regions in part of the view (all of it by default), in the view's own
+ * pixels. The detector's scale is set by the whole view, so text comes out the
+ * same size whether or not it's cropped.
+ */
+async function detect(e: Engine, view: View, maxSide: number, part: Rect = { x: 0, y: 0, w: view.w, h: view.h }): Promise<Region[]> {
+  const t0 = performance.now();
+  const [fw, fh] = detSize(view.w, view.h, maxSide);
+  const scale = Math.min(fw / view.w, fh / view.h);
+  const r32 = (n: number) => Math.max(32, Math.round((n * scale) / 32) * 32);
+  const [dw, dh] = part.w === view.w && part.h === view.h ? [fw, fh] : [r32(part.w), r32(part.h)];
+  const input = new e.ort.Tensor('float32', toChwBgr(pixels(view, part.x, part.y, part.w, part.h, dw, dh), dw, dh, MEAN, STD), [1, 3, dh, dw]);
+  const out = await e.det.run({ [e.det.inputNames[0]]: input });
+  input.dispose();
+  const prob = out[e.det.outputNames[0]];
+  const regions = dbBoxes(prob.data as Float32Array, dw, dh, e.model);
+  prob.dispose();
+  const sx = part.w / dw;
+  const sy = part.h / dh;
+  e.stats.detMs += performance.now() - t0;
+  e.stats.detRuns++;
+  return regions.map((r) => {
+    // The detector's input isn't quite the photo's shape: carry the slant over too.
+    const rad = (r.angle * Math.PI) / 180;
+    const angle = (Math.atan2(Math.sin(rad) * sy, Math.cos(rad) * sx) * 180) / Math.PI;
+    return {
+      ...r,
+      x0: part.x + r.x0 * sx,
+      y0: part.y + r.y0 * sy,
+      x1: part.x + r.x1 * sx,
+      y1: part.y + r.y1 * sy,
+      angle: angle <= -90 ? angle + 180 : angle > 90 ? angle - 180 : angle,
+    };
+  });
+}
+
+/** Where a point of a turned view comes from in the photo. */
+function fromView(view: View, x: number, y: number): [number, number] {
+  const dx = x - view.w / 2;
+  const dy = y - view.h / 2;
+  const c = Math.cos(view.angle);
+  const s = Math.sin(view.angle);
+  return [dx * c + dy * s + view.srcW / 2, -dx * s + dy * c + view.srcH / 2];
+}
+
+/** Where a point of the photo lands in a turned view of it. */
+function intoView(view: View, x: number, y: number): [number, number] {
+  const dx = x - view.srcW / 2;
+  const dy = y - view.srcH / 2;
+  const c = Math.cos(view.angle);
+  const s = Math.sin(view.angle);
+  return [dx * c - dy * s + view.w / 2, dx * s + dy * c + view.h / 2];
+}
+
+/** The part of the view holding the regions (found in the photo, unturned), with a margin. */
+function textArea(view: View, regions: Region[]): Rect | undefined {
+  if (!regions.length) return undefined;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const r of regions) {
+    for (const [px, py] of [[r.x0, r.y0], [r.x1, r.y0], [r.x0, r.y1], [r.x1, r.y1]]) {
+      const [x, y] = intoView(view, px, py);
+      x0 = Math.min(x0, x);
+      y0 = Math.min(y0, y);
+      x1 = Math.max(x1, x);
+      y1 = Math.max(y1, y);
+    }
+  }
+  const margin = 0.03 * Math.max(view.w, view.h);
+  const x = Math.max(0, x0 - margin);
+  const y = Math.max(0, y0 - margin);
+  return { x, y, w: Math.min(view.w, x1 + margin) - x, h: Math.min(view.h, y1 + margin) - y };
+}
+
+interface Read {
+  text: string;
+  confidence: number;
+}
+
+let lastBreath = 0;
+/**
+ * Lets the page draw (the progress shown) when reading has held it for a
+ * tenth of a second. The models run on the page's own thread, and without
+ * this the progress stayed at 0% until the end. A message, not a timer:
+ * browsers slow timers right down in a tab that isn't showing.
+ */
+async function breathe() {
+  if (performance.now() - lastBreath < 100) return;
+  await new Promise<void>((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => resolve();
+    channel.port2.postMessage(null);
+  });
+  lastBreath = performance.now();
+}
+
+/** Reads each region's text: cropped from the view, 48 px tall, one at a time. */
+async function recognize(e: Engine, view: View, regions: Region[]): Promise<Read[]> {
+  const t0 = performance.now();
+  const rh = 48;
+  const results: Read[] = [];
+  for (const [k, r] of regions.entries()) {
+    const w = r.x1 - r.x0;
+    const h = r.y1 - r.y0;
+    if (w < 2 || h < 2) {
+      results.push({ text: '', confidence: 0 });
+      continue;
+    }
+    const rw = Math.max(16, Math.min(3200, Math.ceil((rh * w) / h)));
+    const input = new e.ort.Tensor('float32', toChwBgr(pixels(view, r.x0, r.y0, w, h, rw, rh), rw, rh, [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]), [1, 3, rh, rw]);
+    const out = await e.rec.run({ [e.rec.inputNames[0]]: input });
+    input.dispose();
+    const t = out[e.rec.outputNames[0]];
+    const [, steps, classes] = t.dims as number[];
+    results.push(ctcDecode(t.data as Float32Array, steps, classes, e.dict));
+    t.dispose();
+    e.onLines?.((k + 1) / regions.length);
+    await breathe();
+  }
+  e.stats.recMs += performance.now() - t0;
+  return results;
+}
+
+/** The same regions with the view turned half a turn. */
+function halfTurn(view: View, regions: Region[]): [View, Region[]] {
+  const turned = { ...view, angle: view.angle + Math.PI };
+  return [turned, regions.map((r) => ({ ...r, x0: view.w - r.x1, x1: view.w - r.x0, y0: view.h - r.y1, y1: view.h - r.y0 }))];
+}
+
+const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+
 /** Reads a receipt photo and returns its text, one printed line per line. */
-export async function readReceiptText(file: File, model: OcrModel = RECEIPT_OCR, onProgress?: OcrProgress): Promise<string> {
-  const { ort, det, rec, dict } = await loadOcr(model, onProgress);
+export async function readReceiptText(
+  file: File,
+  model: OcrModel = RECEIPT_OCR,
+  onProgress?: OcrProgress,
+  options: ReadOptions = {},
+): Promise<string> {
+  const loadedModel = await loadOcr(model, onProgress);
+  const stats: ReadStats = Object.assign(options.stats ?? {}, { detMs: 0, recMs: 0, detRuns: 0, boxes: 0, turned: 0, flipMs: 0 });
+  const e: Engine = { ...loadedModel, model, options, stats };
   onProgress?.({ phase: 'read', fraction: 0 });
   const img = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  const { straighten = true, cropToText = true } = options;
   try {
-    // 1. Detection
-    const [dw, dh] = detSize(img.width, img.height);
-    const detIn = new ort.Tensor('float32', toChwBgr(pixels(img, 0, 0, img.width, img.height, dw, dh), dw, dh, MEAN, STD), [1, 3, dh, dw]);
-    const detOut = await det.run({ [det.inputNames[0]]: detIn });
-    detIn.dispose();
-    const probTensor = detOut[det.outputNames[0]];
-    const regions = dbBoxes(probTensor.data as Float32Array, dw, dh, model);
-    probTensor.dispose();
-    const sx = img.width / dw;
-    const sy = img.height / dh;
-
-    // 2. Recognition, one box at a time, from the full-resolution image.
-    const boxes: Box[] = [];
-    for (const [i, r] of regions.entries()) {
-      const x = r.x0 * sx;
-      const y = r.y0 * sy;
-      const w = (r.x1 - r.x0) * sx;
-      const h = (r.y1 - r.y0) * sy;
-      if (w >= 2 && h >= 2) {
-        const rh = 48;
-        const rw = Math.max(16, Math.min(3200, Math.ceil((rh * w) / h)));
-        const recIn = new ort.Tensor('float32', toChwBgr(pixels(img, x, y, w, h, rw, rh), rw, rh, [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]), [1, 3, rh, rw]);
-        const recOut = await rec.run({ [rec.inputNames[0]]: recIn });
-        recIn.dispose();
-        const t = recOut[rec.outputNames[0]];
-        const [, steps, classes] = t.dims as number[];
-        const { text, confidence } = ctcDecode(t.data as Float32Array, steps, classes, dict);
-        t.dispose();
-        if (text.trim() && confidence > 0.5) boxes.push({ text, x0: x, y0: y, x1: x + w, y1: y + h });
+    const maxSide = 2400;
+    let view = turnedView(img, img.width, img.height, 0);
+    let regions: Region[];
+    if (straighten || cropToText) {
+      // A first look, to see which way the text runs and where it is. At low
+      // resolution for a photo; a small image gets its one full look here.
+      const small = Math.max(img.width, img.height) <= 1600;
+      const glance = await detect(e, view, small ? maxSide : 960);
+      const slant = straighten ? textAngle(glance) : 0;
+      if (Math.abs(slant) > 0.75) {
+        view = turnedView(img, img.width, img.height, (-slant * Math.PI) / 180);
+        stats.turned = -slant;
       }
-      onProgress?.({ phase: 'read', fraction: (i + 1) / regions.length });
+      if (small && view.angle === 0) regions = glance;
+      else regions = await detect(e, view, maxSide, cropToText && !small ? textArea(view, glance) : undefined);
+    } else {
+      regions = await detect(e, view, maxSide);
     }
+
+    if (straighten && regions.length) {
+      // Level, but maybe upside down. Text the right way up reads with high
+      // confidence, so the start of a few lines is read that way first, and
+      // only read upside down too when that goes poorly.
+      const tf = performance.now();
+      const lineLike = regions.filter((r) => r.x1 - r.x0 > 3 * (r.y1 - r.y0)).sort((a, b) => b.x1 - b.x0 - (a.x1 - a.x0));
+      const sample = lineLike.slice(Math.floor(lineLike.length * 0.1), Math.floor(lineLike.length * 0.1) + 4).map((r) => ({
+        ...r,
+        x1: Math.min(r.x1, r.x0 + 8 * (r.y1 - r.y0)),
+      }));
+      const upright = mean((await recognize(e, view, sample)).map((r) => r.confidence));
+      if (upright < 0.85) {
+        const [flipped, flippedSample] = halfTurn(view, sample);
+        const upsideDown = mean((await recognize(e, flipped, flippedSample)).map((r) => r.confidence));
+        if (upsideDown > upright + 0.05) {
+          [view, regions] = halfTurn(view, regions);
+          stats.turned += 180;
+        }
+      }
+      stats.flipMs = performance.now() - tf;
+    }
+    // Finding the text is about a quarter of the time; reading it, the rest.
+    onProgress?.({ phase: 'read', fraction: 0.25 });
+    await breathe();
+    e.onLines = (f) => onProgress?.({ phase: 'read', fraction: 0.25 + 0.75 * f });
+    const reads = await recognize(e, view, regions);
+
+    const boxes: Box[] = [];
+    regions.forEach((r, i) => {
+      const { text, confidence } = reads[i];
+      if (text.trim() && confidence > 0.5) boxes.push({ text, x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1 });
+    });
+    stats.boxes = boxes.length;
     return boxesToLines(boxes).join('\n');
   } finally {
     img.close();

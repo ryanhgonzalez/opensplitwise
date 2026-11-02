@@ -355,18 +355,29 @@ function ambiguousIsDayFirst(text: string, separator: string, fallback: boolean)
  * (01/26/2018), and otherwise by ambiguousIsDayFirst.
  */
 function extractDate(text: string, dayFirst: boolean): Date | undefined {
+  // OCR often runs the date into what's beside it ("11/24/2025Time", "45a02/27/15",
+  // "24/09/201814:30"), so the edges are "not another digit", not word boundaries.
   // ISO: 2026-08-01
-  let m = text.match(/\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/);
+  let m = text.match(/(?<!\d)(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})(?!\d)/);
   if (m) { const d = makeDate(+m[1], +m[2], +m[3]); if (d) return d; }
 
-  // Numeric: DD/MM/YYYY or MM/DD/YYYY (2- or 4-digit year), same separator twice.
-  for (const n of text.matchAll(/\b(\d{1,2})([-/.])(\d{1,2})\2(\d{2,4})\b/g)) {
-    const a = +n[1];
-    const b = +n[3];
-    const year = +n[4] < 100 ? 2000 + +n[4] : +n[4];
-    const dayFirstHere = a > 12 ? true : b > 12 ? false : ambiguousIsDayFirst(text, n[2], dayFirst);
-    const d = dayFirstHere ? makeDate(year, b, a) : makeDate(year, a, b);
-    if (d) return d;
+  // Numeric: DD/MM/YYYY or MM/DD/YYYY, same separator twice. A four-digit year
+  // may run straight into the time; a two-digit one can't, or "1430" would be
+  // taken for its start. Only a full 20xx year makes it a date when a number
+  // runs into its front too ("2228524/09/2018": a receipt number, then the date).
+  const numeric = [
+    /(?<!\d)(\d{1,2})([-/.])(\d{1,2})\2(20\d{2}|\d{2}(?!\d))/g,
+    /(\d{1,2})([-/.])(\d{1,2})\2(20\d{2})/g,
+  ];
+  for (const re of numeric) {
+    for (const n of text.matchAll(re)) {
+      const a = +n[1];
+      const b = +n[3];
+      const year = +n[4] < 100 ? 2000 + +n[4] : +n[4];
+      const dayFirstHere = a > 12 ? true : b > 12 ? false : ambiguousIsDayFirst(text, n[2], dayFirst);
+      const d = dayFirstHere ? makeDate(year, b, a) : makeDate(year, a, b);
+      if (d) return d;
+    }
   }
 
   // Month name: "Aug 1, 2026" / "August 01 2026"
@@ -397,11 +408,12 @@ const NON_ITEM = /(sub\s*-?\s*total|subtotal|\btotals?\b|\btax\b|\btip\b|gratuit
 const ITEMS_END = /^\W*(sub\s*-?\s*total|totals?\b)/i;
 const endsItems = (line: string) => ITEMS_END.test(line) && moneyOnLine(line).length > 0;
 
-// "name … price", where the price may carry a currency sign (or OCR's "E" for
-// "£"), use either decimal separator, and be followed by a one- or two-character
-// tax flag ("2.88 N", "1.98 X").
+// "name … price", where the price may carry a currency sign before it (or OCR's
+// "E" for "£") or after it ("1,60 €", "4.50 EUR", as in much of Europe), use
+// either decimal separator, and be followed by a one- or two-character tax flag
+// ("2.88 N", "1.98 X").
 const ITEM_LINE =
-  /^(.*?\S)\s+(-?)\s*(?:[$£€]|E(?=\d))?\s*(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})(?:\s+[A-Z0-9]{1,2})?\s*$/;
+  /^(.*?\S)\s+(-?)\s*(?:[$£€]|E(?=\d))?\s*(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})(?:\s*(?:[$£€]|\b(?:EUR|USD|GBP)\b))?(?:\s+[A-Z0-9]{1,2})?\s*$/;
 
 /** Removes what isn't the product name: barcodes, PLU and quantity columns, tax flags. */
 function cleanItemName(raw: string): string {

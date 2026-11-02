@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ctcDecode, dbBoxes } from './receiptOcr';
+import { ctcDecode, dbBoxes, textAngle } from './receiptOcr';
 
 describe('PaddleOCR post-processing', () => {
   it('finds one box per blob of text pixels, grown by the unclip distance', () => {
@@ -29,5 +29,35 @@ describe('PaddleOCR post-processing', () => {
     const scores = new Float32Array(steps.length * 4);
     steps.forEach((c, t) => { scores[t * 4 + c] = 0.9; });
     expect(ctcDecode(scores, steps.length, 4, dict).text).toBe('AA B');
+  });
+});
+
+describe('how the text slants', () => {
+  const line = (angle: number, pixels = 400) => ({ angle, elongation: 0.95, pixels });
+
+  it('reads a region’s slant from its shape', () => {
+    // A thin line of pixels running down to the right at 1 in 10 (5.7°).
+    const w = 60, h = 12;
+    const prob = new Float32Array(w * h);
+    for (let x = 0; x < 50; x++) for (const dy of [0, 1]) prob[(2 + Math.floor(x / 10) + dy) * w + x] = 0.9;
+    const [r] = dbBoxes(prob, w, h, { thresh: 0.3, boxThresh: 0.6, unclipRatio: 1.5, minSize: 2 });
+    expect(r.angle).toBeGreaterThan(4);
+    expect(r.angle).toBeLessThan(8);
+    expect(r.elongation).toBeGreaterThan(0.9);
+  });
+
+  it('takes the weighted average of the line-like regions', () => {
+    expect(textAngle([line(5), line(6), line(4)])).toBeCloseTo(5, 5);
+    // Round blobs (single characters, logos) don't count.
+    expect(textAngle([line(-3), { angle: 40, elongation: 0.2, pixels: 5000 }])).toBeCloseTo(-3, 5);
+  });
+
+  it('treats nearly-vertical lines either side of 90° as one direction', () => {
+    // A sideways photo: 89° and -89° are both "almost vertical", not opposites.
+    expect(Math.abs(textAngle([line(89), line(-89)]))).toBeCloseTo(90, 5);
+  });
+
+  it('is level when there is nothing to go by', () => {
+    expect(textAngle([])).toBe(0);
   });
 });

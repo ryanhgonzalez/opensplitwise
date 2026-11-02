@@ -3,7 +3,7 @@ import { florenceReadText, loadFlorence, runtimeFor } from './florence';
 import { parseReceiptText, scanReceipt, scanWithTesseract } from '../lib/receiptScanner';
 import { docTagsToLines, extractJson } from './lines';
 import { PADDLE_MODELS, type BenchOcrModel } from './paddle';
-import { loadOcr, readReceiptText, RECEIPT_OCR } from '../lib/receiptOcr';
+import { loadOcr, readReceiptText, RECEIPT_OCR, type ReadStats } from '../lib/receiptOcr';
 import type { Engine, Extraction, ReceiptItem } from './types';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -278,8 +278,26 @@ function paddleEngine(m: BenchOcrModel): Engine {
   };
 }
 
+// ─── The app's reader without straightening, for comparison ─────────────────
+
+const withoutStraightening: Engine = {
+  id: 'read-unstraightened',
+  label: 'App reader without straightening or cropping',
+  downloadNote: 'The app’s models; shows what straightening adds',
+  async load() {
+    await loadOcr(RECEIPT_OCR);
+  },
+  async run(image) {
+    const stats = {} as ReadStats;
+    const t0 = now();
+    const text = await readReceiptText(image, RECEIPT_OCR, undefined, { straighten: false, cropToText: false, stats });
+    return { ms: now() - t0, raw: `${text}\n\n${JSON.stringify(stats)}`, extraction: fromText(text) };
+  },
+};
+
 export const ENGINES: Engine[] = [
   appScanner,
+  withoutStraightening,
   tesseract,
   ...PADDLE_MODELS.map(paddleEngine),
   florence2,

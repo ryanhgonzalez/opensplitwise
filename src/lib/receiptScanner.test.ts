@@ -130,6 +130,17 @@ SUBTOTAL  54.98`);
     ]);
   });
 
+  it('reads prices with the currency after them, as much of Europe prints them', () => {
+    expect(items(`GALAO  1,60 €
+AGUA 1,5L  0,65 €
+TOSTA MISTA  3.90 EUR
+SUBTOTAL  6,15 €`)).toEqual([
+      ['Galao', 1.6],
+      ['Agua 1,5l', 0.65],
+      ['Tosta Mista', 3.9],
+    ]);
+  });
+
   it('reads prices followed by a tax flag, and drops the flag from the name', () => {
     expect(items(`BREAD  007225003712 F  2.88 N
 FOLGERS  00876422682 F  10.48
@@ -216,6 +227,14 @@ describe('parseReceiptText: dates', () => {
   it('falls back to the given preference when nothing else decides', () => {
     expect(day(parseReceiptText('05/09/2026', { dayFirst: true }).date)).toBe('2026-09-05');
     expect(day(parseReceiptText('05/09/2026', { dayFirst: false }).date)).toBe('2026-05-09');
+  });
+
+  it('finds dates run into the text beside them', () => {
+    expect(day(parseReceiptText('Date: 11/24/2025Time: 10:22PM').date)).toBe('2025-11-24');
+    expect(day(parseReceiptText('SvrCk:111:45a02/27/15').date)).toBe('2015-02-27');
+    expect(day(parseReceiptText('Total £4.50\n2228524/09/201814:30 Admin').date)).toBe('2018-09-24');
+    // A barcode or a reference number isn't a date.
+    expect(parseReceiptText('REF 131000195280\nTC# 0432 2121 1542').date).toBeUndefined();
   });
 
   it('reads dotted European dates day first', () => {

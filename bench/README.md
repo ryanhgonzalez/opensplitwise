@@ -8,7 +8,8 @@ Engines compared:
 
 | Engine | Runs | One-time download | How it extracts |
 |---|---|---|---|
-| App scanner: PaddleOCR v6 small | On device (CPU, threads) | ~45 MB, cached | What ships (`src/lib/receiptOcr.ts`): text detection + recognition with positions → `parseReceiptText` |
+| App scanner: PaddleOCR v6 small | On device (CPU, threads) | ~45 MB, cached | What ships (`src/lib/receiptOcr.ts`): photo straightened and cropped to the receipt, then text detection + recognition with positions → `parseReceiptText` |
+| App reader without straightening | On device (CPU, threads) | same files | The same, with straightening and cropping off: shows what they add (tilted and sideways photos) |
 | Tesseract (fallback) | On device | ~7 MB, precached | OCR text → `parseReceiptText`. The app's fallback when the reader can't load |
 | PaddleOCR v5 mobile (English), v6 tiny | On device (CPU, threads) | ~13 MB / ~6 MB + ONNX Runtime | The app's OCR code with other models, for comparison |
 | Florence-2 base | On device (WebGPU, else WASM) | ~390 MB, cached | OCR with line positions, tiled → `parseReceiptText`. Was the app's Better scan; retired (memory, WebGPU, Firefox) |
@@ -22,7 +23,10 @@ the text was read. SmolVLM and Claude replace the parser entirely.
 ## 1. Collect and label receipts
 
 Aim for 20–30 real photos, including the hard ones: faded thermal paper,
-crumpled, long, shot at an angle, in poor light, other languages and currencies.
+crumpled, long, shot at an angle, tilted or sideways, in poor light, other
+languages and currencies. Full-size phone photos matter: small, clean images
+(like downloaded sample receipts) read well whatever the reader does, and hide
+the problems real photos have.
 
 Open the page, choose the photos, then click **Download a labels.json template**.
 Fill in each receipt's correct values:
