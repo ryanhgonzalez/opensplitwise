@@ -7,13 +7,13 @@ import { groupCurrency } from '../lib/currency';
 import { simplifies } from '../lib/calculations';
 import { GROUP_TYPES, groupTypeHint } from '../lib/groupTypes';
 import CurrencySelect from './CurrencySelect';
+import { GROUP_COLORS } from '../types';
 import type { CustomCategoryId, Group, GroupType } from '../types';
 import Avatar from './Avatar';
 import '../styles/sheet.css';
 import './CreateGroupSheet.css';
 import './EditGroupSheet.css';
 
-const PRESET_COLORS = ['#7c3aed', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#ef4444'];
 interface EditGroupSheetProps {
   open: boolean;
   onClose: () => void;
@@ -202,7 +202,7 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
               <div className="field-group">
                 <div className="field-label">Color</div>
                 <div className="cgs-color-row">
-                  {PRESET_COLORS.map(c => (
+                  {GROUP_COLORS.map(c => (
                     <button
                       key={c}
                       className={`cgs-color-dot ${color === c ? 'active' : ''}`}

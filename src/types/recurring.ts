@@ -20,6 +20,12 @@ export interface RecurringExpense {
   /** The first repeat's date. Monthly and yearly repeats keep its day of the month. */
   startDate: Date;
   template: RecurringTemplate;
+  /**
+   * A receipt photo for the first repeat, the one on the start date. It goes
+   * on that repeat when it's added, which may be later if the start is ahead.
+   * The photo itself is kept under that repeat's id (see `occurrenceId`).
+   */
+  receipt?: Expense['receipt'];
   createdAt: Date;
   /** When the template or frequency last changed; the newer version wins when shared. */
   updatedAt: Date;

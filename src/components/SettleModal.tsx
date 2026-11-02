@@ -5,15 +5,12 @@ import { useStore, selectCurrentUser } from '../store';
 import { round } from '../lib/calculations';
 import { formatCurrency } from '../utils';
 import { currencySymbol } from '../lib/currency';
+import { PAYMENT_METHOD_LABELS } from '../types';
 import type { PaymentMethod } from '../types';
 import './SettleModal.css';
 
-const paymentMethods: { id: PaymentMethod; label: string }[] = [
-  { id: 'venmo', label: 'Venmo' },
-  { id: 'cashapp', label: 'Cash App' },
-  { id: 'zelle', label: 'Zelle' },
-  { id: 'cash', label: 'Cash' },
-];
+/** The ways offered here; "Other" only comes from older records. */
+const paymentMethods = (['venmo', 'cashapp', 'zelle', 'cash'] as const).map((id) => ({ id, label: PAYMENT_METHOD_LABELS[id] }));
 
 interface SettleModalProps {
   /** Who owes the money / is making the payment. */

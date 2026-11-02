@@ -12,16 +12,9 @@ import { directDebts, moneySign, outstandingByGroup, type SettlementTransaction 
 import { groupCurrency, recordCurrency } from '../lib/currency';
 import { lastReminder } from '../lib/reminder';
 import { formatCurrency, formatDate, formatLedgerDate, formatRelativeDay, formatSigned } from '../utils';
+import { PAYMENT_METHOD_LABELS } from '../types';
 import type { PaymentMethod } from '../types';
 import './Person.css';
-
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  venmo: 'Venmo',
-  cashapp: 'Cash App',
-  zelle: 'Zelle',
-  cash: 'Cash',
-  other: 'Other',
-};
 
 /** History rows listed before "Show all". */
 const HISTORY_SHOWN = 5;

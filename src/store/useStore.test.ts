@@ -615,6 +615,27 @@ describe('recurring expenses', () => {
     expect(state().expenses.find((e) => e.id === `${rule.id}:2026-09-01`)?.amount).toBe(1100);
   });
 
+  it('puts a photo on the first month, including one that starts later', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const receipt = { bytes: 1234 };
+    // Starting today: the first month is added now, with the photo.
+    const now = state().addRecurring({
+      groupId: group.id, frequency: 'monthly', startDate: day(2026, 7, 15), receipt,
+      template: { description: 'Gym', amount: 40, currency: 'USD', paidBy: me.id, category: 'other', split: { type: 'equal', entries: [{ userId: me.id, amount: 40 }] } },
+    });
+    expect(now.added.map((e) => e.receipt)).toEqual([receipt]);
+
+    // Starting next month: nothing yet, but the first month gets it when it comes.
+    const { rule } = state().addRecurring({
+      groupId: group.id, frequency: 'monthly', startDate: day(2026, 8, 1), receipt,
+      template: { description: 'Rent', amount: 1000, currency: 'USD', paidBy: me.id, category: 'rent', split: { type: 'equal', entries: [{ userId: me.id, amount: 500 }, { userId: others[0].id, amount: 500 }] } },
+    });
+    expect(rentIds()).toEqual([]);
+    state().addDueRecurring(day(2026, 9, 15));
+    const months = state().expenses.filter((e) => e.id.startsWith(rule.id));
+    expect(months.map((e) => [e.id.slice(-10), e.receipt])).toEqual([['2026-08-01', receipt], ['2026-09-01', undefined]]);
+  });
+
   it('stops: no more months, the old ones stay, and a marker records it', () => {
     const { me, others, group } = setup(['Me', 'Alice']);
     const { rule } = rent(me, others[0], group, day(2026, 7, 1));

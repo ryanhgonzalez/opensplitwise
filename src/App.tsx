@@ -21,6 +21,7 @@ import InstallGuide from './components/InstallGuide';
 import ToastHost from './components/ToastHost';
 import { requestPersistentStorage } from './lib/dataSafety';
 import { removeOrphanPhotos } from './lib/receiptPhotos';
+import { firstOccurrenceId } from './lib/recurring';
 
 // Going to a page fades it in. Going back or forward (the back button, or a
 // swipe, which already animates on its own) swaps pages at once: fading on
@@ -121,14 +122,16 @@ export default function App() {
 
   // Receipt photos whose expense is gone (deleted, merged away, restored over)
   // are cleared out after expenses settle, and once at startup. The wait
-  // outlasts the Undo toast, so undoing a delete keeps the photo.
+  // outlasts the Undo toast, so undoing a delete keeps the photo. A repeat
+  // whose date hasn't come yet keeps the photo it was set up with.
   useEffect(() => {
     const timer = setTimeout(() => {
       const keep = new Set(expenses.filter((e) => e.receipt).map((e) => e.id));
+      for (const r of recurring) if (r.receipt) keep.add(firstOccurrenceId(r));
       removeOrphanPhotos(keep).catch(() => {});
     }, 20_000);
     return () => clearTimeout(timer);
-  }, [expenses]);
+  }, [expenses, recurring]);
 
   // Apply theme to <html data-theme="..."> and keep it in sync
   useEffect(() => {

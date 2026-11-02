@@ -7,7 +7,7 @@ import ExportImportSheet from '../components/ExportImportSheet';
 import IdentityPicker from '../components/IdentityPicker';
 import PersonSheet from '../components/PersonSheet';
 import { downloadFullBackup } from '../lib/backupNow';
-import { backupStatus, lastBackupAt } from '../lib/dataSafety';
+import { backupStatus, forgetBackups, lastBackupAt } from '../lib/dataSafety';
 import { shouldOfferInstall, showInstallGuide } from '../lib/pwa';
 import { formatRelativeDay } from '../utils/format';
 import { cleanHandle } from '../lib/reminder';
@@ -159,8 +159,11 @@ export default function Settings() {
     setWipeNameInput('');
   };
   const handleWipe = () => {
+    if (!wipeNameMatches) return;
+    // Otherwise the fresh start would say it was backed up days ago.
+    forgetBackups();
     // Resets hasOnboarded → the app returns to the onboarding screen.
-    if (wipeNameMatches) wipeAllData();
+    wipeAllData();
   };
 
   return (

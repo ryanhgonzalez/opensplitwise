@@ -754,7 +754,6 @@ export const useStore = create<AppStore>()(
           return created;
         },
 
-        /** Undo a payment that was marked complete — balances rewind to before it. */
         logReminder: (input) => {
           const activity: ReminderSentActivity = {
             id: uid(),
@@ -766,6 +765,7 @@ export const useStore = create<AppStore>()(
           set({ activities: [activity, ...get().activities] }, false, 'logReminder');
         },
 
+        /** Undo a payment that was marked complete — balances rewind to before it. */
         deleteSettlement: (id) => {
           const { settlements, activities, tombstones } = get();
           const settlement = settlements.find((s) => s.id === id);
@@ -987,14 +987,12 @@ export const useStore = create<AppStore>()(
 
         addRecurring: ({ groupId, frequency, startDate, template, receipt }) => {
           const now = new Date();
-          const rule: RecurringExpense = { id: uid(), groupId, frequency, startDate, template, createdAt: now, updatedAt: now };
+          // A photo goes on the first repeat, now or when its date comes.
+          const rule: RecurringExpense = {
+            id: uid(), groupId, frequency, startDate, template, ...(receipt && { receipt }), createdAt: now, updatedAt: now,
+          };
           set({ recurring: [...get().recurring, rule] }, false, 'addRecurring');
-          let added = get().addDueRecurring(now).filter((e) => ruleIdOf(e.id) === rule.id);
-          const first = added.find((e) => e.date.getTime() === added[0]?.date.getTime());
-          if (receipt && first) {
-            set({ expenses: get().expenses.map((e) => (e.id === first.id ? { ...e, receipt } : e)) }, false, 'addRecurring');
-            added = added.map((e) => (e.id === first.id ? { ...e, receipt } : e));
-          }
+          const added = get().addDueRecurring(now).filter((e) => ruleIdOf(e.id) === rule.id);
           return { rule, added };
         },
 

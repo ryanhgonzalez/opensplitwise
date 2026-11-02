@@ -5,12 +5,12 @@ import { localeCurrency } from '../lib/currency';
 import { GROUP_TYPES, groupTypeHint } from '../lib/groupTypes';
 import CurrencySelect from './CurrencySelect';
 import { firstGrapheme } from '../lib/emoji';
+import { GROUP_COLORS } from '../types';
 import type { GroupType } from '../types';
 import Avatar from './Avatar';
 import '../styles/sheet.css';
 import './CreateGroupSheet.css';
 
-const PRESET_COLORS = ['#7c3aed', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#ef4444'];
 interface CreateGroupSheetProps {
   open: boolean;
   onClose: () => void;
@@ -168,7 +168,7 @@ export default function CreateGroupSheet({ open, onClose, onCreated }: CreateGro
               <div className="field-group">
                 <div className="field-label">Color</div>
                 <div className="cgs-color-row">
-                  {PRESET_COLORS.map(c => (
+                  {GROUP_COLORS.map(c => (
                     <button
                       key={c}
                       className={`cgs-color-dot ${color === c ? 'active' : ''}`}

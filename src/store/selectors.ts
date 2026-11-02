@@ -21,19 +21,6 @@ export const selectActivities = (s: AppStore): Activity[] => {
   return _sortedActivities;
 };
 
-// Memoized per limit: returns the same array reference when s.expenses hasn't changed.
-const _recentExpensesCache = new Map<number, { ref: Expense[]; result: Expense[] }>();
-
-export const selectRecentExpenses = (limit = 10) => (s: AppStore): Expense[] => {
-  const cached = _recentExpensesCache.get(limit);
-  if (cached?.ref === s.expenses) return cached.result;
-  const result = [...s.expenses]
-    .sort((a, b) => b.date.getTime() - a.date.getTime())
-    .slice(0, limit);
-  _recentExpensesCache.set(limit, { ref: s.expenses, result });
-  return result;
-};
-
 // ─── Derived balances ─────────────────────────────────────────────────────────
 
 // Balances are computed from the raw records rather than stored, so they cannot

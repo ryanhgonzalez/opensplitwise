@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { backupStatus, isBackupReminderDue } from './dataSafety';
+import { backupSnoozedUntil, backupStatus, forgetBackups, isBackupReminderDue, lastBackupAt, markBackedUp, snoozeBackupReminder } from './dataSafety';
 
 const NOW = new Date(2026, 9, 12, 12);
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000);
@@ -43,5 +43,18 @@ describe('isBackupReminderDue', () => {
     const groupsOnly = { expenses: [], settlements: [], groups: [{ createdAt: daysAgo(30) }] };
     expect(isBackupReminderDue(groupsOnly, backupStatus(groupsOnly, undefined), undefined, NOW)).toBe(false);
     expect(isBackupReminderDue(records, backupStatus(records, daysAgo(1)), undefined, NOW)).toBe(false);
+  });
+});
+
+describe('forgetBackups', () => {
+  it('clears the last backup and any "Later", for a fresh start', () => {
+    markBackedUp(daysAgo(3));
+    snoozeBackupReminder(NOW);
+    expect(lastBackupAt()).toEqual(daysAgo(3));
+    expect(backupSnoozedUntil()).toBeDefined();
+
+    forgetBackups();
+    expect(lastBackupAt()).toBeUndefined();
+    expect(backupSnoozedUntil()).toBeUndefined();
   });
 });

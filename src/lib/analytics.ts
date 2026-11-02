@@ -2,6 +2,7 @@ import type { Expense, ExpenseCategory, Group, User } from '../types';
 import { categoryInfo, isCustomCategory } from './categories';
 import { getShareForUser } from '../utils/expense';
 import { signedAmount } from './calculations';
+import { shortName } from '../utils/user';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -113,12 +114,7 @@ export function getGroupContributions(
       const totalSpent = gExp.reduce((s, e) => s + signedAmount(e), 0);
       if (totalSpent === 0) return null;
 
-      // First names, unless two members share one ("Frank" and "Frank Jr").
-      const firsts = group.members.map(m => users.find(u => u.id === m.userId)?.name.split(' ')[0]);
-      const shortName = (name: string) => {
-        const first = name.split(' ')[0];
-        return firsts.filter(f => f === first).length > 1 ? name : first;
-      };
+      const names = group.members.map(m => users.find(u => u.id === m.userId)?.name);
 
       const members: MemberContribution[] = group.members
         .map(m => {
@@ -130,7 +126,7 @@ export function getGroupContributions(
           const share = gExp.reduce((s, e) => s + getShareForUser(e, m.userId), 0);
           return {
             userId: m.userId,
-            name: m.userId === currentUserId ? 'You' : shortName(user.name),
+            name: m.userId === currentUserId ? 'You' : shortName(user.name, names),
             initials: user.initials,
             avatarColor: user.avatarColor,
             paid,
@@ -262,33 +258,4 @@ export const inRange = (expenses: Expense[], range: Range): Expense[] =>
 /** The biggest expenses (not refunds), largest first. */
 export function getLargestExpenses(expenses: Expense[], count = 5): Expense[] {
   return expenses.filter((e) => !e.refund && e.amount > 0).sort((a, b) => b.amount - a.amount).slice(0, count);
-}
-
-export interface SharedWith {
-  userId: string;
-  /** Your share of the expenses they were part of. */
-  amount: number;
-}
-
-/**
- * Who you share spending with: for each person, your share of the expenses
- * they were in (paid for, or had a share of). One expense counts for everyone
- * in it. Empty when it would say nothing: one other person, or everyone the same.
- */
-export function getSharedWith(expenses: Expense[], userId: string): SharedWith[] {
-  const totals = new Map<string, number>();
-  for (const e of expenses) {
-    const mine = getShareForUser(e, userId);
-    if (Math.abs(mine) < 0.005) continue;
-    const others = new Set(e.split.entries.filter((en) => en.amount > 0).map((en) => en.userId));
-    others.add(e.paidBy);
-    others.delete(userId);
-    for (const id of others) totals.set(id, (totals.get(id) ?? 0) + mine);
-  }
-  const rows = [...totals.entries()]
-    .map(([id, amount]) => ({ userId: id, amount: Math.round(amount * 100) / 100 }))
-    .filter((r) => r.amount >= 0.005)
-    .sort((a, b) => b.amount - a.amount);
-  if (rows.length < 2 || rows[0].amount - rows[rows.length - 1].amount < 0.01) return [];
-  return rows;
 }

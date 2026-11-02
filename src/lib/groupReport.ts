@@ -2,7 +2,8 @@ import jsPDF from 'jspdf';
 import { autoTable, type CellDef, type RowInput, type UserOptions } from 'jspdf-autotable';
 
 type ColumnStyles = NonNullable<UserOptions['columnStyles']>;
-import type { Group, Expense, User, Settlement, PaymentMethod } from '../types';
+import { PAYMENT_METHOD_LABELS } from '../types';
+import type { Group, Expense, User, Settlement } from '../types';
 import { categoryLabel } from './categories';
 import { groupCurrency } from './currency';
 import { formatCurrency } from '../utils/format';
@@ -94,14 +95,6 @@ async function loadFonts(doc: jsPDF): Promise<Fonts> {
 }
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
-
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  venmo: 'Venmo',
-  cashapp: 'Cash App',
-  zelle: 'Zelle',
-  cash: 'Cash',
-  other: 'Other',
-};
 
 /**
  * The group's currency, unsigned. The embedded fonts cover Latin-1 plus €, so

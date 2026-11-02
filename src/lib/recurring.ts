@@ -54,6 +54,9 @@ export const ruleMentions = (rule: Pick<RecurringExpense, 'template'>, userId: s
   rule.template.split.entries.some((en) => en.userId === userId) ||
   !!rule.template.items?.some((it) => it.assigned.includes(userId));
 
+/** The id the first repeat has, or will have once its date comes: where its photo is kept. */
+export const firstOccurrenceId = (rule: Pick<RecurringExpense, 'id' | 'startDate'>) => occurrenceId(rule, rule.startDate);
+
 /** The rule a repeat came from, from its id; undefined for an ordinary expense. */
 export const ruleIdOf = (expenseId: string) => (/:\d{4}-\d{2}-\d{2}$/.test(expenseId) ? expenseId.slice(0, -11) : undefined);
 
@@ -79,7 +82,9 @@ export function dueRepeats(rule: RecurringExpense, today: Date, skip: (id: strin
     if (date.getTime() > end) break;
     const id = occurrenceId(rule, date);
     if (skip(id)) continue;
-    due.push({ ...rule.template, id, groupId: rule.groupId, date, createdAt: date, updatedAt: date });
+    // The first repeat carries the photo it was set up with.
+    const receipt = n === 0 ? rule.receipt : undefined;
+    due.push({ ...rule.template, id, groupId: rule.groupId, date, createdAt: date, updatedAt: date, ...(receipt && { receipt }) });
   }
   return due.slice(-MAX_CATCH_UP);
 }

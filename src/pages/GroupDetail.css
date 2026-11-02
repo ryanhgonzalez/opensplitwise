@@ -463,8 +463,7 @@
   padding: 8px 0;
 }
 
-.gd-col-wide,
-.gd-col-wide-inline {
+.gd-col-wide {
   display: none;
 }
 
@@ -489,13 +488,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.gd-cat {
-  font-size: 11px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .gd-share {
@@ -549,11 +541,6 @@
 
 .gd-balance-amount {
   font-weight: 600;
-}
-
-.gd-balances-empty {
-  padding: 12px 0;
-  border-top: 1px solid var(--ink);
 }
 
 /* ── Desktop ───────────────────────────────────────────────────────────────── */
@@ -626,10 +613,6 @@
 
   .gd-col-wide {
     display: block;
-  }
-
-  .gd-col-wide-inline {
-    display: inline;
   }
 
   .gd-meta-mobile {

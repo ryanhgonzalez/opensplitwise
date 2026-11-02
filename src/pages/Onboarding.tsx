@@ -2,9 +2,12 @@ import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store';
 import { parseAndValidate } from '../lib/dataExport';
+import { GROUP_COLORS } from '../types';
 import type { GroupType } from '../types';
 import { localeCurrency } from '../lib/currency';
+import { GROUP_TYPES, groupTypeHint } from '../lib/groupTypes';
 import CurrencySelect from '../components/CurrencySelect';
+import '../styles/sheet.css';
 import './Onboarding.css';
 
 const features = [
@@ -14,14 +17,6 @@ const features = [
 ];
 
 const GROUP_EMOJIS = ['🏠', '✈️', '🍽️', '🎉', '💼', '🏖️', '🎓', '⚽'];
-const PRESET_COLORS = ['#7c3aed', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#ef4444'];
-const GROUP_TYPES: { value: GroupType; label: string }[] = [
-  { value: 'home', label: 'Home' },
-  { value: 'trip', label: 'Trip' },
-  { value: 'work', label: 'Work' },
-  { value: 'event', label: 'Event' },
-  { value: 'other', label: 'Other' },
-];
 
 const container = {
   hidden: { opacity: 0 },
@@ -242,7 +237,7 @@ export default function Onboarding() {
               {/* Color */}
               <span className="ob-label">Color</span>
               <div className="ob-chip-row">
-                {PRESET_COLORS.map((c) => (
+                {GROUP_COLORS.map((c) => (
                   <button
                     key={c}
                     className={`ob-color-dot ${color === c ? 'active' : ''}`}
@@ -268,6 +263,7 @@ export default function Onboarding() {
                   </button>
                 ))}
               </div>
+              <p className="group-type-hint">{groupTypeHint(type)}</p>
 
               {/* Currency */}
               <label className="ob-label" htmlFor="ob-currency">Currency</label>

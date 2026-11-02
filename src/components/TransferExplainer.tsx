@@ -5,6 +5,7 @@ import { useStore, selectCurrentUser } from '../store';
 import { directDebts, groupTransfers, simplifies, type SettlementTransaction } from '../lib/calculations';
 import { groupCurrency } from '../lib/currency';
 import { formatCurrency } from '../utils';
+import { shortName } from '../utils/user';
 import './SettleModal.css';
 import './TransferExplainer.css';
 
@@ -48,14 +49,11 @@ export default function TransferExplainer({ groupId, transfer, showGroup = false
   if (!payer || !recipient || !group) return null;
 
   const currency = groupCurrency(group);
-  // First names, unless two members share one ("Frank" and "Frank Jr").
-  const firsts = group.members.map((m) => users.find((u) => u.id === m.userId)?.name.split(' ')[0]);
+  const names = group.members.map((m) => users.find((u) => u.id === m.userId)?.name);
   const nameOf = (uid: string, lower = false) => {
     if (uid === me) return lower ? 'you' : 'You';
     const name = users.find((u) => u.id === uid)?.name;
-    if (!name) return 'Unknown';
-    const first = name.split(' ')[0];
-    return firsts.filter((f) => f === first).length > 1 ? name : first;
+    return name ? shortName(name, names) : 'Unknown';
   };
 
   const verb = (uid: string, you: string, other: string) => (uid === me ? you : other);

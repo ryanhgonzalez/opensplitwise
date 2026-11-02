@@ -10,7 +10,7 @@ import { convertSplit, currencySymbol, groupCurrency, recordCurrency } from '../
 import CurrencySelect from './CurrencySelect';
 import ReceiptViewer from './ReceiptViewer';
 import { compressReceiptPhoto, formatBytes, loadPhoto, savePhoto } from '../lib/receiptPhotos';
-import { FREQUENCY_LABELS, nextOccurrence, ruleIdOf } from '../lib/recurring';
+import { FREQUENCY_LABELS, firstOccurrenceId, nextOccurrence, ruleIdOf } from '../lib/recurring';
 import { showToast } from '../lib/toast';
 import { canLocate, currentLocation, formatAccuracy, formatCoords, mapsUrl, type ExpenseLocation } from '../lib/location';
 import { formatDistance, nearbyPlaces, type NearbyPlace } from '../lib/places';
@@ -18,6 +18,7 @@ import type { RepeatFrequency } from '../types';
 import type { TotalCandidate } from '../lib/receiptScanner';
 import { formatCurrency } from '../utils/format';
 import Avatar from './Avatar';
+import { shortName } from '../utils/user';
 import '../styles/sheet.css';
 import './AddExpenseSheet.css';
 
@@ -234,12 +235,8 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const selectedGroup = useMemo(() => groups.find(g => g.id === groupId), [groups, groupId]);
   const groupMemberIds = useMemo(() => selectedGroup?.members.map(m => m.userId) ?? [], [selectedGroup]);
   const getUserById = (id: string) => users.find(u => u.id === id);
-  /** First name, unless someone else in the group shares it ("Frank" and "Frank Jr"). */
-  const shortName = (u: { name: string }) => {
-    const first = u.name.split(' ')[0];
-    const same = (selectedGroup?.members ?? []).filter(m => getUserById(m.userId)?.name.split(' ')[0] === first).length;
-    return same > 1 ? u.name : first;
-  };
+  const memberNames = (selectedGroup?.members ?? []).map(m => getUserById(m.userId)?.name);
+  const nameIn = (u: { name: string }) => shortName(u.name, memberNames);
 
   // A custom category belongs to one group; moving the expense elsewhere drops it to Other.
   useEffect(() => {
@@ -334,7 +331,9 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     }
   }, [groupId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const parsedAmount = parseFloat(amountStr) || 0;
+  // Money is kept in whole cents: "12.345" is €12.35, or a split worked out in
+  // cents wouldn't add up to the amount, and balances would be a cent off.
+  const parsedAmount = round(parseFloat(amountStr) || 0);
   const groupCur = groupCurrency(selectedGroup);
   const cur = entryCurrency ?? groupCur;
   const isForeign = cur !== groupCur;
@@ -349,13 +348,13 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     splitEvenly(parsedAmount, checkedParticipants.map(p => p.userId)).map(e => [e.userId, e.amount]),
   );
 
-  // Running total for exact / percentage modes
-  const enteredTotal = useMemo(() => {
-    if (splitType === 'exact' || splitType === 'percentage') {
-      return checkedParticipants.reduce((s, p) => s + (parseFloat(p.value) || 0), 0);
-    }
-    return parsedAmount;
-  }, [participants, splitType, parsedAmount]);
+  // Running total for exact / percentage modes. Amounts count in cents, as saving keeps them.
+  const enteredTotal =
+    splitType === 'exact'
+      ? checkedParticipants.reduce((s, p) => s + round(parseFloat(p.value) || 0), 0)
+      : splitType === 'percentage'
+        ? checkedParticipants.reduce((s, p) => s + (parseFloat(p.value) || 0), 0)
+        : parsedAmount;
 
   const remainder = splitType === 'exact'
     ? round(parsedAmount - enteredTotal)
@@ -597,14 +596,15 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     } else if (repeat && groupId && !isRefund) {
       // Repeating: the rule adds this one (if its date has come) and the rest as they're due.
       const start = new Date(expenseDate.getFullYear(), expenseDate.getMonth(), expenseDate.getDate());
-      const { rule, added: repeats } = addRecurring({
+      const { rule } = addRecurring({
         groupId,
         frequency: repeat,
         startDate: start,
         template: { description: description.trim(), amount, currency: groupCur, original, paidBy, split, category, items },
         receipt,
       });
-      if (newPhoto && repeats[0]) void savePhoto(repeats[0].id, newPhoto.blob);
+      // Kept under the first repeat's id, which it has even before its date comes.
+      if (newPhoto) void savePhoto(firstOccurrenceId(rule), newPhoto.blob);
       const next = nextOccurrence(rule, new Date(Date.now() + 86_400_000));
       showToast({
         message: `${description.trim()} repeats ${FREQUENCY_LABELS[repeat].toLowerCase()}; next on ${next.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
@@ -670,7 +670,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const nameOf = (id: string) => {
     if (id === currentUser.id) return 'You';
     const u = getUserById(id);
-    return u ? shortName(u) : 'Someone';
+    return u ? nameIn(u) : 'Someone';
   };
   const payer = getUserById(paidBy);
   const catInfo = categoryInfo(category, selectedGroup);

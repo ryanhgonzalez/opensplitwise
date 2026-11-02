@@ -15,8 +15,10 @@ import {
 } from '../lib/calculations';
 import { EMPTY_FILTER, categoryOptions, filterExpenses, isFilterActive, type ExpenseFilter } from '../lib/expenseFilter';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned, getNetAmountForUser } from '../utils';
+import { shortName } from '../utils/user';
 import '../styles/sheet.css';
 import { categoryLabel } from '../lib/categories';
+import { PAYMENT_METHOD_LABELS } from '../types';
 import type { PaymentMethod } from '../types';
 import Avatar from '../components/Avatar';
 import GroupTile from '../components/GroupTile';
@@ -32,14 +34,6 @@ import { useGroupReport } from '../components/useGroupReport';
 import TransferExplainer from '../components/TransferExplainer';
 import { expenseAmountLabel, groupCurrency } from '../lib/currency';
 import './GroupDetail.css';
-
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  venmo: 'Venmo',
-  cashapp: 'Cash App',
-  zelle: 'Zelle',
-  cash: 'Cash',
-  other: 'Other',
-};
 
 /** Expenses listed before "Show all". */
 const EXPENSES_SHOWN = 10;
@@ -214,18 +208,11 @@ export default function GroupDetail() {
   );
 
   const getUserById = (uid: string) => users.find(u => u.id === uid);
-  // First names, unless two members share one ("Frank" and "Frank Jr").
-  const firstNameCounts: Record<string, number> = {};
-  for (const m of group?.members ?? []) {
-    const first = getUserById(m.userId)?.name.split(' ')[0];
-    if (first) firstNameCounts[first] = (firstNameCounts[first] ?? 0) + 1;
-  }
+  const memberNames = (group?.members ?? []).map(m => getUserById(m.userId)?.name);
   const nameOf = (uid: string, lower = false) => {
     if (uid === currentUser.id) return lower ? 'you' : 'You';
     const name = getUserById(uid)?.name;
-    if (!name) return 'Unknown';
-    const first = name.split(' ')[0];
-    return firstNameCounts[first] > 1 ? name : first;
+    return name ? shortName(name, memberNames) : 'Unknown';
   };
 
   // When the group is deleted from the store, navigate away instead of flashing a blank state.

@@ -74,6 +74,16 @@ export function snoozeBackupReminder(now = new Date()): void {
 
 export const backupSnoozedUntil = () => readDate(SNOOZE_KEY);
 
+/** After erasing everything: the last backup and any "Later" were about the data that's gone. */
+export function forgetBackups(): void {
+  try {
+    localStorage.removeItem(LAST_BACKUP_KEY);
+    localStorage.removeItem(SNOOZE_KEY);
+  } catch {
+    // Storage blocked: nothing was kept to forget.
+  }
+}
+
 export interface BackupStatus {
   /** Expenses, payments and groups created or edited since the last backup. */
   unsavedChanges: number;

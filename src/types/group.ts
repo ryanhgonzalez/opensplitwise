@@ -2,6 +2,9 @@ import type { CustomCategoryId } from './expense';
 
 export type GroupType = 'trip' | 'home' | 'couple' | 'family' | 'friends' | 'work' | 'event' | 'other';
 
+/** The colours a group can be given. */
+export const GROUP_COLORS = ['#7c3aed', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#ef4444'];
+
 export interface GroupMember {
   userId: string;
   role: 'owner' | 'member';

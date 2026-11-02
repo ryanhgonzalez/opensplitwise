@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RecurringExpense } from '../types';
-import { dayKey, dueRepeats, nextOccurrence, occurrence, occurrenceId, ruleIdOf } from './recurring';
+import { dayKey, dueRepeats, firstOccurrenceId, nextOccurrence, occurrence, occurrenceId, ruleIdOf } from './recurring';
 
 const d = (y: number, m: number, day: number) => new Date(y, m - 1, day);
 const days = (dates: Date[]) => dates.map(dayKey);
@@ -50,6 +50,13 @@ describe('dueRepeats', () => {
     const have = new Set(['rent:2026-01-31', 'rent:2026-02-28']);
     expect(dueRepeats(rent(), d(2026, 4, 15), (id) => have.has(id)).map((e) => e.id)).toEqual(['rent:2026-03-31']);
     expect(dueRepeats(rent({ startDate: d(2026, 5, 1) }), d(2026, 4, 15), () => false)).toEqual([]);
+  });
+
+  it('puts the rule’s photo on the first repeat only, under the id it’s kept by', () => {
+    const due = dueRepeats(rent({ receipt: { bytes: 99 } }), d(2026, 4, 15), () => false);
+    expect(due.map((e) => e.receipt)).toEqual([{ bytes: 99 }, undefined, undefined]);
+    expect(firstOccurrenceId(rent())).toBe(due[0].id);
+    expect(dueRepeats(rent(), d(2026, 2, 1), () => false)[0]).not.toHaveProperty('receipt');
   });
 
   it('knows a repeat’s rule from its id', () => {

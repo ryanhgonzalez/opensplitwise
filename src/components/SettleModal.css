@@ -86,7 +86,6 @@
   color: var(--muted);
 }
 
-.amount-value,
 .amount-input {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;

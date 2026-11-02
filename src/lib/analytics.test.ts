@@ -3,7 +3,6 @@ import {
   chooseStep,
   getGroupContributions,
   getLargestExpenses,
-  getSharedWith,
   getTrend,
   inRange,
   periodStart,
@@ -111,27 +110,6 @@ describe('trend', () => {
 describe('getLargestExpenses', () => {
   it('ranks by amount and leaves refunds out', () => {
     expect(getLargestExpenses(all, 2).map((e) => e.id)).toEqual(['fare', 'deposit']);
-  });
-});
-
-describe('getSharedWith', () => {
-  const split = (ids: string[], each: number) => ({ type: 'equal' as const, entries: ids.map((userId) => ({ userId, amount: each })) });
-  it('adds up your share of the expenses each person was in', () => {
-    const rows = getSharedWith(
-      [
-        expense('dinner', now, 90, { split: split(['me', 'ben', 'carla'], 30) }),
-        expense('taxi', now, 20, { paidBy: 'ben', split: split(['me', 'ben'], 10) }),
-      ],
-      'me',
-    );
-    expect(rows).toEqual([
-      { userId: 'ben', amount: 40 },
-      { userId: 'carla', amount: 30 },
-    ]);
-  });
-
-  it('says nothing when everyone is in everything', () => {
-    expect(getSharedWith([expense('dinner', now, 90, { split: split(['me', 'ben', 'carla'], 30) })], 'me')).toEqual([]);
   });
 });
 

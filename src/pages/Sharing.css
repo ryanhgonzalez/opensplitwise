@@ -552,8 +552,7 @@
     gap: 28px;
   }
 
-  .sharing-topbar,
-  .sharing-narrow {
+  .sharing-topbar {
     display: none;
   }
 
@@ -648,7 +647,6 @@
     max-width: 360px;
     margin-bottom: 0;
   }
-
 
   .share-side-name {
     font-size: 20px;

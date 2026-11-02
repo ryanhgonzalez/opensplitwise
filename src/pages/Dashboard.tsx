@@ -13,7 +13,8 @@ import { recordCurrency } from '../lib/currency';
 import { nextOccurrence } from '../lib/recurring';
 import { lastReminder } from '../lib/reminder';
 import { formatCurrency, formatRelativeDay, formatSigned } from '../utils';
-import type { PaymentMethod, RecurringExpense } from '../types';
+import type { Group, PaymentMethod, RecurringExpense } from '../types';
+import { shortName } from '../utils/user';
 import './Dashboard.css';
 
 /** What's open between you and one person, across all your groups, in one currency. */
@@ -61,24 +62,23 @@ export default function Dashboard() {
   const me = currentUser.id;
   const getUserById = (id: string) => users.find((u) => u.id === id);
   const getGroupById = (id?: string) => (id ? groups.find((g) => g.id === id) : undefined);
-  // First name, unless someone else has the same one ("Frank" and "Frank Jr").
   const firstName = (id: string) => {
     if (id === me) return 'You';
     const name = getUserById(id)?.name;
-    if (!name) return 'Someone';
-    const first = name.split(' ')[0];
-    return users.filter((u) => u.name.split(' ')[0] === first).length > 1 ? name : first;
+    return name ? shortName(name, users.map((u) => u.name)) : 'Someone';
   };
 
-  // Your groups, the one with the latest expense first.
+  // Your groups, the one with the latest expense first. A group with none yet
+  // counts from when it was made, so a new one comes first.
   const myGroups = useMemo(() => {
     const latest = new Map<string, number>();
     for (const e of expenses) {
       if (e.groupId) latest.set(e.groupId, Math.max(latest.get(e.groupId) ?? 0, e.date.getTime()));
     }
+    const lastUsed = (g: Group) => latest.get(g.id) ?? g.createdAt.getTime();
     return groups
       .filter((g) => g.members.some((m) => m.userId === me))
-      .sort((a, b) => (latest.get(b.id) ?? a.createdAt.getTime()) - (latest.get(a.id) ?? b.createdAt.getTime()));
+      .sort((a, b) => lastUsed(b) - lastUsed(a));
   }, [groups, expenses, me]);
 
   // One line per person and currency, the same balances People shows.

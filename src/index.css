@@ -186,9 +186,6 @@ h4 { font-size: 14px; font-weight: 600; line-height: 1.35; }
 .neg { color: var(--owe); }
 .zero { color: var(--muted); }
 
-/* Section rule: the 2 px ink line that opens a block. */
-.rule-top { border-top: 2px solid var(--ink); }
-
 /* Summary strip: a row of figures under a section rule. */
 .statement {
   display: grid;
@@ -309,34 +306,6 @@ h4 { font-size: 14px; font-weight: 600; line-height: 1.35; }
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
-}
-
-/* Segmented control */
-.seg {
-  display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.seg > button {
-  min-height: 40px;
-  padding: 0 14px;
-  border: 0;
-  background: var(--paper);
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.seg > button + button {
-  border-left: 1px solid var(--border);
-}
-
-.seg > button.active,
-.seg > button[aria-pressed='true'] {
-  background: var(--ink);
-  color: var(--on-ink);
 }
 
 /* Empty state: a dashed box with a heading, a line of help and maybe an action */

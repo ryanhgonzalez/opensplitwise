@@ -353,15 +353,6 @@
   overflow: visible;
 }
 
-/* Who you share with */
-.ins-who-row {
-  display: grid;
-  grid-template-columns: 28px 80px minmax(0, 1fr) 84px;
-  align-items: center;
-  gap: 10px;
-  min-height: 48px;
-}
-
 /* Largest expenses: a table on desktop, a compact list on phones */
 .ins-big {
   display: flex;
