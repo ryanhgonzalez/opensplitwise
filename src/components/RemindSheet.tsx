@@ -33,7 +33,11 @@ export default function RemindSheet({ personId, amount, currency, groupIds, onCl
 
   const person = users.find((u) => u.id === personId);
   const firstName = person?.name.split(' ')[0] ?? '';
-  const groupNames = groupIds.map((id) => groups.find((g) => g.id === id)?.name).filter((n): n is string => !!n);
+  // Named groups only: what's just between you needs no name.
+  const groupNames = groupIds
+    .map((id) => groups.find((g) => g.id === id))
+    .filter((g) => g && !g.direct)
+    .map((g) => g!.name);
 
   const [tone, setTone] = useState<Tone>('friendly');
   const items = useMemo(

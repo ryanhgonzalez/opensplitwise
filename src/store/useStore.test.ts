@@ -5,6 +5,7 @@ import { round } from '../lib/calculations';
 import type { ExpenseUpdatedActivity, Group, RecurringExpense, RecurringTemplate, Tombstone, User } from '../types';
 import { reviveDates } from '../lib/dates';
 import { getEditBalanceChange, getEditSummary } from '../utils/activity';
+import { buildBundle } from '../lib/groupSync';
 
 // ─── Harness ──────────────────────────────────────────────────────────────────
 
@@ -889,5 +890,62 @@ describe('importContacts', () => {
     expect(result).toEqual({ added: 1, updated: 1 });
     expect(state().users.find((u) => u.name === 'Bob Reis')).toMatchObject({ phone: '+15550001111', email: 'bob@example.com', initials: 'BR' });
     expect(state().users.find((u) => u.id === others[0].id)?.phone).toBe('+15552223333');
+  });
+});
+
+describe('archiving a group', () => {
+  it('archives and brings back, without changing the shared details', () => {
+    const { group } = setup(['Me', 'Alice']);
+    const editedBefore = state().groups[0].updatedAt;
+    state().setGroupArchived(group.id, true);
+    expect(state().groups[0].archivedAt).toBeInstanceOf(Date);
+    expect(state().groups[0].updatedAt).toBe(editedBefore);
+    state().setGroupArchived(group.id, false);
+    expect(state().groups[0].archivedAt).toBeUndefined();
+  });
+
+  it('keeps counting balances, and a new expense brings the group back', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    addEvenExpense(me.id, [me.id, others[0].id], 40, group.id);
+    state().setGroupArchived(group.id, true);
+    expect(friendBalances()[others[0].id]).toBe(20);
+    addEvenExpense(me.id, [me.id, others[0].id], 10, group.id);
+    expect(state().groups[0].archivedAt).toBeUndefined();
+  });
+
+  it('is not shared with others', () => {
+    const { group } = setup(['Me', 'Alice']);
+    state().setGroupArchived(group.id, true);
+    const bundle = buildBundle(dataSnapshot(state()), group.id)!;
+    expect(bundle.group.archivedAt).toBeUndefined();
+  });
+});
+
+describe('expenses with one person', () => {
+  it('makes one two-person group per person and reuses it', () => {
+    const { me, others } = setup(['Me Person', 'Alice Smith']);
+    const alice = others[0];
+    const first = state().openDirectGroup(alice.id);
+    expect(first.direct).toBe(true);
+    expect(first.name).toBe('Me & Alice');
+    expect(first.members.map((m) => m.userId).sort()).toEqual([me.id, alice.id].sort());
+    expect(state().openDirectGroup(alice.id).id).toBe(first.id);
+    expect(state().groups.filter((g) => g.direct)).toHaveLength(1);
+  });
+
+  it('counts toward what you two owe each other', () => {
+    const { me, others, group } = setup(['Me', 'Alice']);
+    const alice = others[0];
+    addEvenExpense(me.id, [me.id, alice.id], 20, group.id);
+    addEvenExpense(alice.id, [me.id, alice.id], 50, state().openDirectGroup(alice.id).id);
+    expect(friendBalances()[alice.id]).toBe(-15);
+  });
+
+  it('goes when the person is deleted', () => {
+    const { me, others } = setup(['Me', 'Alice']);
+    const direct = state().openDirectGroup(others[0].id);
+    addEvenExpense(me.id, [me.id, others[0].id], 20, direct.id);
+    state().deleteUser(others[0].id);
+    expect(state().groups.some((g) => g.id === direct.id)).toBe(false);
   });
 });

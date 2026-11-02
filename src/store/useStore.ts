@@ -29,6 +29,8 @@ import { withoutLegacyTotals } from '../lib/dataExport';
 import { cleanCategoryName, findCategoryByName } from '../lib/categories';
 import { round, outstandingByGroup, allocatePayment } from '../lib/calculations';
 import { reviveDates } from '../lib/dates';
+import { directGroupDraft, directGroupWith } from '../lib/directGroups';
+import { selectMainCurrency } from './selectors';
 
 // ─── Action input types ───────────────────────────────────────────────────────
 
@@ -121,6 +123,10 @@ export interface AppStore {
   createGroup: (input: CreateGroupInput) => Group;
   updateGroup: (id: string, updates: UpdateGroupInput) => void;
   deleteGroup: (id: string) => void;
+  /** Archive or bring back a group, on this phone only. */
+  setGroupArchived: (id: string, archived: boolean) => void;
+  /** Your group with just this person, made if there isn't one yet. */
+  openDirectGroup: (userId: string) => Group;
   addGroupMember: (groupId: string, userId: string) => void;
   removeGroupMember: (groupId: string, userId: string) => void;
   /**
@@ -382,7 +388,12 @@ export const useStore = create<AppStore>()(
             {
               expenses: [...expenses, expense],
               activities: [activity, ...activities],
-              groups: input.groupId ? touchGroups(groups, new Set([input.groupId]), now) : groups,
+              // Something new in an archived group brings it back.
+              groups: input.groupId
+                ? touchGroups(groups, new Set([input.groupId]), now).map((g) =>
+                    g.id === input.groupId && g.archivedAt ? { ...g, archivedAt: undefined } : g,
+                  )
+                : groups,
             },
             false,
             'addExpense',
@@ -522,6 +533,26 @@ export const useStore = create<AppStore>()(
             false,
             'updateGroup',
           );
+        },
+
+        setGroupArchived: (id, archived) =>
+          set(
+            {
+              // Not a shared detail, so updatedAt stays as it was.
+              groups: get().groups.map((g) => (g.id === id ? { ...g, archivedAt: archived ? new Date() : undefined } : g)),
+            },
+            false,
+            'setGroupArchived',
+          ),
+
+        openDirectGroup: (userId) => {
+          const state = get();
+          const existing = directGroupWith(state.groups, state.currentUserId, userId);
+          if (existing) return existing;
+          const me = state.users.find((u) => u.id === state.currentUserId);
+          const them = state.users.find((u) => u.id === userId);
+          if (!me || !them) throw new Error('openDirectGroup: unknown person');
+          return state.createGroup(directGroupDraft(me, them, selectMainCurrency(state)));
         },
 
         deleteGroup: (id) => {
@@ -855,10 +886,13 @@ export const useStore = create<AppStore>()(
               users: users.filter((u) => u.id !== id),
               expenses: expenses.filter((e) => !purgedExpenseIds.has(e.id)),
               settlements: settlements.filter((s) => s.fromUserId !== id && s.toUserId !== id),
-              groups: groups.map((g) => ({
-                ...g,
-                members: g.members.filter((m) => m.userId !== id),
-              })),
+              groups: groups
+                // Their expenses are gone, and so is what was just between you.
+                .filter((g) => !(g.direct && g.members.some((m) => m.userId === id)))
+                .map((g) => ({
+                  ...g,
+                  members: g.members.filter((m) => m.userId !== id),
+                })),
               activities: remainingActivities,
               // Their repeating expenses go too, like their past ones: left
               // behind, each new repeat would name someone who no longer exists.

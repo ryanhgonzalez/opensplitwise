@@ -33,6 +33,7 @@ import SettleModal from '../components/SettleModal';
 import { useGroupReport } from '../components/useGroupReport';
 import TransferExplainer from '../components/TransferExplainer';
 import { expenseAmountLabel, groupCurrency } from '../lib/currency';
+import { directOther } from '../lib/directGroups';
 import './GroupDetail.css';
 
 /** Expenses listed before "Show all". */
@@ -58,6 +59,13 @@ const SHARE_ICON = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
     <path d="M12 3v12M7 8l5-5 5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
+const ARCHIVE_ICON = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <rect x="3" y="4" width="18" height="4" rx="1" stroke="currentColor" strokeWidth="1.8" />
+    <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8M10 12h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
   </svg>
 );
 
@@ -161,6 +169,7 @@ export default function GroupDetail() {
   const groupRecurring = useMemo(() => allRecurring.filter(r => r.groupId === id), [allRecurring, id]);
   const addSettlement = useStore(s => s.addSettlement);
   const deleteSettlement = useStore(s => s.deleteSettlement);
+  const setGroupArchived = useStore(s => s.setGroupArchived);
   const currentUser = useStore(selectCurrentUser)!;
   const { totalSpent } = useStore(selectTotalsForGroup(id ?? ''));
 
@@ -277,8 +286,22 @@ export default function GroupDetail() {
     </svg>
   );
 
+  // Just you and one person: shown as them, and reached from their page.
+  const otherId = group.direct ? directOther(group, currentUser.id) : undefined;
+  const other = otherId ? getUserById(otherId) : undefined;
+  const homePath = other ? `/people/${other.id}` : '/groups';
+
+  const toggleArchived = () => {
+    const archiving = !group.archivedAt;
+    setGroupArchived(group.id, archiving);
+    if (archiving) {
+      showToast({ message: `${group.name} archived`, action: { label: 'Undo', run: () => setGroupArchived(group.id, false) } });
+      navigate('/groups');
+    }
+  };
+
   const menuItems: MenuItem[] = [
-    { label: 'Share group', icon: SHARE_ICON, onSelect: () => navigate(`/share?group=${group.id}`) },
+    { label: group.direct ? 'Share' : 'Share group', icon: SHARE_ICON, onSelect: () => navigate(`/share?group=${group.id}`) },
     ...(hasExpenses
       ? [{
           label: makingId === group.id ? 'Making PDF…' : 'PDF report',
@@ -287,6 +310,7 @@ export default function GroupDetail() {
           disabled: !!makingId,
         }]
       : []),
+    ...(group.direct ? [] : [{ label: group.archivedAt ? 'Unarchive' : 'Archive group', icon: ARCHIVE_ICON, onSelect: toggleArchived }]),
   ];
 
   // The line at the top: where you stand, in words, then the amount.
@@ -407,10 +431,10 @@ export default function GroupDetail() {
           {/* Header */}
           <header className="gd-header">
             <div className="gd-title-block">
-              <Link to="/groups" className="gd-crumb">Groups /</Link>
+              <Link to={homePath} className="gd-crumb">{other ? 'People /' : 'Groups /'}</Link>
               <div className="gd-title-row">
-                <GroupTile group={group} size={40} />
-                <h1 className="gd-title">{group.name}</h1>
+                {other ? <Avatar user={other} size="lg" /> : <GroupTile group={group} size={40} />}
+                <h1 className="gd-title">{other ? `You & ${other.name}` : group.name}</h1>
                 {/* Phones only: desktop has labelled buttons */}
                 <button className="gd-icon-btn gd-mobile-only gd-settings-mobile" onClick={() => setShowEditGroup(true)} aria-label="Group settings">
                   {settingsIcon}
@@ -420,8 +444,14 @@ export default function GroupDetail() {
                 </div>
               </div>
               <p className="gd-subline">
-                {group.members.map(m => nameOf(m.userId)).join(', ')} · {cur}
+                {other ? 'Just you two' : group.members.map(m => nameOf(m.userId)).join(', ')} · {cur}
               </p>
+              {group.archivedAt && (
+                <p className="gd-archived">
+                  Archived, so it's hidden from your groups. Its balances still count.
+                  <button className="gd-archived-undo" onClick={toggleArchived}>Unarchive</button>
+                </p>
+              )}
             </div>
             <div className="gd-header-actions">
               <button className="btn btn-secondary" onClick={() => setShowEditGroup(true)}>
@@ -474,19 +504,19 @@ export default function GroupDetail() {
                       );
                     })}
                     <div className="gd-settle-foot gd-mobile-only">
-                      <button className="gd-everyone-link" onClick={() => setShowEveryone(true)}>Everyone's balance</button>
+                      <button className="gd-everyone-link" onClick={() => setShowEveryone(true)}>{other ? 'Balances and payments' : "Everyone's balance"}</button>
                       {paymentsMade && <span>{paymentsMade}</span>}
                     </div>
                   </div>
                 ) : (
                   <div className="gd-settle-foot gd-settle-foot-plain gd-mobile-only">
-                    <button className="gd-everyone-link" onClick={() => setShowEveryone(true)}>Everyone's balance</button>
+                    <button className="gd-everyone-link" onClick={() => setShowEveryone(true)}>{other ? 'Balances and payments' : "Everyone's balance"}</button>
                     {paymentsMade && <span>{paymentsMade}</span>}
                   </div>
                 )}
 
                 <div className="gd-everyone-inline">
-                  <p className="cap gd-everyone-head">Everyone</p>
+                  <p className="cap gd-everyone-head">{other ? 'Both of you' : 'Everyone'}</p>
                   {everyone}
                 </div>
               </section>
@@ -663,7 +693,7 @@ export default function GroupDetail() {
             open={showEditGroup}
             onClose={() => setShowEditGroup(false)}
             group={group}
-            onDeleted={() => navigate('/groups')}
+            onDeleted={() => navigate(homePath)}
           />
         )}
       </AnimatePresence>

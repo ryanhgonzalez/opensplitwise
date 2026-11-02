@@ -8,6 +8,8 @@ import PersonSheet from '../components/PersonSheet';
 import SettleModal from '../components/SettleModal';
 import RemindSheet from '../components/RemindSheet';
 import TransferExplainer from '../components/TransferExplainer';
+import AddExpenseSheet from '../components/AddExpenseSheet';
+import { directGroupWith, pendingDirectId } from '../lib/directGroups';
 import { directDebts, moneySign, outstandingByGroup, type SettlementTransaction } from '../lib/calculations';
 import { groupCurrency, recordCurrency } from '../lib/currency';
 import { lastReminder } from '../lib/reminder';
@@ -60,6 +62,7 @@ export default function Person() {
   const [settling, setSettling] = useState<{ currency: string; amount: number; theyOwe: boolean } | null>(null);
   const [reminding, setReminding] = useState<{ currency: string; amount: number; groupIds: string[] } | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [explaining, setExplaining] = useState<{ groupId: string; transfer: SettlementTransaction } | null>(null);
 
   const person = users.find((u) => u.id === id);
@@ -115,7 +118,11 @@ export default function Person() {
 
   // Expenses one of you paid with the other in the split, and payments between you.
   const history = useMemo<HistoryRow[]>(() => {
-    const groupName = (gid?: string) => groups.find((g) => g.id === gid)?.name;
+    // Nothing to name for what's just between you.
+    const groupName = (gid?: string) => {
+      const g = groups.find((x) => x.id === gid);
+      return g?.direct ? undefined : g?.name;
+    };
     const shareOf = (e: (typeof expenses)[number], uid: string) =>
       e.split.entries.find((en) => en.userId === uid)?.amount ?? 0;
     const rows: HistoryRow[] = [];
@@ -199,6 +206,10 @@ export default function Person() {
     </div>
   );
 
+  const namedGroups = sharedGroups.filter((g) => !g.direct);
+  // Where "Add expense" saves: your group with just them, made with the first expense.
+  const directId = directGroupWith(groups, me, id)?.id ?? pendingDirectId(id);
+
   // Groups with something open between you; when they run both ways, settling up clears them all.
   const openGroups = perGroup.filter((p) => Math.abs(p.net) >= 0.005);
   const runsBothWays = openGroups.some((p) => p.net > 0) && openGroups.some((p) => p.net < 0);
@@ -213,9 +224,9 @@ export default function Person() {
             <span className="person-title-text">
               <h1 className="person-name">{person.name}</h1>
               <span className="text-sm text-secondary">
-                {sharedGroups.length === 0
+                {namedGroups.length === 0
                   ? 'No groups with you'
-                  : `In ${sharedGroups.length} ${sharedGroups.length === 1 ? 'group' : 'groups'} with you`}
+                  : `In ${namedGroups.length} ${namedGroups.length === 1 ? 'group' : 'groups'} with you`}
               </span>
             </span>
             <button className="person-edit" onClick={() => setEditing(true)} aria-label={`Edit ${firstName}`}>
@@ -249,6 +260,12 @@ export default function Person() {
               {remindedLine && between.some((b) => b.amount > 0) && (
                 <p className="person-note">{remindedLine}</p>
               )}
+              <button className="person-add" onClick={() => setAdding(true)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                </svg>
+                Add an expense with {firstName}
+              </button>
             </section>
 
             {perGroup.length > 0 && (
@@ -262,7 +279,7 @@ export default function Person() {
                         <Link to={`/groups/${group.id}`} className="person-group-link">
                           <GroupTile group={group} size={32} />
                           <span className="person-group-text">
-                            <span className="person-group-name">{group.name}</span>
+                            <span className="person-group-name">{group.direct ? 'Just you two' : group.name}</span>
                             <span className="person-group-sub">
                               {settled ? 'Settled' : net > 0 ? `${firstName} owes you` : `You owe ${firstName}`}
                             </span>
@@ -321,6 +338,10 @@ export default function Person() {
           </section>
         </div>
       </div>
+
+      <AnimatePresence>
+        {adding && <AddExpenseSheet open={adding} onClose={() => setAdding(false)} defaultGroupId={directId} />}
+      </AnimatePresence>
 
       <AnimatePresence>
         {editing && <PersonSheet open={editing} onClose={() => setEditing(false)} userId={id} />}

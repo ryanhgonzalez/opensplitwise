@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import GroupTile from '../components/GroupTile';
@@ -8,6 +8,7 @@ import { useStore, selectGroupTotals } from '../store';
 import { formatCurrency, formatDate, formatLedgerDate, formatSigned } from '../utils';
 import { groupCurrency } from '../lib/currency';
 import { groupTypeLabel } from '../lib/groupTypes';
+import type { Group } from '../types';
 import '../styles/sheet.css';
 import './Groups.css';
 
@@ -17,7 +18,9 @@ export default function Groups() {
   const [showCreate, setShowCreate] = useState(false);
   // "Add group" asks first: make a new one, or get one a friend already has.
   const [showAdd, setShowAdd] = useState(false);
-  const groups = useStore((s) => s.groups);
+  const [showArchived, setShowArchived] = useState(false);
+  // Two-person ledgers live on that person's page, not here.
+  const groups = useStore((s) => s.groups).filter((g) => !g.direct);
   const users = useStore((s) => s.users);
   const currentUserId = useStore((s) => s.currentUserId);
   const groupTotals = useStore(selectGroupTotals);
@@ -28,11 +31,66 @@ export default function Groups() {
   const filtered = groups.filter((g) =>
     g.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const active = filtered.filter((g) => !g.archivedAt);
+  // Most recently archived first.
+  const archived = filtered
+    .filter((g) => g.archivedAt)
+    .sort((a, b) => b.archivedAt!.getTime() - a.archivedAt!.getTime());
+  const allArchived = groups.filter((g) => g.archivedAt).length;
+  // A search looks in the archive too.
+  const archiveOpen = showArchived || (!!searchQuery && archived.length > 0);
 
   const memberSummary = (ids: string[]) => {
     const names = ids.map(nameOf);
     return names.length > 3 ? `${names.slice(0, 3).join(', ')} +${names.length - 3}` : names.join(', ');
   };
+
+  const table = (label: string, heading: ReactNode, list: Group[]) => (
+    <div className="groups-table" role="table" aria-label={label}>
+      <div className="groups-row groups-head" role="row">
+        <span role="columnheader" className="cap">{heading}</span>
+        <span role="columnheader" className="cap groups-col-wide">Members</span>
+        <span role="columnheader" className="cap groups-col-wide">Last active</span>
+        <span role="columnheader" className="cap groups-col-wide groups-right">Total spent</span>
+        <span role="columnheader" className="cap groups-right">Your balance</span>
+      </div>
+      {list.map((group) => {
+        const { yourBalance, totalSpent } = totalsOf(group.id);
+        const even = Math.abs(yourBalance) < 0.005;
+        return (
+          <button
+            key={group.id}
+            role="row"
+            className="groups-row groups-item"
+            onClick={() => navigate(`/groups/${group.id}`)}
+          >
+            <span role="cell" className="groups-name-cell">
+              <GroupTile group={group} size={40} />
+              <span className="groups-name-text">
+                <span className="groups-name">{group.name}</span>
+                <span className="text-xs text-secondary groups-type">{groupTypeLabel(group.type)}</span>
+                <span className="text-xs text-secondary groups-meta-mobile">
+                  {group.members.length} members · active {formatDate(group.lastActivity)}
+                </span>
+              </span>
+            </span>
+            <span role="cell" className="groups-col-wide groups-members">
+              {memberSummary(group.members.map((m) => m.userId))}
+            </span>
+            <span role="cell" className="num groups-col-wide groups-date">
+              {formatLedgerDate(group.lastActivity)}
+            </span>
+            <span role="cell" className="num groups-col-wide groups-right">
+              {formatCurrency(totalSpent, groupCurrency(group))}
+            </span>
+            <span role="cell" className={`groups-right groups-bal ${even ? 'zero' : `num ${yourBalance > 0 ? 'pos' : 'neg'}`}`}>
+              {even ? 'Settled' : formatSigned(yourBalance, groupCurrency(group))}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className="page-content">
@@ -61,55 +119,47 @@ export default function Groups() {
             <span className="text-secondary">Nothing matches “{searchQuery}”.</span>
           </div>
         ) : (
-          <div className="groups-table" role="table" aria-label="Groups">
-            <div className="groups-row groups-head" role="row">
-              <span role="columnheader" className="cap">
-                Groups · {searchQuery ? `${filtered.length} of ${groups.length}` : groups.length}
-              </span>
-              <span role="columnheader" className="cap groups-col-wide">Members</span>
-              <span role="columnheader" className="cap groups-col-wide">Last active</span>
-              <span role="columnheader" className="cap groups-col-wide groups-right">Total spent</span>
-              <span role="columnheader" className="cap groups-right">Your balance</span>
-            </div>
-            {filtered.map((group) => {
-              const { yourBalance, totalSpent } = totalsOf(group.id);
-              const even = Math.abs(yourBalance) < 0.005;
-              return (
+          <>
+            {active.length > 0 ? (
+              table(
+                'Groups',
+                `Groups · ${searchQuery ? `${active.length} of ${groups.length - allArchived}` : active.length}`,
+                active,
+              )
+            ) : (
+              !searchQuery && (
+                <div className="empty-box">
+                  <span className="empty-box-title">All your groups are archived</span>
+                  <button className="btn btn-primary" onClick={() => setShowAdd(true)}>Add group</button>
+                </div>
+              )
+            )}
+
+            {(searchQuery ? archived.length > 0 : allArchived > 0) && (
+              <section className="groups-archive" aria-label="Archived groups">
                 <button
-                  key={group.id}
-                  role="row"
-                  className="groups-row groups-item"
-                  onClick={() => navigate(`/groups/${group.id}`)}
+                  className="groups-archive-toggle"
+                  onClick={() => setShowArchived((v) => !v)}
+                  aria-expanded={archiveOpen}
                 >
-                  <span role="cell" className="groups-name-cell">
-                    <GroupTile group={group} size={40} />
-                    <span className="groups-name-text">
-                      <span className="groups-name">{group.name}</span>
-                      <span className="text-xs text-secondary groups-type">{groupTypeLabel(group.type)}</span>
-                      <span className="text-xs text-secondary groups-meta-mobile">
-                        {group.members.length} members · active {formatDate(group.lastActivity)}
-                      </span>
-                    </span>
-                  </span>
-                  <span role="cell" className="groups-col-wide groups-members">
-                    {memberSummary(group.members.map((m) => m.userId))}
-                  </span>
-                  <span role="cell" className="num groups-col-wide groups-date">
-                    {formatLedgerDate(group.lastActivity)}
-                  </span>
-                  <span role="cell" className="num groups-col-wide groups-right">
-                    {formatCurrency(totalSpent, groupCurrency(group))}
-                  </span>
-                  <span role="cell" className={`groups-right groups-bal ${even ? 'zero' : `num ${yourBalance > 0 ? 'pos' : 'neg'}`}`}>
-                    {even ? 'Settled' : formatSigned(yourBalance, groupCurrency(group))}
-                  </span>
+                  <span>Archived · {searchQuery ? archived.length : allArchived}</span>
+                  <svg className={archiveOpen ? 'open' : ''} width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
-              );
-            })}
-          </div>
+                {archiveOpen && (
+                  <>
+                    <p className="text-xs text-secondary groups-archive-note">
+                      Hidden from your groups. Balances in them still count. Open one to unarchive it.
+                    </p>
+                    {table('Archived groups', `${archived.length} ${archived.length === 1 ? 'group' : 'groups'}`, archived)}
+                  </>
+                )}
+              </section>
+            )}
+          </>
         )}
       </div>
-
 
       <AnimatePresence>
         {showAdd && (

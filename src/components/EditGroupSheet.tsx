@@ -149,7 +149,7 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
           >
             <div className="sheet-handle" />
             <div className="sheet-header">
-              <span className="sheet-title">Edit Group</span>
+              <span className="sheet-title">{group.direct ? 'Settings' : 'Edit Group'}</span>
               <button className="sheet-close" onClick={onClose} aria-label="Close">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -158,6 +158,8 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
             </div>
 
             <div className="sheet-body">
+              {/* Just two people: no name, look, type or members to change */}
+              {!group.direct && (<>
               {/* Name + emoji */}
               <div className="field-group">
                 <div className="field-label">Group name</div>
@@ -299,6 +301,7 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
                   Add new person
                 </button>
               </div>
+              </>)}
 
               {/* Currency */}
               <div className="field-group">
@@ -312,7 +315,8 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
                 )}
               </div>
 
-              {/* Simplify debts */}
+              {/* Simplify debts: nothing to simplify between two people */}
+              {!group.direct && (
               <div className="field-group">
                 <label className="egs-toggle">
                   <input
@@ -337,6 +341,7 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
                   </p>
                 )}
               </div>
+              )}
 
               {/* Custom categories */}
               <div className="field-group">
@@ -412,7 +417,7 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
                       <path d="M3 6H5H21M8 6V4C8 3.44772 8.44772 3 9 3H15C15.5523 3 16 3.44772 16 4V6M19 6L18.1671 19.1264C18.0723 20.6999 16.7622 22 15.1847 22H8.81535C7.23784 22 5.92769 20.6999 5.83286 19.1264L5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
-                    Delete Group
+                    {group.direct ? 'Delete everything between you' : 'Delete Group'}
                   </button>
                 ) : (
                   <motion.div
@@ -420,7 +425,9 @@ export default function EditGroupSheet({ open, onClose, group, onDeleted }: Edit
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                   >
-                    <p className="egs-confirm-text">Delete group and all its expenses?</p>
+                    <p className="egs-confirm-text">
+                      {group.direct ? 'Delete every expense and payment just between you two?' : 'Delete group and all its expenses?'}
+                    </p>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button className="egs-cancel-btn" onClick={() => setConfirmDelete(false)}>Cancel</button>
                       <button className="egs-confirm-delete-btn" onClick={handleDelete}>Delete</button>

@@ -163,3 +163,46 @@
     display: none;
   }
 }
+
+/* Archived groups: folded away under the list */
+.groups-archive {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.groups-archive-toggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.groups-archive-toggle:hover {
+  color: var(--ink);
+}
+
+.groups-archive-toggle svg {
+  transition: transform 0.15s;
+}
+
+.groups-archive-toggle svg.open {
+  transform: rotate(180deg);
+}
+
+.groups-archive-note {
+  margin: 0;
+}
+
+.groups-archive .groups-item {
+  opacity: 0.75;
+}

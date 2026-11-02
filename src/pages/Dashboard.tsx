@@ -9,6 +9,7 @@ import RemindSheet from '../components/RemindSheet';
 import AddExpenseSheet from '../components/AddExpenseSheet';
 import { useStore, selectCurrentUser, selectOverallBalances } from '../store';
 import { outstandingByGroup } from '../lib/calculations';
+import { isListed } from '../lib/directGroups';
 import { recordCurrency } from '../lib/currency';
 import { nextOccurrence } from '../lib/recurring';
 import { lastReminder } from '../lib/reminder';
@@ -80,6 +81,9 @@ export default function Dashboard() {
       .filter((g) => g.members.some((m) => m.userId === me))
       .sort((a, b) => lastUsed(b) - lastUsed(a));
   }, [groups, expenses, me]);
+
+  // Offered for a quick add: named groups that aren't archived.
+  const quickGroups = useMemo(() => myGroups.filter(isListed), [myGroups]);
 
   // One line per person and currency, the same balances People shows.
   const between = useMemo<Between[]>(() => {
@@ -273,19 +277,19 @@ export default function Dashboard() {
             )}
           </div>
 
-          {(comingUp.length > 0 || myGroups.length > 0) && (
+          {(comingUp.length > 0 || quickGroups.length > 0) && (
             <aside className="dash-side">
               {comingUp.length > 0 && (
                 <ComingUp items={comingUp} groupName={(id) => getGroupById(id)?.name ?? ''} />
               )}
 
-              {myGroups.length > 0 && (
+              {quickGroups.length > 0 && (
                 <section aria-labelledby="dash-add-title">
                   <div className="dash-section-head">
                     <h2 id="dash-add-title" className="cap">Add to a group</h2>
                   </div>
                   <div className="dash-quick-add">
-                    {myGroups.map((g) => (
+                    {quickGroups.map((g) => (
                       <button
                         key={g.id}
                         className="dash-quick"

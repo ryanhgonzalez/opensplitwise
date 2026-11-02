@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useStore, selectCurrentUser } from '../store';
+import { useStore, selectCurrentUser, selectMainCurrency } from '../store';
 import { buildSplit, round, splitByItems, splitEvenly } from '../lib/calculations';
 import { CATEGORY_ICONS, CATEGORY_LABELS } from '../types';
-import type { CategoryId, Expense, ExpenseCategory, SplitType, ExpenseSplit } from '../types';
+import type { CategoryId, Expense, ExpenseCategory, Group, SplitType, ExpenseSplit } from '../types';
 import { BUILT_IN_CATEGORIES, CUSTOM_CATEGORY_ICON, MAX_CATEGORY_NAME, categoryInfo, isCustomCategory } from '../lib/categories';
 import { defaultCategory, groupTypePhrase, suggestedCategories } from '../lib/groupTypes';
 import { convertSplit, currencySymbol, groupCurrency, recordCurrency } from '../lib/currency';
@@ -19,6 +19,7 @@ import type { TotalCandidate } from '../lib/receiptScanner';
 import { formatCurrency } from '../utils/format';
 import Avatar from './Avatar';
 import { shortName } from '../utils/user';
+import { directGroupDraft, directGroupWith, directOther, pendingDirectId, pendingDirectUser } from '../lib/directGroups';
 import '../styles/sheet.css';
 import './AddExpenseSheet.css';
 
@@ -103,6 +104,8 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   const updateExpense = useStore(s => s.updateExpense);
   const addGroupCategory = useStore(s => s.addGroupCategory);
   const addRecurring = useStore(s => s.addRecurring);
+  const openDirectGroup = useStore(s => s.openDirectGroup);
+  const mainCurrency = useStore(selectMainCurrency);
   const recurring = useStore(s => s.recurring);
   const allExpenses = useStore(s => s.expenses);
 
@@ -232,7 +235,28 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     requestAnimationFrame(() => bodyRef.current?.scrollTo(0, next === 'main' ? mainScroll.current : 0));
   };
 
-  const selectedGroup = useMemo(() => groups.find(g => g.id === groupId), [groups, groupId]);
+  // "Just with one person": their group with you, or, until the first expense
+  // makes it, a stand-in so the split, currency and payer work the same way.
+  const pendingFriend = pendingDirectUser(groupId);
+  const selectedGroup = useMemo((): Group | undefined => {
+    const found = groups.find(g => g.id === groupId);
+    if (found || !pendingFriend) return found;
+    const existing = directGroupWith(groups, currentUser.id, pendingFriend);
+    if (existing) return existing;
+    const them = users.find(u => u.id === pendingFriend);
+    if (!them) return undefined;
+    const now = new Date();
+    return { ...directGroupDraft(currentUser, them, mainCurrency), id: groupId, createdAt: now, lastActivity: now };
+  }, [groups, groupId, pendingFriend, currentUser, users, mainCurrency]);
+  /** The group to save into, made now if it's a first expense with someone. */
+  const saveGroupId = () => (pendingFriend ? openDirectGroup(pendingFriend).id : groupId);
+  const directWith = selectedGroup?.direct ? users.find(u => u.id === directOther(selectedGroup, currentUser.id)) : undefined;
+  // Named groups not archived, plus an archived one already chosen. Two-person
+  // ones are offered under their person instead.
+  const pickableGroups = groups.filter(g => !g.direct && (!g.archivedAt || g.id === groupId));
+  const people = users
+    .filter(u => u.id !== currentUser.id)
+    .sort((a, b) => a.name.localeCompare(b.name));
   const groupMemberIds = useMemo(() => selectedGroup?.members.map(m => m.userId) ?? [], [selectedGroup]);
   const getUserById = (id: string) => users.find(u => u.id === id);
   const memberNames = (selectedGroup?.members ?? []).map(m => getUserById(m.userId)?.name);
@@ -264,7 +288,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
   const openNewCategory = () => {
     if (!selectedGroup) {
-      setNewCategoryHint('Choose a group below first. Custom categories are saved to the group.');
+      setNewCategoryHint('Choose who it\u2019s with first. Custom categories are saved to the group.');
       return;
     }
     setNewCategoryHint(null);
@@ -273,7 +297,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
   const saveNewCategory = () => {
     if (!selectedGroup || newCategory === null) return;
-    const id = addGroupCategory(selectedGroup.id, newCategory);
+    const id = addGroupCategory(pendingFriend ? saveGroupId() : selectedGroup.id, newCategory);
     if (id) pickCategory(id);
     setNewCategory(null);
   };
@@ -543,6 +567,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
     const receipt = newPhoto ? { bytes: newPhoto.blob.size } : hasExisting ? editExpense!.receipt : undefined;
 
     const expenseDate = dateStr ? fromDateInputValue(dateStr) : new Date();
+    const targetGroupId = saveGroupId();
 
     let amount: number;
     let split: ExpenseSplit;
@@ -581,7 +606,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         description: description.trim(),
         amount,
         paidBy,
-        groupId: groupId || undefined,
+        groupId: targetGroupId || undefined,
         split,
         category,
         date: expenseDate,
@@ -593,11 +618,11 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         location,
       });
       if (newPhoto) void savePhoto(editExpense.id, newPhoto.blob);
-    } else if (repeat && groupId && !isRefund) {
+    } else if (repeat && targetGroupId && !isRefund) {
       // Repeating: the rule adds this one (if its date has come) and the rest as they're due.
       const start = new Date(expenseDate.getFullYear(), expenseDate.getMonth(), expenseDate.getDate());
       const { rule } = addRecurring({
-        groupId,
+        groupId: targetGroupId,
         frequency: repeat,
         startDate: start,
         template: { description: description.trim(), amount, currency: groupCur, original, paidBy, split, category, items },
@@ -616,7 +641,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
         currency: groupCur,
         original,
         paidBy,
-        groupId: groupId || undefined,
+        groupId: targetGroupId || undefined,
         date: expenseDate,
         split,
         category,
@@ -723,7 +748,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
   );
 
   const panelTitle: Record<Exclude<View, 'main'>, string> = {
-    group: 'Which group?',
+    group: 'Who is it with?',
     category: 'Category',
     paidBy: isRefund ? 'Who got the money back?' : 'Who paid?',
     split: `Split ${ctaTotal > 0 ? formatCurrency(ctaTotal, cur) : ''}`.trim(),
@@ -919,14 +944,19 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
                             className={`aes-row ${selectedGroup ? '' : 'needed'}`}
                             onClick={() => go('group')}
                           >
-                            <span className="aes-row-key">Group</span>
+                            <span className="aes-row-key">With</span>
                             <span className="aes-row-value">
-                              {selectedGroup ? (
+                              {directWith ? (
+                                <>
+                                  <Avatar user={directWith} size="sm" />
+                                  {directWith.name}
+                                </>
+                              ) : selectedGroup ? (
                                 <>
                                   <span aria-hidden>{selectedGroup.emoji}</span>
                                   {selectedGroup.name}
                                 </>
-                              ) : groups.length === 0 ? 'No groups yet' : 'Choose a group'}
+                              ) : 'Choose a group or person'}
                             </span>
                             {chevron}
                           </button>
@@ -1179,28 +1209,62 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
 
                   {view === 'group' && (
                     <div className="aes-panel">
-                      {groups.length === 0 ? (
-                        <p className="aes-panel-note">No groups yet. Create one from the Groups tab first.</p>
+                      {pickableGroups.length > 0 && (
+                        <>
+                          <p className="aes-panel-label">A group</p>
+                          <div className="aes-choice-list">
+                            {pickableGroups.map(g => {
+                              const on = selectedGroup?.id === g.id;
+                              return (
+                                <button
+                                  key={g.id}
+                                  type="button"
+                                  className={`aes-choice ${on ? 'on' : ''}`}
+                                  onClick={() => { setGroupId(g.id); go('main'); }}
+                                >
+                                  <span className="aes-choice-emoji" aria-hidden>{g.emoji}</span>
+                                  <span className="aes-choice-text">
+                                    <span className="aes-choice-name">{g.name}</span>
+                                    <span className="aes-choice-sub">
+                                      {g.members.length} {g.members.length === 1 ? 'person' : 'people'} · {groupCurrency(g)}
+                                    </span>
+                                  </span>
+                                  <span className={`aes-radio ${on ? 'on' : ''}`} aria-hidden />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                      {people.length > 0 ? (
+                        <>
+                          <p className="aes-panel-label">Or just one person</p>
+                          <div className="aes-choice-list">
+                            {people.map(u => {
+                              const existing = directGroupWith(groups, currentUser.id, u.id);
+                              const on = !!directWith && directWith.id === u.id;
+                              return (
+                                <button
+                                  key={u.id}
+                                  type="button"
+                                  className={`aes-choice ${on ? 'on' : ''}`}
+                                  onClick={() => { setGroupId(existing?.id ?? pendingDirectId(u.id)); go('main'); }}
+                                >
+                                  <span className="aes-choice-emoji aes-choice-avatar"><Avatar user={u} size="md" /></span>
+                                  <span className="aes-choice-text">
+                                    <span className="aes-choice-name">{u.name}</span>
+                                    <span className="aes-choice-sub">Not in a group</span>
+                                  </span>
+                                  <span className={`aes-radio ${on ? 'on' : ''}`} aria-hidden />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
                       ) : (
-                        <div className="aes-choice-list">
-                          {groups.map(g => (
-                            <button
-                              key={g.id}
-                              type="button"
-                              className={`aes-choice ${groupId === g.id ? 'on' : ''}`}
-                              onClick={() => { setGroupId(g.id); go('main'); }}
-                            >
-                              <span className="aes-choice-emoji" aria-hidden>{g.emoji}</span>
-                              <span className="aes-choice-text">
-                                <span className="aes-choice-name">{g.name}</span>
-                                <span className="aes-choice-sub">
-                                  {g.members.length} {g.members.length === 1 ? 'person' : 'people'} · {groupCurrency(g)}
-                                </span>
-                              </span>
-                              <span className={`aes-radio ${groupId === g.id ? 'on' : ''}`} aria-hidden />
-                            </button>
-                          ))}
-                        </div>
+                        pickableGroups.length === 0 && (
+                          <p className="aes-panel-note">Add a person from the People tab, or make a group from the Groups tab.</p>
+                        )
                       )}
                     </div>
                   )}
@@ -1528,7 +1592,7 @@ export default function AddExpenseSheet({ open, onClose, defaultGroupId, editExp
               <div className="sheet-footer">
                 <button className="sheet-cta" onClick={handleSubmit} disabled={!canSubmit}>
                   {!groupId
-                    ? 'Choose a group to add it'
+                    ? 'Choose who it\u2019s with'
                     : `${isEditing ? 'Save Changes' : isRefund ? 'Add Refund' : 'Add Expense'}${ctaTotal > 0 ? ` · ${formatCurrency(ctaTotal, cur)}` : ''}`}
                 </button>
               </div>

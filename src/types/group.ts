@@ -33,6 +33,16 @@ export interface Group {
   simplifyDebts?: boolean;
   /** Categories made for this group, offered next to the built-in ones. Absent on older data. */
   categories?: CustomCategory[];
+  /**
+   * Just you and one other person, outside any named group. It isn't listed
+   * under Groups; it's on that person's page. Shared like any group.
+   */
+  direct?: boolean;
+  /**
+   * When it was archived on this phone: it leaves the Groups list and the
+   * pickers, but its balances still count. Not shared with others.
+   */
+  archivedAt?: Date;
   lastActivity: Date;
   createdAt: Date;
   /**

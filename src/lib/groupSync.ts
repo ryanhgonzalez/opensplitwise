@@ -99,7 +99,8 @@ export function buildBundle(state: SyncState, groupId: string, now = new Date())
     v: BUNDLE_VERSION,
     sentAt: now,
     senderId: state.currentUserId,
-    group: { ...group, updatedAt: editedAt(group) },
+    // Archiving is this phone's choice, not the group's.
+    group: { ...group, archivedAt: undefined, updatedAt: editedAt(group) },
     users: state.users.filter((u) => mentioned.has(u.id)).map(shareableUser),
     expenses,
     settlements,

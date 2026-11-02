@@ -206,6 +206,26 @@
   font-weight: 600;
 }
 
+.person-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--owed);
+}
+
+.person-add:hover {
+  text-decoration: underline;
+}
+
 .person-more {
   min-height: 40px;
   padding: 0;

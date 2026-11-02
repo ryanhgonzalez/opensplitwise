@@ -1061,6 +1061,11 @@ button.aes-row:disabled {
   text-align: center;
 }
 
+.aes-choice-avatar {
+  display: flex;
+  justify-content: center;
+}
+
 .aes-choice-text {
   flex: 1;
   min-width: 0;

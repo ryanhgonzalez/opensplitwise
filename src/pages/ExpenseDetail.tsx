@@ -14,6 +14,7 @@ import { showToast } from '../lib/toast';
 import { round } from '../lib/calculations';
 import { formatCurrency, formatSigned, getNetAmountForUser } from '../utils';
 import type { Expense } from '../types';
+import { directOther } from '../lib/directGroups';
 import './ExpenseDetail.css';
 
 /** Items listed before "Show all". */
@@ -187,6 +188,11 @@ export default function ExpenseDetail() {
     </>
   );
 
+  // Just between you and one person: named for them, under People.
+  const otherId = group?.direct ? directOther(group, me) : undefined;
+  const other = otherId ? users.find((u) => u.id === otherId) : undefined;
+  const groupTitle = other ? `You & ${other.name.split(' ')[0]}` : group?.name;
+
   return (
     <div className="page-content">
       <div className="xd">
@@ -196,14 +202,15 @@ export default function ExpenseDetail() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            {group?.name ?? 'Back'}
+            {groupTitle ?? 'Back'}
           </Link>
           <button className="btn btn-secondary xd-edit-small" onClick={() => setSheet('edit')}>Edit</button>
         </div>
 
         <header className="xd-header">
           <span className="xd-crumb">
-            <Link to="/groups">Groups</Link> / <Link to={`/groups/${groupId}`}>{group?.name}</Link> /
+            {other ? <Link to={`/people/${other.id}`}>People</Link> : <Link to="/groups">Groups</Link>} /{' '}
+            <Link to={`/groups/${groupId}`}>{groupTitle}</Link> /
           </span>
           <span className="xd-meta">
             {isRefund && <span className="xd-refund-tag">Refund</span>}
