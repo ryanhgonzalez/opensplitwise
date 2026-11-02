@@ -370,6 +370,48 @@ describe('settleWithUser', () => {
     expect(friendBalances()[alice.id]).toBe(30);
   });
 
+  it('evens out a group where it runs the other way, so every group clears', () => {
+    // Alice owes me 100 on the trip; I owe her 25 at home. Overall she owes 75.
+    const { me, others, group: trip } = setup(['Me', 'Alice']);
+    const [alice] = others;
+    const home = state().createGroup({
+      name: 'Home', emoji: '🏠', color: '#0ea5e9', type: 'home',
+      members: [me, alice].map((u) => ({ userId: u.id, role: 'member' as const, joinedAt: new Date() })),
+    });
+    addEvenExpense(me.id, [me.id, alice.id], 200, trip.id);
+    addEvenExpense(alice.id, [me.id, alice.id], 50, home.id);
+    expect(friendBalances()[alice.id]).toBe(75);
+
+    const created = state().settleWithUser({
+      fromUserId: alice.id, toUserId: me.id, amount: 75, currency: 'USD', date: new Date(),
+    });
+
+    expect(friendBalances()[alice.id] ?? 0).toBe(0);
+    expect(balanceIn(trip.id)).toBe(0);
+    expect(balanceIn(home.id)).toBe(0);
+    // Nothing extra changed hands: 100 to me on the trip, 25 back at home.
+    const net = round(created.reduce((s, c) => s + (c.fromUserId === alice.id ? c.amount : -c.amount), 0));
+    expect(net).toBe(75);
+    expect(created.find((c) => c.groupId === home.id)?.note).toMatch(/evened out/i);
+  });
+
+  it('keeps a part payment honest when evening out', () => {
+    const { me, others, group: trip } = setup(['Me', 'Alice']);
+    const [alice] = others;
+    const home = state().createGroup({
+      name: 'Home', emoji: '🏠', color: '#0ea5e9', type: 'home',
+      members: [me, alice].map((u) => ({ userId: u.id, role: 'member' as const, joinedAt: new Date() })),
+    });
+    addEvenExpense(me.id, [me.id, alice.id], 200, trip.id);
+    addEvenExpense(alice.id, [me.id, alice.id], 50, home.id);
+
+    state().settleWithUser({ fromUserId: alice.id, toUserId: me.id, amount: 30, currency: 'USD', date: new Date() });
+
+    expect(friendBalances()[alice.id]).toBe(45);
+    expect(balanceIn(home.id)).toBe(0);
+    expect(balanceIn(trip.id)).toBe(45);
+  });
+
   it('is undoable one slice at a time', () => {
     const { me, alice, trip, home } = twoGroups();
     const created = state().settleWithUser({

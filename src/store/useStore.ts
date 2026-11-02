@@ -675,10 +675,31 @@ export const useStore = create<AppStore>()(
 
           // Only debts in the payment's currency can be paid down by it.
           const buckets = outstandingByGroup(expenses, settlements, input.fromUserId, input.toUserId, input.currency, groups);
-          const allocations = allocatePayment(input.amount, buckets);
+          // Groups where it runs the other way: the person being paid owes the
+          // payer there. The overall balance already nets these off, so the
+          // payment does too: each is cleared by an entry the other way, and the
+          // payment pays down that much more where it's owed. Same money changes
+          // hands; every group ends up matching the overall balance.
+          const reverse = buckets.length
+            ? outstandingByGroup(expenses, settlements, input.toUserId, input.fromUserId, input.currency, groups)
+            : [];
+          const offset = round(reverse.reduce((sum, b) => sum + b.outstanding, 0));
+          const allocations = allocatePayment(input.amount + offset, buckets);
           if (allocations.length === 0) return [];
 
-          const created: Settlement[] = allocations.map((allocation) => ({
+          const netted: Settlement[] = reverse.map((bucket) => ({
+            fromUserId: input.toUserId,
+            toUserId: input.fromUserId,
+            amount: bucket.outstanding,
+            currency: input.currency,
+            groupId: bucket.groupId,
+            date: input.date,
+            note: 'Evened out against your other groups',
+            id: uid(),
+            createdAt: now,
+          }));
+
+          const paid: Settlement[] = allocations.map((allocation) => ({
             fromUserId: input.fromUserId,
             toUserId: input.toUserId,
             amount: allocation.amount,
@@ -690,6 +711,7 @@ export const useStore = create<AppStore>()(
             id: uid(),
             createdAt: now,
           }));
+          const created = [...netted, ...paid];
 
           const nextSettlements = [...settlements, ...created];
           const clearedOverall = debtCleared(

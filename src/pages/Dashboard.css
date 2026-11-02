@@ -1,7 +1,7 @@
 .dash {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 18px;
   padding: calc(20px + env(safe-area-inset-top, 0px)) 20px 24px;
 }
 
@@ -13,13 +13,15 @@
   gap: 16px;
 }
 
-.dash-name {
-  font-size: 24px;
+.dash-greeting {
+  font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 .dash-account-btn {
+  flex-shrink: 0;
   width: 44px;
   height: 44px;
   padding: 0;
@@ -29,162 +31,68 @@
   justify-content: center;
 }
 
-/* Statement */
-.dash-net {
-  font-size: 38px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+/* Where you stand */
+.dash-standing {
+  padding-top: 14px;
+  border-top: 2px solid var(--ink);
 }
 
-/* Several currencies: one line each, smaller so they stack */
-.dash-net-multi {
+.dash-standing-lead {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.dash-standing-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 18px;
+}
+
+.dash-standing-figure {
+  margin-top: 2px;
+  font-size: 38px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+/* Several currencies: one each, smaller so they fit */
+.dash-standing-figure.multi {
   font-size: 26px;
 }
 
-.dash-statement {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.dash-statement > :first-child {
-  padding-right: 0;
-}
-
-/* Phones show the net only; the parts are on desktop */
-.dash-statement > .dash-statement-part {
-  display: none;
-}
-
-/* Several currencies sit side by side */
-.dash-nets {
-  display: flex;
-  flex-wrap: wrap;
-  column-gap: 16px;
-}
-
-.dash-part-amount {
+/* "All settled up" is words, not money */
+.dash-standing-figure.even {
+  font-size: 28px;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
-/* Columns */
+.dash-standing-sub {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.dash-first-group {
+  margin-top: 16px;
+}
+
+/* Sections */
 .dash-columns {
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
 
-.dash-main {
+.dash-main,
+.dash-side {
   display: flex;
   flex-direction: column;
   gap: 24px;
   min-width: 0;
 }
 
-.dash-empty {
-  padding: 16px 0;
-}
-
-/* To settle */
-.dash-settle {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 60px;
-}
-
-.dash-settle-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.dash-settle-who {
-  font-weight: 500;
-}
-
-.dash-settle-group {
-  font-size: 12px;
-  color: var(--muted);
-  text-decoration: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dash-settle-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-
-/* Opens the explanation for a payment simplifying sent this way */
-.dash-settle-reminded {
-  flex-shrink: 0;
-  font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.dash-settle-why {
-  flex-shrink: 0;
-  padding: 0;
-  background: none;
-  border: 0;
-  font: inherit;
-  font-size: 12px;
-  color: var(--muted);
-  text-decoration: underline dotted;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.dash-settle-group:hover {
-  color: var(--owed);
-  text-decoration: underline;
-}
-
-.dash-settle-amount {
-  font-weight: 600;
-}
-
-.dash-settle-actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-/* Phones keep one action per row */
-.dash-remind,
-.dash-wide-only {
-  display: none;
-}
-
-.dash-expense-link {
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.dash-expense-link:hover .dash-expense-desc {
-  text-decoration: underline;
-}
-
-/* Coming up */
-.dash-coming-row {
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.dash-coming-row:hover .dash-expense-desc {
-  text-decoration: underline;
-}
-
-.dash-coming-amount {
-  font-size: 14px;
-}
-
-/* Section heads */
 .dash-section-head {
   display: flex;
   align-items: baseline;
@@ -192,68 +100,151 @@
   margin-bottom: 8px;
 }
 
-.dash-section-head h2 {
-  font-size: 16px;
-}
-
-.dash-link {
-  color: var(--owed);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.dash-link:hover {
-  text-decoration: underline;
-}
-
-/* Recent expenses */
-.dash-expense {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 56px;
-}
-
-.dash-expense-date {
-  width: 48px;
-  flex-shrink: 0;
-  font-size: 11px;
+.dash-hint {
+  margin-top: 8px;
+  font-size: 12px;
   color: var(--muted);
 }
 
-.dash-expense-info {
+/* One person: who, how much, one action */
+.dash-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 62px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.dash-person-link {
   flex: 1;
   min-width: 0;
   display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.dash-person-link:hover .dash-person-name {
+  text-decoration: underline;
+}
+
+.dash-person-info {
+  min-width: 0;
+  display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
-.dash-expense-desc {
+.dash-person-name {
+  font-size: 15px;
   font-weight: 500;
+}
+
+.dash-person-meta {
+  font-size: 12px;
+  color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.dash-expense-group {
-  display: none;
-  color: var(--ink-soft);
-  width: 140px;
+.dash-person-amount {
   flex-shrink: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.dash-person .btn {
+  flex-shrink: 0;
+}
+
+/* Coming up: one line per repeat */
+.dash-coming {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+}
+
+.dash-coming-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  font-size: 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.dash-coming-row + .dash-coming-row {
+  border-top: 1px solid var(--rule);
+}
+
+.dash-coming-row:hover {
+  background: var(--panel);
+}
+
+.dash-coming-icon {
+  font-size: 16px;
+  color: var(--muted);
+}
+
+.dash-coming-text {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.dash-expense-share {
-  min-width: 84px;
-  font-weight: 600;
-  text-align: right;
+.dash-coming-name {
+  font-weight: 500;
 }
 
-/* The side column (coming up, groups) is desktop only */
-.dash-side {
+/* Add to a group: one tap into the Add expense sheet for that group */
+.dash-quick-add {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -20px;
+  padding: 0 20px;
+}
+
+.dash-quick-add::-webkit-scrollbar {
   display: none;
+}
+
+.dash-quick {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.dash-quick:hover {
+  background: var(--panel);
+}
+
+.dash-quick > :first-child {
+  border-radius: 50%;
+}
+
+.dash-quick-plus {
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
 }
 
 /* ── Desktop ───────────────────────────────────────────────────────────────── */
@@ -261,171 +252,35 @@
   .dash {
     max-width: 1120px;
     margin: 0 auto;
-    padding: 32px 40px 64px;
-    gap: 28px;
+    width: 100%;
+    padding: 40px 40px 64px;
+    gap: 24px;
   }
 
-  .dash-header {
-    align-items: flex-end;
+  .dash-greeting {
+    font-size: 30px;
   }
 
-  .dash-name {
-    font-size: 34px;
-    letter-spacing: -0.02em;
-  }
-
+  /* The sidebar has your account */
   .dash-account-btn {
     display: none;
   }
 
-  .dash-statement {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .dash-statement > :first-child {
-    grid-column: auto;
-    padding: 16px 20px 16px 0;
-  }
-
-  .dash-statement > .dash-statement-part {
-    display: flex;
-    border-top: 0;
-    border-left: 1px solid var(--rule);
-    padding: 16px 20px;
-    justify-content: flex-end;
-  }
-
-  .dash-part-amount {
-    font-size: 24px;
-    font-weight: 500;
+  .dash-standing-figure {
+    font-size: 44px;
   }
 
   .dash-columns {
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 40px;
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+    gap: 48px;
+    align-items: start;
   }
 
-  .dash-main {
-    flex: 1 1 0;
-    gap: 32px;
-  }
-
-  .dash-remind,
-  .dash-wide-only {
-    display: inline;
-  }
-
-  .dash-remind {
-    display: inline-flex;
-  }
-
-  .dash-narrow-only {
-    display: none;
-  }
-
-  .dash-settle {
-    min-height: 60px;
-  }
-
-  .dash-settle-info {
-    flex-direction: row;
-    align-items: baseline;
-    gap: 6px;
-  }
-
-  .dash-settle-group::before {
-    content: '· ';
-  }
-
-  .dash-section-head h2 {
-    font-size: 17px;
-  }
-
-  .dash-expense-group {
-    display: block;
-  }
-
-  .dash-side {
-    flex: 0 0 300px;
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-  }
-
-  .dash-group-list {
-    display: flex;
-    flex-direction: column;
-    border-top: 1px solid var(--ink);
-  }
-
-  .dash-group {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    min-height: 64px;
+  /* Wraps instead of scrolling sideways */
+  .dash-quick-add {
+    flex-wrap: wrap;
+    margin: 0;
     padding: 0;
-    border: 0;
-    border-bottom: 1px solid var(--rule);
-    background: none;
-    text-align: left;
-    color: var(--ink);
   }
-
-  .dash-group:hover .dash-group-name {
-    text-decoration: underline;
-  }
-
-  .dash-group-info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .dash-group-name {
-    font-size: 14px;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .dash-group-bal {
-    font-size: 14px;
-    font-weight: 600;
-  }
-}
-
-/* Link to Insights, below Recent */
-.dash-insights {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 24px;
-  padding: 14px 0;
-  border-top: 2px solid var(--ink);
-  border-bottom: 1px solid var(--rule);
-  color: inherit;
-  text-decoration: none;
-}
-
-.dash-insights-text {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.dash-insights-title {
-  font-weight: 500;
-}
-
-.dash-insights-arrow {
-  color: var(--muted);
-}
-
-.dash-insights:hover .dash-insights-title {
-  text-decoration: underline;
 }

@@ -1,30 +1,32 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 import GroupTile from '../components/GroupTile';
 import BackupReminder from '../components/BackupReminder';
 import SettleModal from '../components/SettleModal';
 import RemindSheet from '../components/RemindSheet';
-import TransferExplainer from '../components/TransferExplainer';
-import { useStore, selectCurrentUser, selectMainCurrency, selectOverallBalances, selectRecentExpenses, selectGroupTotals } from '../store';
-import { directDebts, groupTransfers, simplifies } from '../lib/calculations';
-import { expenseAmountLabel, groupCurrency, recordCurrency } from '../lib/currency';
+import AddExpenseSheet from '../components/AddExpenseSheet';
+import { useStore, selectCurrentUser, selectOverallBalances } from '../store';
+import { outstandingByGroup } from '../lib/calculations';
+import { recordCurrency } from '../lib/currency';
 import { nextOccurrence } from '../lib/recurring';
 import { lastReminder } from '../lib/reminder';
-import { formatCurrency, formatDate, formatLedgerDate, formatRelativeDay, formatSigned, getNetAmountForUser } from '../utils';
+import { formatCurrency, formatRelativeDay, formatSigned } from '../utils';
 import type { PaymentMethod, RecurringExpense } from '../types';
 import './Dashboard.css';
 
-/** One payment that would square up a group, with you on one side of it. */
-interface ToSettle {
-  groupId: string;
-  from: string;
-  to: string;
-  amount: number;
+/** What's open between you and one person, across all your groups, in one currency. */
+interface Between {
+  userId: string;
   currency: string;
-  /** Not a direct debt: simplifying sent it this way, so it gets a "Why?". */
-  rerouted: boolean;
+  /** Always positive; `theyOwe` says which way. */
+  amount: number;
+  theyOwe: boolean;
+  /** The groups where they owe you (or you them): what a reminder is about. */
+  groupIds: string[];
+  /** Every group with something open between you, either way. */
+  allGroupIds: string[];
 }
 
 /** "€51.70 · $37.50": the currencies with something in them, or zero in the first. */
@@ -34,71 +36,77 @@ function amountsList(amounts: { amount: number; currency: string }[]): string {
 }
 
 /** How many upcoming repeats Home lists. */
-const COMING_UP = 4;
+const COMING_UP = 3;
 
+/**
+ * Home: what needs you. Who you pay, who you're waiting on (one line per person,
+ * across every group), the next repeats, and a quick way to add to a group.
+ * Everything else lives in Groups, People and Activity.
+ */
 export default function Dashboard() {
-  const navigate = useNavigate();
-  const [settling, setSettling] = useState<ToSettle | null>(null);
-  const [reminding, setReminding] = useState<ToSettle | null>(null);
-  const [explaining, setExplaining] = useState<ToSettle | null>(null);
+  const [settling, setSettling] = useState<Between | null>(null);
+  const [reminding, setReminding] = useState<Between | null>(null);
+  const [addingTo, setAddingTo] = useState<string | null>(null);
 
   const currentUser = useStore(selectCurrentUser)!;
-  const balances = useStore(selectOverallBalances);
-  const mainCurrency = useStore(selectMainCurrency);
-  const recentExpenses = useStore(selectRecentExpenses(5));
+  const overall = useStore(selectOverallBalances);
   const groups = useStore((s) => s.groups);
   const users = useStore((s) => s.users);
   const expenses = useStore((s) => s.expenses);
   const payments = useStore((s) => s.settlements);
   const recurring = useStore((s) => s.recurring);
   const activities = useStore((s) => s.activities);
-  const groupTotals = useStore(selectGroupTotals);
-  const addSettlement = useStore((s) => s.addSettlement);
+  const settleWithUser = useStore((s) => s.settleWithUser);
 
+  const me = currentUser.id;
   const getUserById = (id: string) => users.find((u) => u.id === id);
   const getGroupById = (id?: string) => (id ? groups.find((g) => g.id === id) : undefined);
   // First name, unless someone else has the same one ("Frank" and "Frank Jr").
   const firstName = (id: string) => {
+    if (id === me) return 'You';
     const name = getUserById(id)?.name;
     if (!name) return 'Someone';
     const first = name.split(' ')[0];
     return users.filter((u) => u.name.split(' ')[0] === first).length > 1 ? name : first;
   };
-  const balanceOf = (groupId: string) => groupTotals[groupId]?.yourBalance ?? 0;
-  const myGroups = groups.filter((g) => g.members.some((m) => m.userId === currentUser.id));
 
-  // One entry per currency with a balance. With none, show zero in the main currency.
-  const shown = balances.length ? balances : [{ currency: mainCurrency, net: 0, totalOwed: 0, totalOwe: 0 }];
-  const multiCurrency = shown.length > 1;
-  const settled = balances.length === 0;
-  const isPositive = shown[0].net > 0;
-  const activeGroups = groups.filter((g) => Math.abs(balanceOf(g.id)) >= 0.005).length;
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  // Your groups, the one with the latest expense first.
+  const myGroups = useMemo(() => {
+    const latest = new Map<string, number>();
+    for (const e of expenses) {
+      if (e.groupId) latest.set(e.groupId, Math.max(latest.get(e.groupId) ?? 0, e.date.getTime()));
+    }
+    return groups
+      .filter((g) => g.members.some((m) => m.userId === me))
+      .sort((a, b) => (latest.get(b.id) ?? a.createdAt.getTime()) - (latest.get(a.id) ?? b.createdAt.getTime()));
+  }, [groups, expenses, me]);
 
-  // The same payments each group suggests, kept to the ones you're part of.
-  // Settling them group by group is what clears the balances shown above.
-  const toSettle = useMemo<ToSettle[]>(() => {
-    const rows = groups.flatMap((g) => {
-      const memberIds = g.members.map((m) => m.userId);
-      if (!memberIds.includes(currentUser.id)) return [];
-      const groupExpenses = expenses.filter((e) => e.groupId === g.id);
-      if (groupExpenses.length === 0) return [];
-      const groupPayments = payments.filter((p) => p.groupId === g.id);
-      const snapshot = { expenses: groupExpenses, memberIds, settlements: groupPayments };
-      const direct = directDebts(snapshot);
-      return groupTransfers(snapshot, simplifies(g))
-        .filter((t) => t.from === currentUser.id || t.to === currentUser.id)
-        .map((t) => ({
-          ...t,
-          groupId: g.id,
-          currency: groupCurrency(g),
-          rerouted: !direct.some((d) => d.from === t.from && d.to === t.to && Math.abs(d.amount - t.amount) < 0.005),
-        }));
-    });
-    // Money coming to you first, then what you owe; largest first within each.
-    return rows.sort((a, b) => Number(a.from === currentUser.id) - Number(b.from === currentUser.id) || b.amount - a.amount);
-  }, [groups, expenses, payments, currentUser.id]);
+  // One line per person and currency, the same balances People shows.
+  const between = useMemo<Between[]>(() => {
+    const groupsOf = (debtor: string, creditor: string, currency: string) =>
+      outstandingByGroup(expenses, payments, debtor, creditor, currency, groups)
+        .map((b) => b.groupId)
+        .filter((id): id is string => !!id);
+    const line = (userId: string, currency: string, amount: number, theyOwe: boolean): Between => {
+      const owedToMe = groupsOf(userId, me, currency);
+      const iOwe = groupsOf(me, userId, currency);
+      return {
+        userId,
+        currency,
+        amount,
+        theyOwe,
+        groupIds: theyOwe ? owedToMe : iOwe,
+        allGroupIds: [...new Set([...(theyOwe ? owedToMe : iOwe), ...(theyOwe ? iOwe : owedToMe)])],
+      };
+    };
+    return overall.flatMap((b) => [
+      ...b.oweToFriend.map((f) => line(f.userId, b.currency, f.amount, false)),
+      ...b.owedByFriend.map((f) => line(f.userId, b.currency, f.amount, true)),
+    ]);
+  }, [overall, expenses, payments, groups, me]);
+  const youPay = between.filter((b) => !b.theyOwe).sort((a, b) => b.amount - a.amount);
+  const waitingOn = between.filter((b) => b.theyOwe).sort((a, b) => b.amount - a.amount);
+  const waitingPeople = new Set(waitingOn.map((b) => b.userId)).size;
 
   // The next repeat of each rule in your groups, soonest first. Today's has
   // already been added, so look from tomorrow.
@@ -117,247 +125,192 @@ export default function Dashboard() {
   const reminded = (personId: string): string | undefined => {
     const last = lastReminder(activities, personId);
     if (!last) return undefined;
-    const paidSince = payments.some((p) => p.fromUserId === personId && p.toUserId === currentUser.id && p.date > last.date);
+    const paidSince = payments.some((p) => p.fromUserId === personId && p.toUserId === me && p.date > last.date);
     return paidSince ? undefined : formatRelativeDay(last.date);
   };
 
+  /** "Flat", "Lisbon trip, Friends", "3 groups". */
+  const groupsLabel = (ids: string[]) =>
+    ids.length > 2 ? `${ids.length} groups` : ids.map((id) => getGroupById(id)?.name).filter(Boolean).join(', ');
+
+  // The headline: where you stand overall.
+  const settled = overall.length === 0;
+  const multiCurrency = overall.length > 1;
+  const net = overall[0]?.net ?? 0;
+  const lastPayment = useMemo(
+    () =>
+      payments
+        .filter((p) => p.fromUserId === me || p.toUserId === me)
+        .reduce<(typeof payments)[number] | undefined>((a, p) => (!a || p.date > a.date ? p : a), undefined),
+    [payments, me],
+  );
+  const lead = settled
+    ? 'Nobody owes anything'
+    : multiCurrency
+      ? 'Overall'
+      : net > 0
+        ? "Overall, you're owed"
+        : 'Overall, you owe';
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
   const confirmSettle = (amount: number, method: PaymentMethod) => {
     if (!settling) return;
-    addSettlement({
-      fromUserId: settling.from,
-      toUserId: settling.to,
+    settleWithUser({
+      fromUserId: settling.theyOwe ? settling.userId : me,
+      toUserId: settling.theyOwe ? me : settling.userId,
       amount,
       currency: settling.currency,
-      groupId: settling.groupId,
       date: new Date(),
       paymentMethod: method,
     });
+  };
+
+  const personRow = (b: Between) => {
+    const user = getUserById(b.userId);
+    const when = b.theyOwe ? reminded(b.userId) : undefined;
+    const meta = [groupsLabel(b.allGroupIds), when && `reminded ${when}`].filter(Boolean).join(' · ');
+    return (
+      <div key={`${b.userId}-${b.currency}`} className="dash-person">
+        <Link to={`/people/${b.userId}`} className="dash-person-link">
+          {user && <Avatar user={user} size="md" />}
+          <span className="dash-person-info">
+            <span className="dash-person-name">{firstName(b.userId)}</span>
+            {meta && <span className="dash-person-meta">{meta}</span>}
+          </span>
+        </Link>
+        <span className={`num dash-person-amount ${b.theyOwe ? 'pos' : 'neg'}`}>{formatCurrency(b.amount, b.currency)}</span>
+        {b.theyOwe ? (
+          <button className="btn btn-secondary btn-sm" onClick={() => setReminding(b)}>
+            Remind
+          </button>
+        ) : (
+          <button className="btn btn-primary btn-sm" onClick={() => setSettling(b)}>
+            Pay
+          </button>
+        )}
+      </div>
+    );
   };
 
   return (
     <div className="page-content">
       <div className="dash">
         <header className="dash-header">
-          <div>
-            <p className="text-secondary text-sm">{greeting}</p>
-            <h1 className="dash-name">{currentUser.name}</h1>
-          </div>
+          <h1 className="dash-greeting">
+            {greeting}, {currentUser.name.split(' ')[0]}
+          </h1>
           <Link to="/settings" className="dash-account-btn" aria-label="Settings">
             <Avatar user={currentUser} size="lg" />
           </Link>
         </header>
 
-        {/* Overall balance */}
-        <section className="statement dash-statement" aria-label="Overall balance">
-          <div>
-            <span className="cap">
-              {settled ? 'All settled up' : multiCurrency ? 'Overall balance' : isPositive ? 'Overall, you are owed' : 'Overall, you owe'}
-            </span>
-            <span className="dash-nets">
-              {shown.map((b) => (
+        <BackupReminder />
+
+        {/* Where you stand */}
+        <section className="dash-standing" aria-label="Overall balance">
+          <p className="dash-standing-lead">{lead}</p>
+          {settled ? (
+            <p className="dash-standing-figure even">All settled up</p>
+          ) : (
+            <p className="dash-standing-figures">
+              {overall.map((b) => (
                 <span
                   key={b.currency}
-                  className={`num dash-net ${multiCurrency ? 'dash-net-multi' : ''} ${Math.abs(b.net) < 0.005 ? 'zero' : b.net > 0 ? 'pos' : 'neg'}`}
+                  className={`num dash-standing-figure ${multiCurrency ? 'multi' : ''} ${b.net > 0 ? 'pos' : b.net < 0 ? 'neg' : ''}`}
                 >
-                  {formatSigned(b.net, b.currency)}
+                  {multiCurrency ? formatSigned(b.net, b.currency) : formatCurrency(Math.abs(b.net), b.currency)}
                 </span>
               ))}
-            </span>
-            {activeGroups > 0 && (
-              <span className="text-xs text-secondary">
-                across {activeGroups} {activeGroups === 1 ? 'group' : 'groups'}
-              </span>
-            )}
-          </div>
-          <div className="dash-statement-part">
-            <span className="cap">Owed to you</span>
-            <span className="num pos dash-part-amount">
-              {amountsList(shown.map((b) => ({ amount: b.totalOwed, currency: b.currency })))}
-            </span>
-          </div>
-          <div className="dash-statement-part">
-            <span className="cap">You owe</span>
-            <span className="num neg dash-part-amount">
-              {amountsList(shown.map((b) => ({ amount: b.totalOwe, currency: b.currency })))}
-            </span>
-          </div>
+            </p>
+          )}
+          <p className="dash-standing-sub">
+            {settled
+              ? lastPayment
+                ? `Last payment: ${firstName(lastPayment.fromUserId)} paid ${lastPayment.toUserId === me ? 'you' : firstName(lastPayment.toUserId)} ${formatCurrency(lastPayment.amount, recordCurrency(lastPayment))}, ${lastPayment.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                : myGroups.length
+                  ? 'Add an expense to a group to get started.'
+                  : 'Make a group, add who you share costs with, and start adding expenses.'
+              : [
+                  overall.some((b) => b.totalOwed >= 0.005) &&
+                    `${amountsList(overall.map((b) => ({ amount: b.totalOwed, currency: b.currency })))} coming in`,
+                  overall.some((b) => b.totalOwe >= 0.005) &&
+                    `${amountsList(overall.map((b) => ({ amount: b.totalOwe, currency: b.currency })))} going out`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+          </p>
+          {myGroups.length === 0 && (
+            <Link to="/groups" className="btn btn-primary dash-first-group">
+              Make your first group
+            </Link>
+          )}
         </section>
-
-        <BackupReminder />
 
         <div className="dash-columns">
           <div className="dash-main">
-            {/* Payments that would settle your part */}
-            <section aria-labelledby="dash-settle-title">
-              <div className="dash-section-head">
-                <h2 id="dash-settle-title">To settle</h2>
-                {toSettle.length > 0 && (
-                  <span className="text-xs text-secondary">
-                    {toSettle.length === 1 ? '1 payment squares' : `${toSettle.length} payments square`} everything
-                  </span>
-                )}
-              </div>
-              <div className="ruled">
-                {toSettle.length === 0 ? (
-                  <p className="dash-empty text-secondary">Nothing to settle. You're all square.</p>
-                ) : (
-                  toSettle.map((t) => {
-                    const theyOwe = t.to === currentUser.id;
-                    const other = theyOwe ? t.from : t.to;
-                    const group = getGroupById(t.groupId);
-                    return (
-                      <div key={`${t.groupId}-${t.from}-${t.to}`} className="dash-settle">
-                        <span className="dash-settle-info">
-                          <span className="dash-settle-who">
-                            {theyOwe ? `${firstName(other)} owes you` : `You owe ${firstName(other)}`}
-                          </span>
-                          <span className="dash-settle-meta">
-                            <Link to={`/groups/${t.groupId}`} className="dash-settle-group">
-                              {group?.name}
-                            </Link>
-                            {t.rerouted && (
-                              <button className="dash-settle-why" onClick={() => setExplaining(t)}>
-                                Why?
-                              </button>
-                            )}
-                            {theyOwe && reminded(other) && (
-                              <span className="dash-settle-reminded">Reminded {reminded(other)}</span>
-                            )}
-                          </span>
-                        </span>
-                        <span className={`num dash-settle-amount ${theyOwe ? 'pos' : 'neg'}`}>
-                          {formatCurrency(t.amount, t.currency)}
-                        </span>
-                        <span className="dash-settle-actions">
-                          {theyOwe && (
-                            <button
-                              className="btn btn-secondary btn-sm dash-remind"
-                              onClick={() => setReminding(t)}
-                            >
-                              Remind
-                            </button>
-                          )}
-                          <button
-                            className={`btn btn-sm ${theyOwe ? 'btn-outline' : 'btn-primary'}`}
-                            onClick={() => setSettling(t)}
-                          >
-                            {theyOwe ? (
-                              <>
-                                <span className="dash-wide-only">Mark received</span>
-                                <span className="dash-narrow-only">Received</span>
-                              </>
-                            ) : (
-                              'Pay'
-                            )}
-                          </button>
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </section>
-
-            {/* Repeats still to come: on phones, here; on desktop, in the side column */}
-            {comingUp.length > 0 && (
-              <ComingUp className="dash-narrow-only" items={comingUp} groupName={(id) => getGroupById(id)?.name ?? ''} />
-            )}
-
-            {/* Recent expenses */}
-            {recentExpenses.length > 0 && (
-              <section aria-labelledby="dash-recent-title">
+            {youPay.length > 0 && (
+              <section aria-labelledby="dash-pay-title">
                 <div className="dash-section-head">
-                  <h2 id="dash-recent-title">Recent</h2>
-                  <Link to="/activity" className="dash-link">All activity</Link>
+                  <h2 id="dash-pay-title" className="cap">You pay</h2>
                 </div>
-                <div className="ruled">
-                  {recentExpenses.map((expense) => {
-                    const isPaidByMe = expense.paidBy === currentUser.id;
-                    const net = getNetAmountForUser(expense, currentUser.id);
-                    const group = getGroupById(expense.groupId);
-                    return (
-                      <Link
-                        key={expense.id}
-                        to={expense.groupId ? `/groups/${expense.groupId}/expenses/${expense.id}` : '/groups'}
-                        className="dash-expense dash-expense-link"
-                      >
-                        <span className="num dash-expense-date" title={formatDate(expense.date)}>
-                          {formatLedgerDate(expense.date)}
-                        </span>
-                        <span className="dash-expense-info">
-                          <span className="dash-expense-desc">{expense.description}</span>
-                          <span className="text-xs text-secondary">
-                            {isPaidByMe ? 'You' : firstName(expense.paidBy)} {expense.refund ? 'got back' : 'paid'}{' '}
-                            {expenseAmountLabel(expense)}
-                            {group && <span className="dash-narrow-only"> · {group.name}</span>}
-                          </span>
-                        </span>
-                        <span className="dash-expense-group">{group?.name ?? ''}</span>
-                        <span className={`num dash-expense-share ${net > 0.005 ? 'pos' : net < -0.005 ? 'neg' : 'zero'}`}>
-                          {formatSigned(net, recordCurrency(expense))}
-                        </span>
-                      </Link>
-                    );
-                  })}
-                </div>
+                <div className="ruled">{youPay.map(personRow)}</div>
               </section>
             )}
-            {/* Insights left the tab bar for Activity; this keeps it a tap away */}
-            <Link to="/insights" className="dash-insights">
-              <span className="dash-insights-text">
-                <span className="dash-insights-title">Spending insights</span>
-                <span className="text-xs text-secondary">Where the money went, by category and month</span>
-              </span>
-              <span aria-hidden className="dash-insights-arrow">→</span>
-            </Link>
+
+            {waitingOn.length > 0 && (
+              <section aria-labelledby="dash-waiting-title">
+                <div className="dash-section-head">
+                  <h2 id="dash-waiting-title" className="cap">Waiting on</h2>
+                  <span className="text-xs text-secondary">
+                    {waitingPeople} {waitingPeople === 1 ? 'person' : 'people'}
+                  </span>
+                </div>
+                <div className="ruled">{waitingOn.map(personRow)}</div>
+                <p className="dash-hint">One line per person, across all your groups. Tap someone to mark it received.</p>
+              </section>
+            )}
           </div>
 
-          <aside className="dash-side">
-            {comingUp.length > 0 && (
-              <ComingUp items={comingUp} groupName={(id) => getGroupById(id)?.name ?? ''} />
-            )}
+          {(comingUp.length > 0 || myGroups.length > 0) && (
+            <aside className="dash-side">
+              {comingUp.length > 0 && (
+                <ComingUp items={comingUp} groupName={(id) => getGroupById(id)?.name ?? ''} />
+              )}
 
-            <section className="dash-groups" aria-labelledby="dash-groups-title">
-              <div className="dash-section-head">
-                <h2 id="dash-groups-title">Groups</h2>
-                <Link to="/groups" className="dash-link">All groups</Link>
-              </div>
-              <div className="dash-group-list">
-                {myGroups.map((group) => {
-                  const bal = balanceOf(group.id);
-                  const even = Math.abs(bal) < 0.005;
-                  return (
-                    <button
-                      key={group.id}
-                      className="dash-group"
-                      onClick={() => navigate(`/groups/${group.id}`)}
-                    >
-                      <GroupTile group={group} size={36} />
-                      <span className="dash-group-info">
-                        <span className="dash-group-name">{group.name}</span>
-                        <span className="dash-group-meta text-xs text-secondary">
-                          {group.members.length} members · {groupCurrency(group)}
-                        </span>
-                      </span>
-                      <span className={`${even ? '' : 'num'} dash-group-bal ${even ? 'zero' : bal > 0 ? 'pos' : 'neg'}`}>
-                        {even ? 'settled' : formatSigned(bal, groupCurrency(group))}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          </aside>
+              {myGroups.length > 0 && (
+                <section aria-labelledby="dash-add-title">
+                  <div className="dash-section-head">
+                    <h2 id="dash-add-title" className="cap">Add to a group</h2>
+                  </div>
+                  <div className="dash-quick-add">
+                    {myGroups.map((g) => (
+                      <button
+                        key={g.id}
+                        className="dash-quick"
+                        onClick={() => setAddingTo(g.id)}
+                        aria-label={`Add an expense to ${g.name}`}
+                      >
+                        <GroupTile group={g} size={30} />
+                        <span className="dash-quick-name">{g.name}</span>
+                        <span className="dash-quick-plus" aria-hidden>+</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </aside>
+          )}
         </div>
       </div>
 
       <AnimatePresence>
-        {explaining && (
-          <TransferExplainer
-            groupId={explaining.groupId}
-            transfer={explaining}
-            showGroup
-            onClose={() => setExplaining(null)}
+        {addingTo && (
+          <AddExpenseSheet
+            open={!!addingTo}
+            onClose={() => setAddingTo(null)}
+            defaultGroupId={addingTo}
           />
         )}
       </AnimatePresence>
@@ -365,10 +318,10 @@ export default function Dashboard() {
       <AnimatePresence>
         {reminding && (
           <RemindSheet
-            personId={reminding.from}
+            personId={reminding.userId}
             amount={reminding.amount}
             currency={reminding.currency}
-            groupIds={[reminding.groupId]}
+            groupIds={reminding.groupIds}
             onClose={() => setReminding(null)}
           />
         )}
@@ -377,11 +330,11 @@ export default function Dashboard() {
       <AnimatePresence>
         {settling && (
           <SettleModal
-            fromUserId={settling.from}
-            toUserId={settling.to}
+            fromUserId={settling.theyOwe ? settling.userId : me}
+            toUserId={settling.theyOwe ? me : settling.userId}
             amount={settling.amount}
             currency={settling.currency}
-            groupLabel={getGroupById(settling.groupId)?.name}
+            groupLabel={settling.allGroupIds.length ? groupsLabel(settling.allGroupIds) : undefined}
             onClose={() => setSettling(null)}
             onConfirm={confirmSettle}
           />
@@ -394,26 +347,25 @@ export default function Dashboard() {
 interface ComingUpProps {
   items: { rule: RecurringExpense; date: Date }[];
   groupName: (groupId: string) => string;
-  className?: string;
 }
 
-function ComingUp({ items, groupName, className = '' }: ComingUpProps) {
+function ComingUp({ items, groupName }: ComingUpProps) {
   return (
-    <section className={`dash-coming ${className}`} aria-labelledby={`dash-coming-${className || 'side'}`}>
+    <section aria-labelledby="dash-coming-title">
       <div className="dash-section-head">
-        <h2 id={`dash-coming-${className || 'side'}`}>Coming up</h2>
+        <h2 id="dash-coming-title" className="cap">Coming up</h2>
       </div>
-      <div className="ruled">
+      <div className="dash-coming">
         {items.map(({ rule, date }) => (
-          <Link key={rule.id} to={`/groups/${rule.groupId}`} className="dash-expense dash-coming-row">
-            <span className="num dash-expense-date">{formatLedgerDate(date)}</span>
-            <span className="dash-expense-info">
-              <span className="dash-expense-desc">
-                {rule.template.description} <span className="text-secondary" title="Repeats">↻</span>
+          <Link key={rule.id} to={`/groups/${rule.groupId}`} className="dash-coming-row">
+            <span className="dash-coming-icon" aria-hidden>↻</span>
+            <span className="dash-coming-text">
+              <span className="dash-coming-name">{rule.template.description}</span>{' '}
+              <span className="text-secondary">
+                repeats {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {groupName(rule.groupId)}
               </span>
-              <span className="text-xs text-secondary">{groupName(rule.groupId)}</span>
             </span>
-            <span className="num dash-coming-amount">{formatCurrency(rule.template.amount, recordCurrency(rule.template))}</span>
+            <span className="num">{formatCurrency(rule.template.amount, recordCurrency(rule.template))}</span>
           </Link>
         ))}
       </div>

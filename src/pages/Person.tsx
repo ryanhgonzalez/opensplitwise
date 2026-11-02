@@ -275,7 +275,7 @@ export default function Person() {
               {between.length > 0 && (
                 <p className="text-xs text-secondary person-note">
                   Settle up records a payment {between.length > 1 ? 'in one currency at a time' : 'either way'}. It's
-                  spread across the groups the balance sits in.
+                  spread across the groups the balance sits in, and evens out any group where it runs the other way.
                 </p>
               )}
             </section>
