@@ -9,11 +9,31 @@
 .dash-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
+}
+
+.dash-scan-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--ink);
+  border-radius: 22px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.dash-scan-btn:hover {
+  background: var(--panel);
 }
 
 .dash-greeting {
+  flex: 1;
+  min-width: 0;
   font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.01em;

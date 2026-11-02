@@ -3,9 +3,12 @@ import type { Expense, Group, Settlement, User } from '../types';
 import {
   NEW_PERSON,
   buildBundle,
+  buildReply,
+  bundleContents,
   defaultChoice,
   matchPeople,
   mergeBundle,
+  mergeNeedsYou,
   needsSelfChoice,
   type SyncState,
 } from './groupSync';
@@ -328,5 +331,76 @@ describe('recurring expenses', () => {
     const anas = { ...anasPhone(), tombstones: [{ id: 'rent', kind: 'recurring' as const, groupId: 'trip', deletedAt: T(20) }] };
     const { state } = mergeBundle(bens, buildBundle(anas, 'trip', T(21))!, {}, T(21));
     expect(state.recurring).toEqual([]);
+  });
+});
+
+describe('swapping', () => {
+  /** After the first share, each phone adds an expense of its own. */
+  const twoPhones = () => {
+    const first = benReceivesFirst();
+    const bens: SyncState = { ...first.state, expenses: [...first.state.expenses, expense('taxi', 'b2', ['a2', 'b2'], 30, T(20))] };
+    const anas: SyncState = { ...anasPhone(), expenses: [...anasPhone().expenses, expense('boat', 'a1', ['a1', 'b1'], 60, T(21))] };
+    return { anas, bens };
+  };
+
+  it('shows back only what the other phone is missing, under its ids, and then both phones match', () => {
+    const { anas, bens } = twoPhones();
+
+    // Ana shows her code; Ben's phone merges it without asking anything.
+    const code = buildBundle(anas, 'trip', T(30))!;
+    expect(mergeNeedsYou(bens, code)).toBe(false);
+    const merged = mergeBundle(bens, code, defaultChoice(matchPeople(bens, code)), T(30));
+    expect(merged.summary).toMatchObject({ added: 1, newIds: ['boat'] });
+
+    // His code back: just the taxi, with Ana's ids for both of them.
+    const reply = buildReply(merged.state, code, merged.summary.peopleIds, merged.summary, T(31))!;
+    expect(reply.expenses.map((e) => e.id)).toEqual(['taxi']);
+    expect(reply.expenses[0].paidBy).toBe('b1');
+    expect(reply.expenses[0].split.entries.map((e) => e.userId)).toEqual(['a1', 'b1']);
+    expect(reply.senderId).toBe('b1');
+    expect(reply.reply).toEqual({ answers: T(30), added: 1, updated: 0, deleted: 0 });
+
+    // Ana's phone merges it without asking either, and the two now match.
+    expect(mergeNeedsYou(anas, reply)).toBe(false);
+    const back = mergeBundle(anas, reply, defaultChoice(matchPeople(anas, reply)), T(32));
+    const records = (st: SyncState) => st.expenses.map((e) => `${e.id}@${e.updatedAt.getTime()}`).sort();
+    expect(records(back.state)).toEqual(records(merged.state));
+    expect(back.state.expenses.find((e) => e.id === 'taxi')).toMatchObject({ paidBy: 'b1' });
+  });
+
+  it('has nothing to show back when the other phone has it all', () => {
+    const first = benReceivesFirst();
+    expect(buildReply(first.state, first.bundle, first.summary.peopleIds, first.summary, T(11))).toBeNull();
+  });
+
+  it('carries a deletion the other phone hasn’t had', () => {
+    const first = benReceivesFirst();
+    const bens: SyncState = {
+      ...first.state,
+      expenses: [],
+      tombstones: [{ id: 'dinner', kind: 'expense', groupId: 'trip', deletedAt: T(25) }],
+    };
+    const code = buildBundle(anasPhone(), 'trip', T(30))!;
+    const merged = mergeBundle(bens, code, defaultChoice(matchPeople(bens, code)), T(30));
+    expect(merged.state.expenses).toEqual([]);
+
+    const reply = buildReply(merged.state, code, merged.summary.peopleIds, merged.summary, T(31))!;
+    expect(reply.tombstones.map((t) => t.id)).toEqual(['dinner']);
+    const back = mergeBundle(anasPhone(), reply, defaultChoice(matchPeople(anasPhone(), reply)), T(32));
+    expect(back.state.expenses).toEqual([]);
+    expect(back.summary.deleted).toBe(1);
+  });
+
+  it('needs you the first time, to say who you are', () => {
+    const code = buildBundle(anasPhone(), 'trip', T(10))!;
+    expect(mergeNeedsYou(phone(ben, [anaOnBen]), code)).toBe(true);
+  });
+
+  it('tells apart a copy that changed from one that didn’t', () => {
+    const { anas } = twoPhones();
+    const before = bundleContents(buildBundle(anas, 'trip', T(30))!);
+    expect(bundleContents(buildBundle(anas, 'trip', T(40))!)).toBe(before);
+    const changed: SyncState = { ...anas, expenses: [...anas.expenses, expense('tram', 'a1', ['a1', 'b1'], 6, T(35))] };
+    expect(bundleContents(buildBundle(changed, 'trip', T(40))!)).not.toBe(before);
   });
 });

@@ -54,6 +54,19 @@ export interface GroupBundle {
   recurring?: RecurringExpense[];
   /** Receipt photos (expense id → data: URL), only in files and only when the sender chose to include them. */
   receipts?: Record<string, string>;
+  /**
+   * Set on a code shown back during a swap (buildReply). It holds only what
+   * the phone it answers didn't have, with people under that phone's ids, so
+   * it's no use to a phone that doesn't have the group yet.
+   */
+  reply?: {
+    /** When the code it answers was made (that bundle's sentAt). */
+    answers: Date;
+    /** What this phone got from that code. */
+    added: number;
+    updated: number;
+    deleted: number;
+  };
 }
 
 /** The parts of the store a share reads or changes. */
@@ -169,8 +182,12 @@ export interface MergeSummary {
   membersRemoved: string[];
   /** Expenses now as the sender has them (new, or their edit won): their receipt photos apply. */
   receivedIds: string[];
+  /** Of those, the ones that are new on this phone. */
+  newIds: string[];
   /** Descriptions of expenses edited on both phones since the last share, and whose edit was kept. */
   conflicts: { description: string; kept: 'theirs' | 'yours' }[];
+  /** Each incoming person's id on this phone. */
+  peopleIds: Record<string, string>;
 }
 
 export interface MergeResult {
@@ -306,6 +323,7 @@ export function mergeBundle(
   const incomingExpenses = new Map(bundle.expenses.map((e) => [e.id, mapExpense(e)]));
   const removedExpenseIds = new Set<string>();
   const receivedIds: string[] = [];
+  const newIds: string[] = [];
   const expenses: Expense[] = [];
 
   for (const mine of state.expenses) {
@@ -339,6 +357,7 @@ export function mergeBundle(
     if (deletedAfter('expense', theirs.id, theirs.updatedAt)) continue;
     expenses.push({ ...theirs, currency });
     receivedIds.push(theirs.id);
+    newIds.push(theirs.id);
     added++;
   }
 
@@ -417,7 +436,135 @@ export function mergeBundle(
       membersAdded,
       membersRemoved,
       receivedIds,
+      newIds,
       conflicts,
+      peopleIds: Object.fromEntries(idOf),
     },
   };
+}
+
+// ─── Swapping ─────────────────────────────────────────────────────────────────
+//
+// A swap is two codes: one phone shows the whole group, the other merges it and
+// shows back only what the first is missing (usually a single part).
+
+/**
+ * Whether merging this bundle needs the person here: to say who they are, to
+ * check someone the app can't place for sure, or to see an expense that was
+ * edited on both phones. Otherwise it can merge straight away.
+ */
+export function mergeNeedsYou(state: SyncState, bundle: GroupBundle): boolean {
+  const matches = matchPeople(state, bundle);
+  if (needsSelfChoice(state, matches)) return true;
+  if (matches.some((m) => m.reason === 'same-name' || m.reason === 'none')) return true;
+  return mergeBundle(state, bundle, defaultChoice(matches)).summary.conflicts.length > 0;
+}
+
+/**
+ * The code to show back after merging someone's: only what their phone didn't
+ * have, people under their phone's ids (so it merges there without asking),
+ * and what this phone just got from them. Null when they have it all already.
+ *
+ * `state` is this phone after the merge; `ids` is that merge's peopleIds.
+ */
+export function buildReply(
+  state: SyncState,
+  answered: GroupBundle,
+  ids: Record<string, string>,
+  received: { added: number; updated: number; deleted: number },
+  now = new Date(),
+): GroupBundle | null {
+  const full = buildBundle(state, answered.group.id, now);
+  if (!full) return null;
+
+  // This phone's id for someone → theirs, for everyone their code had.
+  const theirs = new Map<string, string>();
+  for (const [incoming, local] of Object.entries(ids)) if (!theirs.has(local)) theirs.set(local, incoming);
+  const back = (id: string) => theirs.get(id) ?? id;
+
+  const theirExpenses = new Map(answered.expenses.map((e) => [e.id, e]));
+  const expenses = full.expenses
+    .filter((e) => {
+      const t = theirExpenses.get(e.id);
+      return !t || e.updatedAt.getTime() > t.updatedAt.getTime();
+    })
+    .map((e) => ({
+      ...e,
+      paidBy: back(e.paidBy),
+      split: { ...e.split, entries: e.split.entries.map((en) => ({ ...en, userId: back(en.userId) })) },
+      ...(e.items && { items: e.items.map((it) => ({ ...it, assigned: it.assigned.map(back) })) }),
+    }));
+
+  const theirPayments = new Set(answered.settlements.map((s) => s.id));
+  const settlements = full.settlements
+    .filter((s) => !theirPayments.has(s.id))
+    .map((s) => ({ ...s, fromUserId: back(s.fromUserId), toUserId: back(s.toUserId) }));
+
+  const tombKey = (t: Tombstone) => `${t.kind}:${t.groupId}:${t.id}`;
+  const theirTombs = new Map(answered.tombstones.map((t) => [tombKey(t), t]));
+  const tombstones = full.tombstones
+    .map((t) => (t.kind === 'member' ? { ...t, id: back(t.id) } : t))
+    .filter((t) => {
+      const have = theirTombs.get(tombKey(t));
+      return !have || t.deletedAt.getTime() > have.deletedAt.getTime();
+    });
+
+  const theirRules = new Map((answered.recurring ?? []).map((r) => [r.id, r]));
+  const recurring = (full.recurring ?? [])
+    .filter((r) => {
+      const t = theirRules.get(r.id);
+      return !t || r.updatedAt.getTime() > t.updatedAt.getTime();
+    })
+    .map((r) => ({
+      ...r,
+      template: {
+        ...r.template,
+        paidBy: back(r.template.paidBy),
+        split: { ...r.template.split, entries: r.template.split.entries.map((en) => ({ ...en, userId: back(en.userId) })) },
+        ...(r.template.items && { items: r.template.items.map((it) => ({ ...it, assigned: it.assigned.map(back) })) }),
+      },
+    }));
+
+  const members = full.group.members.map((m) => ({ ...m, userId: back(m.userId) }));
+  const theirGroup = answered.group;
+  const newMember = members.some(
+    (m) => !theirGroup.members.some((x) => x.userId === m.userId && x.joinedAt.getTime() >= m.joinedAt.getTime()),
+  );
+  const newCategory = (full.group.categories ?? []).some((c) => !(theirGroup.categories ?? []).some((x) => x.id === c.id));
+  const newerDetails = editedAt(full.group).getTime() > editedAt(theirGroup).getTime();
+
+  const nothing =
+    !expenses.length && !settlements.length && !tombstones.length && !recurring.length && !newMember && !newCategory && !newerDetails;
+  if (nothing) return null;
+
+  return {
+    ...full,
+    senderId: back(full.senderId),
+    group: { ...full.group, members },
+    users: full.users.map((u) => ({ ...u, id: back(u.id) })),
+    expenses,
+    settlements,
+    tombstones,
+    recurring,
+    reply: { answers: answered.sentAt, added: received.added, updated: received.updated, deleted: received.deleted },
+  };
+}
+
+/**
+ * What a bundle holds, as one string: the same for two bundles of a group with
+ * the same records and details, whenever they were made. Used to tell whether
+ * this phone's copy changed since it showed its code.
+ */
+export function bundleContents(b: GroupBundle): string {
+  const list = (xs: string[]) => [...xs].sort().join(',');
+  return [
+    b.group.id,
+    editedAt(b.group).getTime(),
+    list(b.group.members.map((m) => `${m.userId}@${m.joinedAt.getTime()}`)),
+    list((b.group.categories ?? []).map((c) => c.id)),
+    list(b.expenses.map((e) => `${e.id}@${e.updatedAt.getTime()}`)),
+    list(b.settlements.map((s) => s.id)),
+    list(b.tombstones.map((t) => `${t.kind}:${t.id}@${t.deletedAt.getTime()}`)),
+    list((b.recurring ?? []).map((r) => `${r.id}@${r.updatedAt.getTime()}`)),
+  ].join('|');
 }

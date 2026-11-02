@@ -128,6 +128,42 @@
   color: var(--muted);
 }
 
+.gd-swapped {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.gd-swapped svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+/* What the last swap brought in */
+.gd-swap-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+}
+
+.gd-swap-tag.new {
+  border-color: var(--owed-tint);
+  background: var(--owed-tint);
+  color: var(--owed);
+}
+
 .gd-archived {
   margin-top: 6px;
   font-size: 13px;

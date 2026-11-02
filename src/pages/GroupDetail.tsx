@@ -14,7 +14,7 @@ import {
   type SettlementTransaction,
 } from '../lib/calculations';
 import { EMPTY_FILTER, categoryOptions, filterExpenses, isFilterActive, type ExpenseFilter } from '../lib/expenseFilter';
-import { formatCurrency, formatDate, formatLedgerDate, formatSigned, getNetAmountForUser } from '../utils';
+import { formatCurrency, formatDate, formatLedgerDate, formatRelativeDay, formatSigned, getNetAmountForUser } from '../utils';
 import { shortName } from '../utils/user';
 import '../styles/sheet.css';
 import { categoryLabel } from '../lib/categories';
@@ -34,6 +34,7 @@ import { useGroupReport } from '../components/useGroupReport';
 import TransferExplainer from '../components/TransferExplainer';
 import { expenseAmountLabel, groupCurrency } from '../lib/currency';
 import { directOther } from '../lib/directGroups';
+import { swapTag, useRecentSwap } from '../lib/recentSwap';
 import './GroupDetail.css';
 
 /** Expenses listed before "Show all". */
@@ -55,10 +56,9 @@ const REPORT_ICON = (
   </svg>
 );
 
-const SHARE_ICON = (
+const SWAP_ICON = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-    <path d="M12 3v12M7 8l5-5 5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    <path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
@@ -170,6 +170,8 @@ export default function GroupDetail() {
   const addSettlement = useStore(s => s.addSettlement);
   const deleteSettlement = useStore(s => s.deleteSettlement);
   const setGroupArchived = useStore(s => s.setGroupArchived);
+  const activities = useStore(s => s.activities);
+  const recentSwap = useRecentSwap();
   const currentUser = useStore(selectCurrentUser)!;
   const { totalSpent } = useStore(selectTotalsForGroup(id ?? ''));
 
@@ -291,6 +293,14 @@ export default function GroupDetail() {
   const other = otherId ? getUserById(otherId) : undefined;
   const homePath = other ? `/people/${other.id}` : '/groups';
 
+  // The last time this phone took in someone's copy of the group.
+  const lastSync = activities
+    .filter(a => a.type === 'group_synced' && a.groupId === group.id)
+    .reduce<(typeof activities)[number] | undefined>((latest, a) => (!latest || a.date > latest.date ? a : latest), undefined);
+  const lastSwap = lastSync?.type === 'group_synced'
+    ? { name: getUserById(lastSync.actorId)?.name.split(' ')[0] ?? lastSync.fromName.split(' ')[0], date: lastSync.date }
+    : undefined;
+
   const toggleArchived = () => {
     const archiving = !group.archivedAt;
     setGroupArchived(group.id, archiving);
@@ -301,7 +311,11 @@ export default function GroupDetail() {
   };
 
   const menuItems: MenuItem[] = [
-    { label: group.direct ? 'Share' : 'Share group', icon: SHARE_ICON, onSelect: () => navigate(`/share?group=${group.id}`) },
+    {
+      label: other ? `Swap with ${other.name.split(' ')[0]}` : 'Swap with a friend',
+      icon: SWAP_ICON,
+      onSelect: () => navigate(`/share?group=${group.id}`),
+    },
     ...(hasExpenses
       ? [{
           label: makingId === group.id ? 'Making PDF…' : 'PDF report',
@@ -446,6 +460,12 @@ export default function GroupDetail() {
               <p className="gd-subline">
                 {other ? 'Just you two' : group.members.map(m => nameOf(m.userId)).join(', ')} · {cur}
               </p>
+              {lastSwap && (
+                <p className="gd-swapped">
+                  {SWAP_ICON}
+                  Last swapped with {lastSwap.name} {formatRelativeDay(lastSwap.date)}
+                </p>
+              )}
               {group.archivedAt && (
                 <p className="gd-archived">
                   Archived, so it's hidden from your groups. Its balances still count.
@@ -580,6 +600,10 @@ export default function GroupDetail() {
                                 {expense.description}
                               </Link>
                               {expense.refund && <span className="gd-refund-tag">Refund</span>}
+                              {(() => {
+                                const tag = swapTag(recentSwap, group.id, expense);
+                                return tag && <span className={`gd-swap-tag ${tag === 'New' ? 'new' : ''}`}>{tag}</span>;
+                              })()}
                               {ruleIdOf(expense.id) && allRecurring.some(r => r.id === ruleIdOf(expense.id)) && (
                                 <span className="gd-repeat-mark" title="Repeating expense" aria-label="Repeating expense">↻</span>
                               )}

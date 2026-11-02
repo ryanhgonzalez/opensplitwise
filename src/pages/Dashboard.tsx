@@ -205,6 +205,17 @@ export default function Dashboard() {
           <h1 className="dash-greeting">
             {greeting}, {currentUser.name.split(' ')[0]}
           </h1>
+          <Link to="/scan" state={{ from: '/' }} className="dash-scan-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+            Scan
+          </Link>
           <Link to="/settings" className="dash-account-btn" aria-label="Settings">
             <Avatar user={currentUser} size="lg" />
           </Link>

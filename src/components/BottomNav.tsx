@@ -5,8 +5,10 @@ import './BottomNav.css';
 
 export default function BottomNav() {
   const { openAddExpense, addExpenseSheet } = useAddExpense();
-  // Sharing and receiving take the whole screen on phones.
-  if (useMatch('/share')) return null;
+  // Swapping and scanning take the whole screen on phones.
+  const swapping = useMatch('/share');
+  const scanning = useMatch('/scan');
+  if (swapping || scanning) return null;
 
   const tab = (item: (typeof NAV_ITEMS)[number]) => (
     <NavLink

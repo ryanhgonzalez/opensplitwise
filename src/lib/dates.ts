@@ -17,6 +17,8 @@ const DATE_FIELDS = new Set([
   'startDate', // repeating expenses
   'deletedAt', // deletion markers
   'sentAt', // shared groups
+  'answers', // a swap's code back: when the code it answers was made
+  'archivedAt', // groups put away on this phone
 ]);
 
 /** groupId → Date: a map whose values are dates, under keys that aren't. */

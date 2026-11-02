@@ -9,6 +9,12 @@ describe('reviveDates', () => {
     for (const v of Object.values(back)) expect(v).toEqual(when);
   });
 
+  it('gives back when a group was archived, and which code a swap answers', () => {
+    const back = JSON.parse(JSON.stringify({ archivedAt: when, reply: { answers: when } }), reviveDates);
+    expect(back.archivedAt).toEqual(when);
+    expect(back.reply.answers).toEqual(when);
+  });
+
   it('gives the values of a groupId → date map back as Dates', () => {
     const back = JSON.parse(JSON.stringify({ groupSyncedAt: { g1: when } }), reviveDates);
     expect(back.groupSyncedAt.g1).toEqual(when);

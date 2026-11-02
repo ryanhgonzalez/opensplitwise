@@ -182,6 +182,8 @@ export interface AppStore {
   // ── Sharing ──
   /** Merges a group received from another phone; returns what changed. */
   applyGroupBundle: (bundle: GroupBundle, people: PeopleChoice, options?: MergeOptions) => MergeSummary;
+  /** Puts back the records as they were before a merge (its Undo). */
+  undoMerge: (before: SyncState) => void;
 
   // ── Danger zone ──
   wipeAllData: () => void;
@@ -1081,6 +1083,15 @@ export const useStore = create<AppStore>()(
           const { state, summary } = mergeBundle(dataSnapshot(get()), bundle, people, undefined, undefined, options);
           set(state, false, 'applyGroupBundle');
           return summary;
+        },
+
+        undoMerge: (before) => {
+          const { users, groups, expenses, settlements, activities, tombstones, userAliases, groupSyncedAt, recurring } = before;
+          set(
+            { users, groups, expenses, settlements, activities, tombstones, userAliases, groupSyncedAt, recurring },
+            false,
+            'undoMerge',
+          );
         },
 
         // ── Danger zone ────────────────────────────────────────────────────────

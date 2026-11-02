@@ -1,0 +1,850 @@
+/* Swap (show your code, scan theirs back) and Scan (take in someone's code).
+   Phones: full screen with a close button, no tab bar. Computers: a page
+   beside the sidebar, the code or camera on the left. */
+
+.swap-scroll {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+}
+
+.swap-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+  padding: env(safe-area-inset-top, 0px) 20px 4px;
+}
+
+.swap-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 56px;
+  margin: 0 -12px -8px 0;
+}
+
+.swap-topbar-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.swap-close {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: inherit;
+}
+
+.swap-header,
+.swap-side-lead {
+  display: none;
+}
+
+/* ── Layout: the code or camera, then what to do ───────────────────────── */
+
+.swap-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.swap-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.swap-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.swap-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.swap-heading-name {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.swap-heading-sub {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.swap-heading-sub strong,
+.swap-side-lead strong,
+.swap-lead strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.swap-label {
+  align-self: flex-start;
+}
+
+.swap-lead {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+/* ── The code: black on white in either theme, so cameras read it ──────── */
+
+.swap-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.swap-qr-wrap {
+  padding: 10px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.swap-qr {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.swap-parts {
+  width: 100%;
+  max-width: 322px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.swap-parts-text {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.swap-parts-text.error {
+  font-family: inherit;
+  color: var(--owe);
+}
+
+/* One segment per part of the code */
+.parts-bar {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+
+.parts-bar-dense {
+  gap: 2px;
+}
+
+.parts-bar > span,
+.parts-bar-empty {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--rule);
+}
+
+.parts-bar > span.on {
+  background: var(--ink);
+}
+
+/* ── Notes, actions, the line at the bottom ────────────────────────────── */
+
+.swap-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.swap-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.swap-note svg {
+  flex: none;
+}
+
+.swap-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.swap-wide {
+  width: 100%;
+  min-height: 52px;
+  gap: 10px;
+}
+
+.swap-caption {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.swap-footer {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+
+.swap-footer-stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.swap-footer-text {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.swap-photos {
+  flex-basis: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.swap-photos input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--ink);
+}
+
+.swap-meta {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.swap-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--owe-tint);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+/* ── The camera ────────────────────────────────────────────────────────── */
+
+.swap-camera {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  background: #1b1d22;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.swap-camera.dragging {
+  outline: 3px dashed var(--owed);
+  outline-offset: 3px;
+}
+
+.swap-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.swap-guide {
+  position: relative;
+  width: 72%;
+  aspect-ratio: 1;
+  border: 3px solid #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.28);
+}
+
+.swap-camera-msg {
+  position: relative;
+  max-width: 300px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  font-size: 14px;
+  color: #e4e4df;
+}
+
+.swap-camera-msg p {
+  margin: 0;
+}
+
+.swap-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.swap-progress-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.swap-progress-text {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ── What came in ──────────────────────────────────────────────────────── */
+
+.swap-got {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.swap-got-mark {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--on-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.swap-got-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.swap-got-title {
+  font-size: 18px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.swap-got-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.swap-undo {
+  flex: none;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--owed);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.swap-undo-quiet {
+  align-self: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.swap-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 0 8px;
+  text-align: center;
+}
+
+.swap-empty .swap-actions {
+  align-self: stretch;
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.swap-empty-mark {
+  width: 56px;
+  height: 56px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.swap-empty-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.swap-empty-text {
+  max-width: 320px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+/* ── In sync ───────────────────────────────────────────────────────────── */
+
+.swap-done {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 12px;
+}
+
+.swap-done-mark {
+  width: 64px;
+  height: 64px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.swap-done-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.swap-done-title {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.swap-done-sub {
+  margin: 0;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.swap-done-actions {
+  margin-top: auto;
+}
+
+.swap-rows {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--ink);
+}
+
+.swap-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.swap-row-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.swap-row-label {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.swap-row-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.swap-row-value {
+  font-size: 15px;
+  color: var(--ink-soft);
+  text-align: right;
+}
+
+.swap-row-money {
+  font-size: 17px;
+  font-weight: 500;
+}
+
+/* ── Review & merge ────────────────────────────────────────────────────── */
+
+.review-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.review-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+/* On phones the second column runs on to the bottom, where Merge sits */
+.review-col:last-child {
+  flex: 1;
+}
+
+.review-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.review-group > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.review-group-name {
+  font-size: 22px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.review-label {
+  display: block;
+  padding-bottom: 8px;
+}
+
+.review-changes {
+  border-top: 2px solid var(--ink);
+}
+
+.review-change {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  margin: 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 14px;
+}
+
+.review-change-mark {
+  width: 36px;
+  flex-shrink: 0;
+  display: flex;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.review-note {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.review-note-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.review-people {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.review-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.review-person-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-person-name {
+  font-size: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.review-person-select {
+  flex: 0 1 60%;
+  min-width: 0;
+  max-width: 220px;
+}
+
+.review-not-me {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.review-not-me:has(input:checked) {
+  border-color: var(--ink);
+}
+
+.review-not-me input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--ink);
+}
+
+.review-not-me-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.review-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-merge,
+.review-cancel {
+  width: 100%;
+  min-height: 52px;
+}
+
+.review-cancel {
+  min-height: 48px;
+}
+
+.review-actions-note {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ── Computers ─────────────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .swap-scroll {
+    padding-bottom: 48px;
+  }
+
+  .swap-page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 32px 40px 32px;
+    gap: 28px;
+  }
+
+  .swap-topbar {
+    display: none;
+  }
+
+  .swap-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 8px 16px;
+  }
+
+  .swap-crumb {
+    grid-column: 1;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .swap-crumb a {
+    color: var(--owed);
+    text-decoration: none;
+  }
+
+  .swap-crumb a:hover {
+    text-decoration: underline;
+  }
+
+  .swap-title {
+    grid-column: 1;
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .swap-header-btn {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: end;
+  }
+
+  .swap-header-sub {
+    grid-column: 1 / -1;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* The code or camera on the left, what to do on the right */
+  .swap-layout {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 48px;
+  }
+
+  .swap-main {
+    flex: 0 1 440px;
+    align-items: flex-start;
+  }
+
+  .swap-side {
+    flex: 1 1 280px;
+    max-width: 420px;
+    gap: 18px;
+    padding-top: 8px;
+  }
+
+  .swap-heading {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .swap-heading-sub {
+    display: none;
+  }
+
+  .swap-side-lead {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .swap-lead,
+  .swap-caption {
+    text-align: left;
+  }
+
+  .swap-camera {
+    max-width: 440px;
+  }
+
+  .swap-parts {
+    max-width: 382px;
+  }
+
+  .swap-wide {
+    min-height: 44px;
+  }
+
+  .swap-footer {
+    margin-top: 0;
+    padding-top: 18px;
+  }
+
+  .swap-got {
+    max-width: 920px;
+  }
+
+  .swap-empty {
+    align-items: flex-start;
+    text-align: left;
+    max-width: 420px;
+  }
+
+  .swap-empty .swap-actions {
+    margin-top: 8px;
+  }
+
+  .swap-done {
+    max-width: 480px;
+  }
+
+  .swap-done-actions {
+    margin-top: 0;
+  }
+
+  /* Review: what changes on the left; checks and Merge on the right */
+  .review-layout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 40px;
+    max-width: 900px;
+  }
+
+  .review-group-name {
+    font-size: 20px;
+  }
+
+  .review-actions {
+    margin-top: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .review-merge,
+  .review-cancel {
+    flex: 1;
+    width: auto;
+    min-height: 44px;
+  }
+
+  .review-actions-note {
+    flex-basis: 100%;
+    text-align: left;
+  }
+}

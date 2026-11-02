@@ -13,7 +13,8 @@ import People from './pages/People';
 import Person from './pages/Person';
 import Settings from './pages/Settings';
 import About from './pages/About';
-import ShareHub from './pages/ShareHub';
+import Swap from './pages/Swap';
+import Scan from './pages/Scan';
 import ExpenseDetail from './pages/ExpenseDetail';
 import Onboarding from './pages/Onboarding';
 import IdentityPicker from './components/IdentityPicker';
@@ -36,7 +37,7 @@ const pageVariants = {
 /** How far down each visited page was scrolled, by history entry, to put back on returning. */
 const scrollPositions = new Map<string, number>();
 
-function ToShareHub() {
+function ToSwap() {
   const { id } = useParams<{ id: string }>();
   return <Navigate to={`/share?group=${id}`} replace />;
 }
@@ -76,11 +77,12 @@ function AnimatedRoutes() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/groups" element={<Groups />} />
           <Route path="/groups/:id" element={<GroupDetail />} />
-          <Route path="/share" element={<ShareHub />} />
-          {/* Older links to sharing and receiving */}
-          <Route path="/groups/:id/share" element={<ToShareHub />} />
+          {/* Swapping a group, and scanning someone's code */}
+          <Route path="/share" element={<Swap />} />
+          <Route path="/scan" element={<Scan />} />
+          <Route path="/groups/:id/share" element={<ToSwap />} />
           <Route path="/groups/:id/expenses/:expenseId" element={<ExpenseDetail />} />
-          <Route path="/receive" element={<Navigate to="/share?tab=receive" replace />} />
+          <Route path="/receive" element={<Navigate to="/scan" replace />} />
           <Route path="/activity" element={<Activity />} />
           {/* Settling moved to Home and each group; keep old links working */}
           <Route path="/settle" element={<Navigate to="/" replace />} />

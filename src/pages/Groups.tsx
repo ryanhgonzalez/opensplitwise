@@ -200,7 +200,7 @@ export default function Groups() {
                   <span className="groups-add-title">Create a new group</span>
                   <span className="groups-add-sub">Name it and choose who's in it.</span>
                 </button>
-                <button className="groups-add-option" onClick={() => navigate('/share')}>
+                <button className="groups-add-option" onClick={() => navigate('/scan', { state: { from: '/groups' } })}>
                   <span className="groups-add-title">Get one from a friend</span>
                   <span className="groups-add-sub">Scan the code on their phone, or open a file they sent.</span>
                 </button>
