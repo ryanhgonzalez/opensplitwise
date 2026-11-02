@@ -39,7 +39,7 @@ export interface ExportPayload {
   groupSyncedAt?: Record<string, Date>;
   /** Repeating expenses. Absent in files from before them. */
   recurring?: RecurringExpense[];
-  /** Receipt photos, expense id → data: URL. Full backups carry them unless left out. */
+  /** Receipt photos, expense id → data: URL. Backups and group files carry them unless left out. */
   receipts?: Record<string, string>;
 }
 
@@ -125,6 +125,10 @@ export function buildGroupExport(state: ExportPayload, groupId: string): AppExpo
 
   const users = state.users.filter((u) => memberIds.has(u.id)).map(shareableUser);
 
+  const ids = new Set(groupExpenses.map((e) => e.id));
+  const kept = Object.entries(state.receipts ?? {}).filter(([id]) => ids.has(id));
+  const groupReceipts = kept.length ? Object.fromEntries(kept) : undefined;
+
   // What each person owes you in this group alone: the app-wide balances
   // would mix in every other group you share with them.
   const { friendBalances } = deriveTotals(groupExpenses, groupSettlements, state.currentUserId, [group]);
@@ -151,6 +155,8 @@ export function buildGroupExport(state: ExportPayload, groupId: string): AppExpo
       settlements: groupSettlements,
       activities: groupActivities,
       friendBalances,
+      // Only this group's photos, when any were handed in.
+      ...(groupReceipts && { receipts: groupReceipts }),
     },
   };
 }
@@ -373,6 +379,13 @@ export function remapForNewGroup(
     return base as unknown as Activity;
   });
 
+  // Photos are kept by expense id, so each follows its expense to the new one.
+  const remappedReceipts: Record<string, string> = {};
+  for (const [oldId, photo] of Object.entries(exported.data.receipts ?? {})) {
+    const newId = expIdMap.get(oldId);
+    if (newId) remappedReceipts[newId] = photo;
+  }
+
   // Remap friendBalance keys.
   const remappedBalances: Record<string, number> = {};
   // Not checked by `parseAndValidate`, so a valid file may legitimately omit it.
@@ -388,5 +401,6 @@ export function remapForNewGroup(
     settlements: remappedSettlements,
     activities: remappedActivities,
     friendBalances: remappedBalances,
+    ...(Object.keys(remappedReceipts).length > 0 && { receipts: remappedReceipts }),
   };
 }

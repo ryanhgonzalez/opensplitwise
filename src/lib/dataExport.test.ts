@@ -74,6 +74,14 @@ describe('exports', () => {
     expect(file.data.groups[0]).not.toHaveProperty('totalSpent');
   });
 
+  it('carry only the exported group\'s receipt photos', () => {
+    const receipts = { dinner: 'data:image/jpeg;base64,AAA', rent: 'data:image/jpeg;base64,BBB' };
+    expect(buildGroupExport({ ...payload(), receipts }, 'trip')!.data.receipts).toEqual({ dinner: receipts.dinner });
+    // Left out, or none in the group: no receipts key at all.
+    expect(buildGroupExport(payload(), 'trip')!.data).not.toHaveProperty('receipts');
+    expect(buildGroupExport({ ...payload(), receipts: { rent: receipts.rent } }, 'trip')!.data).not.toHaveProperty('receipts');
+  });
+
   it('give balances for the exported group only', () => {
     // Alice owes 40 across both groups, but only 30 of it is in the trip.
     expect(buildGroupExport(payload(), 'trip')!.data.friendBalances).toEqual({ alice: 30 });
@@ -122,5 +130,20 @@ describe('remapForNewGroup', () => {
     const feed = result.activities[0] as PaymentActivity;
     expect(feed.settlementId).toBe(result.settlements[0].id);
     expect(feed.settlementId).not.toBe('pay');
+  });
+});
+
+describe('remapForNewGroup photos', () => {
+  it('moves each receipt photo to its expense\'s new id', () => {
+    const file = buildGroupExport({ ...payload(), receipts: { dinner: 'data:image/jpeg;base64,AAA' } }, 'trip')!;
+    const result = remapForNewGroup(file, [user('carol')], 'carol', 'me');
+    const dinner = result.expenses.find((e) => e.description === 'dinner')!;
+    expect(dinner.id).not.toBe('dinner');
+    expect(result.receipts).toEqual({ [dinner.id]: 'data:image/jpeg;base64,AAA' });
+  });
+
+  it('adds no receipts when the file has none', () => {
+    const result = remapForNewGroup(buildGroupExport(payload(), 'trip')!, [user('carol')], 'carol', 'me');
+    expect(result).not.toHaveProperty('receipts');
   });
 });

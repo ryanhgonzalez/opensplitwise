@@ -123,9 +123,10 @@ export default function ExportImportSheet({
   const [exportDone, setExportDone]       = useState(false);
   /** A single group can also go out as Splitwise's spreadsheet. */
   const [exportFormat, setExportFormat]   = useState<'json' | 'splitwise'>('json');
-  // Receipt photos go into full backups unless left out (they can make the file much larger).
+  // Receipt photos go into the file unless left out (they can make it much larger).
   const [includePhotos, setIncludePhotos] = useState(true);
-  const withPhotos  = expenses.filter((e) => e.receipt);
+  // The photos this export would carry: everyone's, or just the chosen group's.
+  const withPhotos  = expenses.filter((e) => e.receipt && (exportTarget === 'full' || e.groupId === exportGroupId));
   const photoBytes  = withPhotos.reduce((n, e) => n + (e.receipt?.bytes ?? 0), 0);
 
   // ── Import state ──
@@ -162,13 +163,13 @@ export default function ExportImportSheet({
       return;
     }
     const receipts =
-      exportTarget === 'full' && includePhotos && withPhotos.length
+      includePhotos && withPhotos.length
         ? await photosFor(withPhotos.map((e) => e.id))
         : undefined;
     const data =
       exportTarget === 'full'
         ? buildFullExport({ ...statePayload(), receipts })
-        : buildGroupExport(statePayload(), exportGroupId);
+        : buildGroupExport({ ...statePayload(), receipts }, exportGroupId);
     if (!data) return;
     downloadExport(data);
     // Only a full export can restore everything; a single group's file can't.
@@ -247,6 +248,7 @@ export default function ExportImportSheet({
           selfIdInFile === NOT_IN_FILE ? null : selfIdInFile,
         );
         const stats = mergeImportData(payload);
+        void savePhotos(payload.receipts);
         setImportStats(stats);
       }
       setImportStatus('done');
@@ -373,16 +375,6 @@ export default function ExportImportSheet({
                     </button>
                   </div>
 
-                  {exportTarget === 'full' && withPhotos.length > 0 && (
-                    <label className="eis-photos">
-                      <input type="checkbox" checked={includePhotos} onChange={(e) => setIncludePhotos(e.target.checked)} />
-                      <span>
-                        Include receipt photos ({withPhotos.length} · {formatBytes(photoBytes)}).
-                        Without them, photos can't be restored from this backup.
-                      </span>
-                    </label>
-                  )}
-
                   {/* Group selector */}
                   {exportTarget === 'group' && (
                     <div className="field-group" style={{ marginTop: 16 }}>
@@ -421,6 +413,16 @@ export default function ExportImportSheet({
                         </p>
                       )}
                     </div>
+                  )}
+
+                  {withPhotos.length > 0 && !(exportTarget === 'group' && exportFormat === 'splitwise') && (
+                    <label className="eis-photos">
+                      <input type="checkbox" checked={includePhotos} onChange={(e) => setIncludePhotos(e.target.checked)} />
+                      <span>
+                        Include receipt photos ({withPhotos.length} · {formatBytes(photoBytes)}).
+                        Without them, photos can't be restored from this file.
+                      </span>
+                    </label>
                   )}
 
                   {exportDone && (

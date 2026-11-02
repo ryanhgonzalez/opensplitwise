@@ -433,7 +433,7 @@
   }
 }
 
-/* Receipt photos in a full backup */
+/* Receipt photos in a backup or group file */
 .eis-photos {
   display: flex;
   align-items: flex-start;
