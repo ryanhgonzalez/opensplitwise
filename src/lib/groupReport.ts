@@ -9,6 +9,10 @@ import { groupCurrency } from './currency';
 import { formatCurrency } from '../utils/format';
 import { calculateBalances, groupTransfers, signedAmount, simplifies } from './calculations';
 import { getShareForUser } from '../utils/expense';
+import { shortName } from '../utils/user';
+
+/** Up to this many people, expenses get a column each; more, and splits are in words. */
+const MAX_PERSON_COLUMNS = 4;
 import plexSansRegularUrl from '../assets/fonts/IBMPlexSans-Regular.ttf?url';
 import plexSansSemiBoldUrl from '../assets/fonts/IBMPlexSans-SemiBold.ttf?url';
 import plexMonoRegularUrl from '../assets/fonts/IBMPlexMono-Regular.ttf?url';
@@ -139,6 +143,7 @@ export async function generateGroupReport(
   users: User[],
   /** Payments already marked complete in this group. */
   payments: Settlement[] = [],
+  options: { splitLayout?: 'columns' | 'text' } = {},
 ): Promise<void> {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const f = await loadFonts(doc);
@@ -152,68 +157,22 @@ export async function generateGroupReport(
 
   const nameOf = (id: string) => stripEmoji(users.find((u) => u.id === id)?.name ?? 'Unknown');
 
-  // ── People: a short code and colour each, like the app's avatars ───────────
-  //
-  // The expense rows show these instead of names, with a legend up top. Codes
-  // must be unique on paper, where colour may not survive printing: the usual
-  // initials, else first + last word ("FJ" for Frank Gonzalez Jr), else the
-  // first two letters of the first name ("Er", "El"), else a number.
+  // ── People: members in the group's order, then anyone else in an expense ──
   const involved = new Set<string>(group.members.map((m) => m.userId));
   for (const e of expenses) {
     involved.add(e.paidBy);
     for (const en of e.split.entries) involved.add(en.userId);
   }
   const people = [...involved].map((id) => users.find((u) => u.id === id)).filter((u): u is User => !!u);
-  const codeOf = new Map<string, string>();
-  {
-    const words = (u: User) => stripEmoji(u.name).trim().split(/\s+/).filter(Boolean);
-    const candidates = (u: User): string[] => {
-      const w = words(u);
-      const first = w[0] ?? '?';
-      return [
-        (u.initials || first[0]).toUpperCase().slice(0, 2),
-        (first[0] + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase(),
-        first.slice(0, 1).toUpperCase() + first.slice(1, 2).toLowerCase(),
-      ];
-    };
-    let pending = people;
-    for (let level = 0; level < 3 && pending.length; level++) {
-      const counts = new Map<string, number>();
-      const taken = new Set(codeOf.values());
-      for (const u of pending) {
-        const c = candidates(u)[level];
-        counts.set(c, (counts.get(c) ?? 0) + 1);
-      }
-      const still: User[] = [];
-      for (const u of pending) {
-        const c = candidates(u)[level];
-        if (counts.get(c) === 1 && !taken.has(c)) codeOf.set(u.id, c);
-        else still.push(u);
-      }
-      pending = still;
-    }
-    pending.forEach((u, i) => codeOf.set(u.id, `${candidates(u)[0][0]}${i + 1}`));
-  }
-
-  /** The avatar colour, softened the way the app does (22% over white). */
-  const tintOf = (id: string): RGB => {
-    const hex = users.find((u) => u.id === id)?.avatarColor ?? '#94a3b8';
-    const m = /^#?([0-9a-f]{6})$/i.exec(hex);
-    const n = m ? parseInt(m[1], 16) : 0x94a3b8;
-    const mix = (c: number) => Math.round(c * 0.22 + 255 * 0.78);
-    return [mix((n >> 16) & 255), mix((n >> 8) & 255), mix(n & 255)];
+  const allNames = people.map((u) => stripEmoji(u.name));
+  /** First name, or the full name when two people share it. */
+  const shortOf = (id: string) => {
+    const u = users.find((x) => x.id === id);
+    return u ? shortName(stripEmoji(u.name), allNames) : 'Unknown';
   };
+  // One column per person while they fit; past that, each split in words.
+  const splitLayout = options.splitLayout ?? (people.length <= MAX_PERSON_COLUMNS ? 'columns' : 'text');
 
-  const CHIP_R = 2.3;
-  /** A person's chip, centred on (cx, cy). */
-  const chip = (id: string, cx: number, cy: number) => {
-    doc.setFillColor(...tintOf(id));
-    doc.circle(cx, cy, CHIP_R, 'F');
-    doc.setFont(f.sans, 'bold');
-    doc.setFontSize(5.4);
-    doc.setTextColor(...C.ink);
-    doc.text(codeOf.get(id) ?? '?', cx, cy, { align: 'center', baseline: 'middle' });
-  };
   const memberIds = group.members.map((m) => m.userId);
   const sortedExpenses = [...expenses].sort((a, b) => a.date.getTime() - b.date.getTime());
   const sortedPayments = [...payments].sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -350,33 +309,7 @@ export async function generateGroupReport(
   text('Expense report', margin, y, { size: 9, color: C.muted });
   y += 5;
 
-  // Legend: each person's chip and full name, owner first, wrapping as needed.
-  {
-    const ordered = [...people].sort((a, b) => {
-      const owner = (u: User) => group.members.find((m) => m.userId === u.id)?.role === 'owner';
-      return Number(owner(b)) - Number(owner(a));
-    });
-    const ROW = 6.5;
-    let x = margin;
-    let cy = y + CHIP_R;
-    doc.setFont(f.sans, 'normal');
-    doc.setFontSize(8.5);
-    for (const u of ordered) {
-      const isOwner = group.members.find((m) => m.userId === u.id)?.role === 'owner';
-      const label = `${stripEmoji(u.name)}${isOwner ? ' (owner)' : ''}`;
-      doc.setFont(f.sans, 'normal');
-      doc.setFontSize(8.5);
-      const w = CHIP_R * 2 + 1.8 + doc.getTextWidth(label);
-      if (x > margin && x + w > pageW - margin) {
-        x = margin;
-        cy += ROW;
-      }
-      chip(u.id, x + CHIP_R, cy);
-      text(label, x + CHIP_R * 2 + 1.8, cy + 1.1, { size: 8.5, color: C.soft });
-      x += w + 6;
-    }
-    y = cy + CHIP_R + 7;
-  }
+  y += 7;
 
   // ── Summary strip ──────────────────────────────────────────────────────────
 
@@ -513,131 +446,103 @@ export async function generateGroupReport(
     hline(y + 1, 0.35, C.ink);
     text('No expenses yet.', margin, y + 8, { size: 9, color: C.muted });
   } else {
-    // Paid by shows the payer's chip; Split shows everyone with a share as
-    // chips under a short label. Equal splits give the amount once ("$14.17
-    // each"); other splits pair each chip with its amount. Drawn by hand, so
-    // each cell's height is worked out first and reserved with minCellHeight.
-    const PAID_COL = 3;
-    const SPLIT_COL = 4;
-    const SPLIT_W = 64;
-    const PAD_TOP = 2.1;
-    const LABEL_H = 3.6;
-    const CHIP_ROW = 5.6;
-    const AMOUNT_SIZE = 7;
-    const SPLIT_LABELS: Record<Expense['split']['type'], string> = {
-      equal: 'Equally',
-      exact: 'By amount',
-      percentage: 'By percent',
-      shares: 'By shares',
-    };
+    const description = (e: Expense): CellDef => ({
+      // Paid in another currency: show what was actually paid next to the name.
+      content: `${e.refund ? 'Refund: ' : ''}${stripEmoji(e.description) || 'Expense'}${e.original && e.original.currency !== cur ? ` (${fmtMoney(e.original.amount, e.original.currency)})` : ''}`,
+      styles: { fontStyle: 'bold' },
+    });
+    const dateCell = (e: Expense): CellDef => ({ content: ledgerDate(e.date), styles: { font: f.mono, textColor: C.muted, fontSize: 7.5 } });
+    const categoryCell = (e: Expense): CellDef => ({
+      content: stripEmoji(categoryLabel(e.category, group)) || 'Other',
+      styles: { textColor: C.soft, fontSize: 7.5 },
+    });
+    const paidByCell = (e: Expense): CellDef => ({ content: shortOf(e.paidBy) });
+    // A refund reads as money coming off: "−€60.00".
+    const amountCell = (e: Expense): CellDef =>
+      e.refund ? { ...money(e.amount), content: `${f.minus}${fmtMoney(e.amount, cur)}` } : money(e.amount);
 
-    interface Placed { id: string; amount?: string; x: number; row: number }
-    const layoutSplit = (e: Expense) => {
-      const shares = e.split.entries.filter((en) => en.amount > 0.005);
-      const inner = SPLIT_W - 4;
-      const equal = e.split.type === 'equal' && !e.items?.length && shares.length > 1;
-      let label: string | undefined;
-      if (shares.length > 1) {
-        const how = e.items?.length ? 'By item' : SPLIT_LABELS[e.split.type];
-        if (equal) {
-          const lo = Math.min(...shares.map((x) => x.amount));
-          const hi = Math.max(...shares.map((x) => x.amount));
-          const each = hi - lo < 0.005 ? fmtMoney(hi, cur) : `${fmtMoney(lo, cur)}–${fmtMoney(hi, cur)}`;
-          label = `${how} ${f.dot} ${each} each`;
-        } else {
-          label = how;
-        }
-      }
-      doc.setFont(f.mono, 'normal');
-      doc.setFontSize(AMOUNT_SIZE);
-      const placed: Placed[] = [];
-      let x = 0;
-      let row = 0;
-      for (const sh of shares) {
-        const amount = equal ? undefined : fmtMoney(sh.amount, cur);
-        const w = CHIP_R * 2 + (amount ? 1.2 + doc.getTextWidth(amount) : 0);
-        if (x > 0 && x + w > inner) {
-          x = 0;
-          row++;
-        }
-        placed.push({ id: sh.userId, amount, x, row });
-        x += w + (amount ? 3.5 : 1.2);
-      }
-      const rows = placed.length ? row + 1 : 0;
-      const height = PAD_TOP * 2 + (label ? LABEL_H : 0) + rows * CHIP_ROW;
-      return { label, placed, height };
-    };
-    const layouts = sortedExpenses.map(layoutSplit);
-
-    const rows: RowInput[] = sortedExpenses.map((e, i) => [
-        { content: ledgerDate(e.date), styles: { font: f.mono, textColor: C.muted, fontSize: 7.5 } },
-        {
-          // Paid in another currency: show what was actually paid next to the name.
-          content: `${e.refund ? 'Refund: ' : ''}${stripEmoji(e.description) || 'Expense'}${e.original && e.original.currency !== cur ? ` (${fmtMoney(e.original.amount, e.original.currency)})` : ''}`,
-          styles: { fontStyle: 'bold' },
-        },
-        { content: stripEmoji(categoryLabel(e.category, group)) || 'Other', styles: { textColor: C.soft, fontSize: 7.5 } },
-        // Drawn by hand: the payer's chip, and "got back" for a refund they received.
-        { content: '', styles: { minCellHeight: e.refund ? 11 : 0 } },
-        { content: '', styles: { minCellHeight: layouts[i].height } },
-        // A refund reads as money coming off: "−€60.00".
-        e.refund ? { ...money(e.amount), content: `−${fmtMoney(e.amount, cur)}` } : money(e.amount),
+    if (splitLayout === 'columns') {
+      // Each person's share of each expense, in their own column. The columns
+      // add up to the Share column in Balances. A dash: not part of it.
+      const num = (n: number) => `${n < 0 ? f.minus : ''}${Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+      const shareCell = (n: number, bold = false): CellDef => ({
+        content: isZero(n) ? (f.minus === '-' ? '-' : '—') : num(n),
+        styles: { font: f.mono, halign: 'right', fontSize: 7.8, textColor: isZero(n) ? C.muted : bold ? C.ink : C.soft, fontStyle: bold ? 'bold' : 'normal' },
+      });
+      const withCategory = people.length <= 3;
+      const rows: RowInput[] = sortedExpenses.map((e) => [
+        dateCell(e),
+        description(e),
+        ...(withCategory ? [categoryCell(e)] : []),
+        paidByCell(e),
+        ...people.map((u) => shareCell(getShareForUser(e, u.id))),
+        amountCell(e),
       ]);
-    const rowIndex = new Map(rows.map((r, i) => [r, i]));
-
-    table(
-      y,
-      ['Date', 'Description', 'Category', 'Paid by', 'Split', 'Amount'],
-      rows,
-      {
-        // Top-aligned: chip rows make some rows taller, and the rest should line up with their first line.
-        0: { cellWidth: 15, valign: 'top' },
-        1: { cellWidth: 'auto', valign: 'top' },
-        2: { cellWidth: 22, valign: 'top' },
-        3: { cellWidth: 14, valign: 'top' },
-        4: { cellWidth: SPLIT_W, valign: 'top' },
-        5: { cellWidth: 24, halign: 'right', valign: 'top' },
-      },
-      [[
-        { content: 'Total', colSpan: 5 },
-        money(totalSpent, { bold: true }),
-      ]],
-      {
-        // A row moves to the next page whole, so its chips are never cut in half.
-        rowPageBreak: 'avoid',
-        didDrawCell: (data) => {
-          if (data.section !== 'body') return;
-          const cell = data.cell;
-          const top = cell.y + PAD_TOP;
-          // By the row's own data, not its position: a row being moved to the
-          // next page is drawn from a copy whose index is -1.
-          const i = rowIndex.get(data.row.raw as RowInput);
-          if (i === undefined) return;
-          const e = sortedExpenses[i];
-
-          if (data.column.index === PAID_COL) {
-            chip(e.paidBy, cell.x + CHIP_R, top + CHIP_R + 0.3);
-            if (e.refund) text('got back', cell.x, top + CHIP_R * 2 + 3.6, { size: 6.2, color: C.muted });
-            return;
+      const personW = 17;
+      const fixed = withCategory ? 4 : 3;
+      const cols: ColumnStyles = {
+        0: { cellWidth: 15 },
+        1: { cellWidth: 'auto' },
+        ...(withCategory ? { 2: { cellWidth: 24 } } : {}),
+        [fixed - 1]: { cellWidth: 18 },
+        ...Object.fromEntries(people.map((_, i) => [fixed + i, { cellWidth: personW, halign: 'right' as const }])),
+        [fixed + people.length]: { cellWidth: 24, halign: 'right' },
+      };
+      table(
+        y,
+        ['Date', 'Description', ...(withCategory ? ['Category'] : []), 'Paid by', ...people.map((u) => shortOf(u.id)), 'Amount'],
+        rows,
+        cols,
+        [[
+          { content: 'Total', colSpan: fixed },
+          ...people.map((u) => shareCell(expenses.reduce((s, e) => s + getShareForUser(e, u.id), 0), true)),
+          money(totalSpent, { bold: true }),
+        ]],
+      );
+    } else {
+      // Each split in words, saying only what's unusual: "Everyone equally",
+      // "Ana, Carla equally", or each person's amount.
+      const splitWords = (e: Expense): string => {
+        const shares = e.split.entries.filter((en) => en.amount > 0.005);
+        if (shares.length === 0) return f.minus === '-' ? '-' : '—';
+        if (shares.length === 1) return `${shortOf(shares[0].userId)} only`;
+        const equal = e.split.type === 'equal' && !e.items?.length;
+        if (equal) {
+          const inIt = new Set(shares.map((sh) => sh.userId));
+          const left = memberIds.filter((id) => !inIt.has(id));
+          const outsiders = shares.some((sh) => !memberIds.includes(sh.userId));
+          if (!outsiders && left.length === 0) return 'Everyone equally';
+          // Shorter to name who wasn't in it, when that's one or two people.
+          if (!outsiders && left.length <= 2 && shares.length > left.length) {
+            return `Everyone except ${left.map(shortOf).join(' and ')}`;
           }
-          if (data.column.index !== SPLIT_COL) return;
-
-          const { label, placed } = layouts[i];
-          let rowsTop = top;
-          if (label) {
-            text(label, cell.x, top + 2.4, { size: 6.8, color: C.muted });
-            rowsTop += LABEL_H;
-          }
-          for (const p of placed) {
-            const cy = rowsTop + p.row * CHIP_ROW + CHIP_R + 0.3;
-            chip(p.id, cell.x + p.x + CHIP_R, cy);
-            if (p.amount) {
-              text(p.amount, cell.x + p.x + CHIP_R * 2 + 1.2, cy + 1, { font: 'mono', size: AMOUNT_SIZE, color: C.soft });
-            }
-          }
+          return `${shares.map((sh) => shortOf(sh.userId)).join(', ')} equally`;
+        }
+        return shares.map((sh) => `${shortOf(sh.userId)} ${fmtMoney(sh.amount, cur)}`).join(`  ${f.dot}  `);
+      };
+      const rows: RowInput[] = sortedExpenses.map((e) => [
+        dateCell(e),
+        description(e),
+        categoryCell(e),
+        paidByCell(e),
+        { content: splitWords(e), styles: { textColor: C.soft, fontSize: 7.8 } },
+        amountCell(e),
+      ]);
+      table(
+        y,
+        ['Date', 'Description', 'Category', 'Paid by', 'Split', 'Amount'],
+        rows,
+        {
+          0: { cellWidth: 15 },
+          1: { cellWidth: 'auto' },
+          2: { cellWidth: 24 },
+          3: { cellWidth: 18 },
+          4: { cellWidth: 58 },
+          5: { cellWidth: 24, halign: 'right' },
         },
-      },
-    );
+        [[{ content: 'Total', colSpan: 5 }, money(totalSpent, { bold: true })]],
+      );
+    }
   }
 
   // ── Running header and footer ───────────────────────────────────────────────
