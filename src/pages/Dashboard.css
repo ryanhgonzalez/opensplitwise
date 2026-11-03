@@ -251,6 +251,7 @@
   color: var(--ink);
   font-size: 14px;
   white-space: nowrap;
+  text-decoration: none;
 }
 
 .dash-quick:hover {
@@ -261,9 +262,8 @@
   border-radius: 50%;
 }
 
-.dash-quick-plus {
-  font-size: 18px;
-  line-height: 1;
+.dash-quick-go {
+  flex: none;
   color: var(--muted);
 }
 

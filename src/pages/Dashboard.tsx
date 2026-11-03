@@ -6,7 +6,6 @@ import GroupTile from '../components/GroupTile';
 import BackupReminder from '../components/BackupReminder';
 import SettleModal from '../components/SettleModal';
 import RemindSheet from '../components/RemindSheet';
-import AddExpenseSheet from '../components/AddExpenseSheet';
 import { useStore, selectCurrentUser, selectOverallBalances } from '../store';
 import { outstandingByGroup } from '../lib/calculations';
 import { isListed } from '../lib/directGroups';
@@ -48,7 +47,6 @@ const COMING_UP = 3;
 export default function Dashboard() {
   const [settling, setSettling] = useState<Between | null>(null);
   const [reminding, setReminding] = useState<Between | null>(null);
-  const [addingTo, setAddingTo] = useState<string | null>(null);
 
   const currentUser = useStore(selectCurrentUser)!;
   const overall = useStore(selectOverallBalances);
@@ -82,7 +80,7 @@ export default function Dashboard() {
       .sort((a, b) => lastUsed(b) - lastUsed(a));
   }, [groups, expenses, me]);
 
-  // Offered for a quick add: named groups that aren't archived.
+  // Each opens its group's Insights: named groups that aren't archived.
   const quickGroups = useMemo(() => myGroups.filter(isListed), [myGroups]);
 
   // One line per person and currency, the same balances People shows.
@@ -297,20 +295,22 @@ export default function Dashboard() {
               {quickGroups.length > 0 && (
                 <section aria-labelledby="dash-add-title">
                   <div className="dash-section-head">
-                    <h2 id="dash-add-title" className="cap">Add to a group</h2>
+                    <h2 id="dash-add-title" className="cap">Insights</h2>
                   </div>
                   <div className="dash-quick-add">
                     {quickGroups.map((g) => (
-                      <button
+                      <Link
                         key={g.id}
+                        to={`/insights?group=${g.id}`}
                         className="dash-quick"
-                        onClick={() => setAddingTo(g.id)}
-                        aria-label={`Add an expense to ${g.name}`}
+                        aria-label={`Insights for ${g.name}`}
                       >
                         <GroupTile group={g} size={30} />
                         <span className="dash-quick-name">{g.name}</span>
-                        <span className="dash-quick-plus" aria-hidden>+</span>
-                      </button>
+                        <svg className="dash-quick-go" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </Link>
                     ))}
                   </div>
                 </section>
@@ -319,16 +319,6 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-
-      <AnimatePresence>
-        {addingTo && (
-          <AddExpenseSheet
-            open={!!addingTo}
-            onClose={() => setAddingTo(null)}
-            defaultGroupId={addingTo}
-          />
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {reminding && (
