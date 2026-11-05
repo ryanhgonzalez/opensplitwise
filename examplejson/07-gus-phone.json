@@ -1,0 +1,610 @@
+{
+  "schema": "opensplit-export",
+  "version": 1,
+  "exportType": "full",
+  "exportedAt": "2026-11-04T09:00:00.000Z",
+  "meta": {
+    "userCount": 4,
+    "groupCount": 2,
+    "expenseCount": 9,
+    "settlementCount": 2,
+    "activityCount": 12
+  },
+  "data": {
+    "currentUserId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+    "users": [
+      {
+        "id": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "name": "Ben Carter",
+        "initials": "BC",
+        "email": "ben.carter@example.com",
+        "phone": "+1 415 555 0187",
+        "avatarColor": "#0ea5e9",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      },
+      {
+        "id": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "name": "Dana Okafor",
+        "initials": "DO",
+        "email": "dana.okafor@example.com",
+        "phone": "+1 312 555 0163",
+        "avatarColor": "#f59e0b",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      },
+      {
+        "id": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "name": "Gus Novak",
+        "initials": "GN",
+        "email": "gus.novak@example.com",
+        "phone": "+1 503 555 0176",
+        "avatarColor": "#8b5cf6",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      },
+      {
+        "id": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+        "name": "Hana Sato",
+        "initials": "HS",
+        "email": "hana.sato@example.com",
+        "phone": "+1 213 555 0198",
+        "avatarColor": "#06b6d4",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      }
+    ],
+    "groups": [
+      {
+        "id": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "name": "Climbing crew",
+        "emoji": "🧗",
+        "color": "#10b981",
+        "type": "friends",
+        "members": [
+          {
+            "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+            "role": "owner",
+            "joinedAt": "2026-08-15T19:00:00.000Z"
+          },
+          {
+            "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+            "role": "member",
+            "joinedAt": "2026-08-15T19:00:00.000Z"
+          },
+          {
+            "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+            "role": "member",
+            "joinedAt": "2026-08-15T19:05:00.000Z"
+          }
+        ],
+        "currency": "USD",
+        "simplifyDebts": true,
+        "categories": [
+          {
+            "id": "custom:gym-passes",
+            "name": "Gym passes"
+          }
+        ],
+        "lastActivity": "2026-11-02T07:00:00.000Z",
+        "createdAt": "2026-08-15T19:00:00.000Z",
+        "updatedAt": "2026-08-15T19:00:00.000Z"
+      },
+      {
+        "id": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "name": "Dana's birthday",
+        "emoji": "🎂",
+        "color": "#ec4899",
+        "type": "event",
+        "members": [
+          {
+            "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+            "role": "owner",
+            "joinedAt": "2026-10-20T18:00:00.000Z"
+          },
+          {
+            "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+            "role": "member",
+            "joinedAt": "2026-10-20T18:00:00.000Z"
+          },
+          {
+            "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+            "role": "member",
+            "joinedAt": "2026-10-20T18:00:00.000Z"
+          },
+          {
+            "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+            "role": "member",
+            "joinedAt": "2026-10-20T18:05:00.000Z"
+          }
+        ],
+        "currency": "USD",
+        "simplifyDebts": true,
+        "categories": [],
+        "lastActivity": "2026-10-27T18:00:00.000Z",
+        "createdAt": "2026-10-20T18:00:00.000Z",
+        "updatedAt": "2026-10-24T21:00:00.000Z"
+      }
+    ],
+    "expenses": [
+      {
+        "id": "81ece2ed-7044-4fa6-9d71-527ff5607382",
+        "description": "Rope and quickdraws",
+        "amount": 120,
+        "currency": "USD",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-08-16T18:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 40
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 40
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 40
+            }
+          ]
+        },
+        "category": "shopping",
+        "createdAt": "2026-08-16T18:00:00.000Z",
+        "updatedAt": "2026-08-16T18:00:00.000Z"
+      },
+      {
+        "id": "1684c1ea-9bc7-4c0e-b1ce-6e146f20c732",
+        "description": "Climbing gym day pass",
+        "amount": 75,
+        "currency": "USD",
+        "paidBy": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-09-06T17:00:00.000Z",
+        "split": {
+          "type": "exact",
+          "entries": [
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 25
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 25
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 25
+            }
+          ]
+        },
+        "category": "custom:gym-passes",
+        "createdAt": "2026-09-06T17:00:00.000Z",
+        "updatedAt": "2026-09-06T17:00:00.000Z"
+      },
+      {
+        "id": "47dc82cf-01ea-471d-beed-46c4cbe894a8:2026-09-02",
+        "description": "Gym membership",
+        "amount": 65,
+        "currency": "USD",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-09-02T07:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 21.67
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 21.67
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 21.66
+            }
+          ]
+        },
+        "category": "custom:gym-passes",
+        "createdAt": "2026-09-02T07:00:00.000Z",
+        "updatedAt": "2026-09-02T07:00:00.000Z"
+      },
+      {
+        "id": "47dc82cf-01ea-471d-beed-46c4cbe894a8:2026-10-02",
+        "description": "Gym membership",
+        "amount": 65,
+        "currency": "USD",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-10-02T07:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 21.67
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 21.67
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 21.66
+            }
+          ]
+        },
+        "category": "custom:gym-passes",
+        "createdAt": "2026-10-02T07:00:00.000Z",
+        "updatedAt": "2026-10-02T07:00:00.000Z"
+      },
+      {
+        "id": "47dc82cf-01ea-471d-beed-46c4cbe894a8:2026-11-02",
+        "description": "Gym membership",
+        "amount": 65,
+        "currency": "USD",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-11-02T07:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 21.67
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 21.67
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 21.66
+            }
+          ]
+        },
+        "category": "custom:gym-passes",
+        "createdAt": "2026-11-02T07:00:00.000Z",
+        "updatedAt": "2026-11-02T07:00:00.000Z"
+      },
+      {
+        "id": "06d2ecba-9f2d-4b27-8dc0-a2807e8b195e",
+        "description": "Chalk and tape",
+        "amount": 16.8,
+        "currency": "USD",
+        "paidBy": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-10-14T09:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 5.6
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 5.6
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 5.6
+            }
+          ]
+        },
+        "category": "shopping",
+        "createdAt": "2026-10-14T09:00:00.000Z",
+        "updatedAt": "2026-10-14T09:00:00.000Z"
+      },
+      {
+        "id": "094c3300-34ea-4939-baf1-c42ccf2ce5f4",
+        "description": "Birthday dinner at Tacos Chilango",
+        "amount": 186,
+        "currency": "USD",
+        "paidBy": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-24T19:30:00.000Z",
+        "split": {
+          "type": "exact",
+          "entries": [
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 42.72
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 60.86
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 39.7
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 42.72
+            }
+          ]
+        },
+        "category": "food",
+        "createdAt": "2026-10-24T21:00:00.000Z",
+        "updatedAt": "2026-10-24T21:00:00.000Z",
+        "notes": "Dana picked the place.",
+        "items": [
+          {
+            "description": "Tacos al pastor, six",
+            "amount": 58,
+            "assigned": [
+              "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "334c81ef-1302-4060-a6c2-a50bea1127fc"
+            ]
+          },
+          {
+            "description": "Mezcal flight",
+            "amount": 32,
+            "assigned": [
+              "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "c016e04a-c9d4-49a1-bd99-e13ab17fed0d"
+            ]
+          },
+          {
+            "description": "Margaritas, four",
+            "amount": 56,
+            "assigned": [
+              "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "ff7416ef-1d40-4ad5-8a72-ee60ba15d831"
+            ]
+          },
+          {
+            "description": "Churros and horchata",
+            "amount": 18,
+            "assigned": [
+              "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "ff7416ef-1d40-4ad5-8a72-ee60ba15d831"
+            ]
+          }
+        ],
+        "receipt": {
+          "bytes": 1571
+        }
+      },
+      {
+        "id": "09b82c4b-5fda-4555-80d0-5044df744e46",
+        "description": "Cake and balloons",
+        "amount": 42,
+        "currency": "USD",
+        "paidBy": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-24T16:30:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 10.5
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 10.5
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 10.5
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 10.5
+            }
+          ]
+        },
+        "category": "gifts",
+        "createdAt": "2026-10-24T16:30:00.000Z",
+        "updatedAt": "2026-10-24T16:30:00.000Z"
+      },
+      {
+        "id": "99718825-a426-46d7-a207-71513ab94710",
+        "description": "Uber home",
+        "amount": 37.4,
+        "currency": "USD",
+        "paidBy": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-24T23:10:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 9.35
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 9.35
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 9.35
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 9.35
+            }
+          ]
+        },
+        "category": "transport",
+        "createdAt": "2026-10-24T23:10:00.000Z",
+        "updatedAt": "2026-10-24T23:10:00.000Z"
+      }
+    ],
+    "settlements": [
+      {
+        "id": "5f97fe24-464a-4577-8e59-ff273a2a7834",
+        "fromUserId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "toUserId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "amount": 40,
+        "currency": "USD",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-10-20T20:00:00.000Z",
+        "createdAt": "2026-10-20T20:00:00.000Z",
+        "paymentMethod": "venmo",
+        "note": "Rope"
+      },
+      {
+        "id": "f2319126-db08-46a8-bae4-3b6ec9ded327",
+        "fromUserId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "toUserId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "amount": 40,
+        "currency": "USD",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-27T18:00:00.000Z",
+        "createdAt": "2026-10-27T18:00:00.000Z",
+        "paymentMethod": "venmo",
+        "note": "Mezcal"
+      }
+    ],
+    "activities": [
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-08-16T18:00:00.000Z",
+        "expenseId": "81ece2ed-7044-4fa6-9d71-527ff5607382"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-09-06T17:00:00.000Z",
+        "expenseId": "1684c1ea-9bc7-4c0e-b1ce-6e146f20c732"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-09-02T07:00:00.000Z",
+        "expenseId": "47dc82cf-01ea-471d-beed-46c4cbe894a8:2026-09-02"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-10-02T07:00:00.000Z",
+        "expenseId": "47dc82cf-01ea-471d-beed-46c4cbe894a8:2026-10-02"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-11-02T07:00:00.000Z",
+        "expenseId": "47dc82cf-01ea-471d-beed-46c4cbe894a8:2026-11-02"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-10-14T09:00:00.000Z",
+        "expenseId": "06d2ecba-9f2d-4b27-8dc0-a2807e8b195e"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-24T21:00:00.000Z",
+        "expenseId": "094c3300-34ea-4939-baf1-c42ccf2ce5f4"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-24T16:30:00.000Z",
+        "expenseId": "09b82c4b-5fda-4555-80d0-5044df744e46"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-24T23:10:00.000Z",
+        "expenseId": "99718825-a426-46d7-a207-71513ab94710"
+      },
+      {
+        "type": "payment",
+        "actorId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-10-20T20:00:00.000Z",
+        "settlementId": "5f97fe24-464a-4577-8e59-ff273a2a7834",
+        "fromUserId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "toUserId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "amount": 40
+      },
+      {
+        "type": "payment",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-27T18:00:00.000Z",
+        "settlementId": "f2319126-db08-46a8-bae4-3b6ec9ded327",
+        "fromUserId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "toUserId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "amount": 40
+      },
+      {
+        "type": "reminder_sent",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-10-28T19:00:00.000Z",
+        "toUserId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+        "amount": 45.6,
+        "currency": "USD",
+        "via": "share"
+      }
+    ],
+    "friendBalances": {
+      "ff7416ef-1d40-4ad5-8a72-ee60ba15d831": -19.15,
+      "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc": 32.22,
+      "334c81ef-1302-4060-a6c2-a50bea1127fc": 52.77
+    },
+    "tombstones": [],
+    "userAliases": {},
+    "groupSyncedAt": {},
+    "recurring": [
+      {
+        "id": "47dc82cf-01ea-471d-beed-46c4cbe894a8",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "frequency": "monthly",
+        "startDate": "2026-09-02T07:00:00.000Z",
+        "template": {
+          "description": "Gym membership",
+          "amount": 65,
+          "currency": "USD",
+          "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+          "split": {
+            "type": "equal",
+            "entries": [
+              {
+                "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+                "amount": 21.67
+              },
+              {
+                "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+                "amount": 21.67
+              },
+              {
+                "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+                "amount": 21.66
+              }
+            ]
+          },
+          "category": "custom:gym-passes"
+        },
+        "createdAt": "2026-09-02T07:00:00.000Z",
+        "updatedAt": "2026-09-02T07:00:00.000Z"
+      }
+    ],
+    "receipts": {
+      "094c3300-34ea-4939-baf1-c42ccf2ce5f4": "data:image/png;base64,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"
+    }
+  }
+}

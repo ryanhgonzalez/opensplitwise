@@ -1,0 +1,1296 @@
+{
+  "schema": "opensplit-export",
+  "version": 1,
+  "exportType": "full",
+  "exportedAt": "2026-11-04T09:00:00.000Z",
+  "meta": {
+    "userCount": 6,
+    "groupCount": 3,
+    "expenseCount": 20,
+    "settlementCount": 4,
+    "activityCount": 27
+  },
+  "data": {
+    "currentUserId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+    "users": [
+      {
+        "id": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "name": "Ana Ferreira",
+        "initials": "AF",
+        "email": "ana.ferreira@example.com",
+        "phone": "+1 415 555 0142",
+        "avatarColor": "#7c3aed",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      },
+      {
+        "id": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "name": "Ben Carter",
+        "initials": "BC",
+        "email": "ben.carter@example.com",
+        "phone": "+1 415 555 0187",
+        "payHandles": {
+          "venmo": "ben-carter"
+        },
+        "avatarColor": "#0ea5e9",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      },
+      {
+        "id": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "name": "Carla Mendes",
+        "initials": "CM",
+        "email": "carla.mendes@example.com",
+        "phone": "+351 912 555 019",
+        "avatarColor": "#10b981",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      },
+      {
+        "id": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "name": "Dana Okafor",
+        "initials": "DO",
+        "email": "dana.okafor@example.com",
+        "phone": "+1 312 555 0163",
+        "avatarColor": "#f59e0b",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      },
+      {
+        "id": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "name": "Gus Novak",
+        "initials": "GN",
+        "email": "gus.novak@example.com",
+        "phone": "+1 503 555 0176",
+        "avatarColor": "#8b5cf6",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      },
+      {
+        "id": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+        "name": "Hana Sato",
+        "initials": "HS",
+        "email": "hana.sato@example.com",
+        "phone": "+1 213 555 0198",
+        "avatarColor": "#06b6d4",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      }
+    ],
+    "groups": [
+      {
+        "id": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "name": "Lisbon trip",
+        "emoji": "✈️",
+        "color": "#7c3aed",
+        "type": "trip",
+        "members": [
+          {
+            "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+            "role": "owner",
+            "joinedAt": "2026-09-28T10:00:00.000Z"
+          },
+          {
+            "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+            "role": "member",
+            "joinedAt": "2026-09-28T10:00:00.000Z"
+          },
+          {
+            "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+            "role": "member",
+            "joinedAt": "2026-09-28T10:05:00.000Z"
+          },
+          {
+            "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+            "role": "member",
+            "joinedAt": "2026-09-28T10:05:00.000Z"
+          }
+        ],
+        "currency": "EUR",
+        "simplifyDebts": true,
+        "categories": [
+          {
+            "id": "custom:tram-passes",
+            "name": "Tram passes"
+          }
+        ],
+        "lastActivity": "2026-10-15T09:00:00.000Z",
+        "createdAt": "2026-09-28T10:00:00.000Z",
+        "updatedAt": "2026-10-09T18:00:00.000Z"
+      },
+      {
+        "id": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "name": "Climbing crew",
+        "emoji": "🧗",
+        "color": "#10b981",
+        "type": "friends",
+        "members": [
+          {
+            "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+            "role": "owner",
+            "joinedAt": "2026-08-15T19:00:00.000Z"
+          },
+          {
+            "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+            "role": "member",
+            "joinedAt": "2026-08-15T19:00:00.000Z"
+          },
+          {
+            "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+            "role": "member",
+            "joinedAt": "2026-08-15T19:05:00.000Z"
+          }
+        ],
+        "currency": "USD",
+        "simplifyDebts": true,
+        "categories": [
+          {
+            "id": "custom:gym-passes",
+            "name": "Gym passes"
+          }
+        ],
+        "lastActivity": "2026-11-02T07:00:00.000Z",
+        "createdAt": "2026-08-15T19:00:00.000Z",
+        "updatedAt": "2026-08-15T19:00:00.000Z"
+      },
+      {
+        "id": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "name": "Dana's birthday",
+        "emoji": "🎂",
+        "color": "#ec4899",
+        "type": "event",
+        "members": [
+          {
+            "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+            "role": "owner",
+            "joinedAt": "2026-10-20T18:00:00.000Z"
+          },
+          {
+            "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+            "role": "member",
+            "joinedAt": "2026-10-20T18:00:00.000Z"
+          },
+          {
+            "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+            "role": "member",
+            "joinedAt": "2026-10-20T18:00:00.000Z"
+          },
+          {
+            "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+            "role": "member",
+            "joinedAt": "2026-10-20T18:05:00.000Z"
+          }
+        ],
+        "currency": "USD",
+        "simplifyDebts": true,
+        "categories": [],
+        "lastActivity": "2026-10-27T18:00:00.000Z",
+        "createdAt": "2026-10-20T18:00:00.000Z",
+        "updatedAt": "2026-10-24T21:00:00.000Z"
+      }
+    ],
+    "expenses": [
+      {
+        "id": "2e075476-f07d-4243-8cf8-ba1a8bd84645",
+        "description": "Airport taxi",
+        "amount": 42,
+        "currency": "EUR",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-08T13:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 10.5
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 10.5
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 10.5
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 10.5
+            }
+          ]
+        },
+        "category": "transport",
+        "createdAt": "2026-10-08T13:10:00.000Z",
+        "updatedAt": "2026-10-08T13:10:00.000Z"
+      },
+      {
+        "id": "58bddef6-2d95-4c48-97c2-6456b57c8778",
+        "description": "Airbnb, Alfama",
+        "amount": 840,
+        "currency": "EUR",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-08T15:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 210
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 210
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 210
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 210
+            }
+          ]
+        },
+        "category": "accommodation",
+        "createdAt": "2026-10-08T15:00:00.000Z",
+        "updatedAt": "2026-10-08T15:00:00.000Z",
+        "notes": "Check-in code is on the fridge door."
+      },
+      {
+        "id": "4b364fc3-cbfd-4524-b0a3-2a271b4648d0",
+        "description": "Pingo Doce groceries",
+        "amount": 146.3,
+        "currency": "EUR",
+        "paidBy": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-09T18:20:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 36.58
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 36.58
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 36.57
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 36.57
+            }
+          ]
+        },
+        "category": "groceries",
+        "createdAt": "2026-10-09T18:20:00.000Z",
+        "updatedAt": "2026-10-09T18:20:00.000Z"
+      },
+      {
+        "id": "05ba8103-2647-4332-a5aa-b3750f98ba70",
+        "description": "Tram passes",
+        "amount": 9,
+        "currency": "EUR",
+        "paidBy": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-09T09:30:00.000Z",
+        "split": {
+          "type": "exact",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 2.25
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 2.25
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 2.25
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 2.25
+            }
+          ]
+        },
+        "category": "custom:tram-passes",
+        "createdAt": "2026-10-09T09:30:00.000Z",
+        "updatedAt": "2026-10-09T09:30:00.000Z"
+      },
+      {
+        "id": "2cb5319e-b51a-4911-b794-8c686f68b2c6",
+        "description": "Museum of Art tickets",
+        "amount": 48,
+        "currency": "EUR",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-10T11:00:00.000Z",
+        "split": {
+          "type": "percentage",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 19.2
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 14.4
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 9.6
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 4.8
+            }
+          ]
+        },
+        "category": "entertainment",
+        "createdAt": "2026-10-10T11:00:00.000Z",
+        "updatedAt": "2026-10-10T11:00:00.000Z",
+        "notes": "Ben wanted the audio guide."
+      },
+      {
+        "id": "144ed4ef-1013-40c7-9857-92b7b18f53b7",
+        "description": "Fado night",
+        "amount": 96,
+        "currency": "EUR",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-11T21:40:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 24
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 24
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 24
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 24
+            }
+          ]
+        },
+        "category": "entertainment",
+        "createdAt": "2026-10-11T21:40:00.000Z",
+        "updatedAt": "2026-10-11T21:40:00.000Z"
+      },
+      {
+        "id": "b966b4d1-ae21-43fb-8971-eafb92d67163",
+        "description": "Pastéis de Belém",
+        "amount": 34.5,
+        "currency": "EUR",
+        "paidBy": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-12T10:15:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 8.63
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 8.63
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 8.62
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 8.62
+            }
+          ]
+        },
+        "category": "food",
+        "createdAt": "2026-10-12T10:15:00.000Z",
+        "updatedAt": "2026-10-12T10:15:00.000Z",
+        "location": {
+          "lat": 38.6975,
+          "lng": -9.2033,
+          "accuracy": 18,
+          "place": {
+            "name": "Pastéis de Belém",
+            "kind": "bakery",
+            "address": "Rua de Belém 84, 1300-085 Lisboa"
+          }
+        }
+      },
+      {
+        "id": "04758a5a-02a6-491d-9d53-f26994d38577",
+        "description": "Sintra train",
+        "amount": 27,
+        "currency": "EUR",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-12T08:50:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 6.75
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 6.75
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 6.75
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 6.75
+            }
+          ]
+        },
+        "category": "transport",
+        "createdAt": "2026-10-12T08:50:00.000Z",
+        "updatedAt": "2026-10-12T08:50:00.000Z"
+      },
+      {
+        "id": "40f9f0e0-f54f-4802-a2c7-03ccba29746f",
+        "description": "Vinho verde",
+        "amount": 24,
+        "currency": "EUR",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-12T20:30:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 12
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 12
+            }
+          ]
+        },
+        "category": "food",
+        "createdAt": "2026-10-12T20:30:00.000Z",
+        "updatedAt": "2026-10-12T20:30:00.000Z"
+      },
+      {
+        "id": "3b726612-f760-4d9a-b4e9-b463e378d052",
+        "description": "Dinner at Time Out",
+        "amount": 110,
+        "currency": "EUR",
+        "paidBy": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-13T20:45:00.000Z",
+        "split": {
+          "type": "exact",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 20.35
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 20.35
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 33
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 36.3
+            }
+          ]
+        },
+        "category": "food",
+        "createdAt": "2026-10-13T20:50:00.000Z",
+        "updatedAt": "2026-10-13T21:05:00.000Z",
+        "notes": "Tip was added after the bill came back.",
+        "items": [
+          {
+            "description": "Octopus rice",
+            "amount": 24,
+            "assigned": [
+              "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "ff7416ef-1d40-4ad5-8a72-ee60ba15d831"
+            ]
+          },
+          {
+            "description": "Bacalhau à Brás",
+            "amount": 19,
+            "assigned": [
+              "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a"
+            ]
+          },
+          {
+            "description": "Sea bass",
+            "amount": 22,
+            "assigned": [
+              "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc"
+            ]
+          },
+          {
+            "description": "Tiramisu",
+            "amount": 9,
+            "assigned": [
+              "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc"
+            ]
+          },
+          {
+            "description": "Wine, two bottles",
+            "amount": 26,
+            "assigned": [
+              "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc"
+            ]
+          }
+        ],
+        "receipt": {
+          "bytes": 1563
+        }
+      },
+      {
+        "id": "5010d2e5-89c4-4dec-b8e9-c633f198942e",
+        "description": "Refund: tram passes",
+        "amount": 4.5,
+        "currency": "EUR",
+        "paidBy": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-13T12:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 1.13
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 1.13
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 1.12
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 1.12
+            }
+          ]
+        },
+        "category": "custom:tram-passes",
+        "createdAt": "2026-10-13T12:00:00.000Z",
+        "updatedAt": "2026-10-13T12:00:00.000Z",
+        "refund": {
+          "of": "05ba8103-2647-4332-a5aa-b3750f98ba70"
+        }
+      },
+      {
+        "id": "81ece2ed-7044-4fa6-9d71-527ff5607382",
+        "description": "Rope and quickdraws",
+        "amount": 120,
+        "currency": "USD",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-08-16T18:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 40
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 40
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 40
+            }
+          ]
+        },
+        "category": "shopping",
+        "createdAt": "2026-08-16T18:00:00.000Z",
+        "updatedAt": "2026-08-16T18:00:00.000Z"
+      },
+      {
+        "id": "1684c1ea-9bc7-4c0e-b1ce-6e146f20c732",
+        "description": "Climbing gym day pass",
+        "amount": 75,
+        "currency": "USD",
+        "paidBy": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-09-06T17:00:00.000Z",
+        "split": {
+          "type": "exact",
+          "entries": [
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 25
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 25
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 25
+            }
+          ]
+        },
+        "category": "custom:gym-passes",
+        "createdAt": "2026-09-06T17:00:00.000Z",
+        "updatedAt": "2026-09-06T17:00:00.000Z"
+      },
+      {
+        "id": "47dc82cf-01ea-471d-beed-46c4cbe894a8:2026-09-02",
+        "description": "Gym membership",
+        "amount": 65,
+        "currency": "USD",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-09-02T07:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 21.67
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 21.67
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 21.66
+            }
+          ]
+        },
+        "category": "custom:gym-passes",
+        "createdAt": "2026-09-02T07:00:00.000Z",
+        "updatedAt": "2026-09-02T07:00:00.000Z"
+      },
+      {
+        "id": "47dc82cf-01ea-471d-beed-46c4cbe894a8:2026-10-02",
+        "description": "Gym membership",
+        "amount": 65,
+        "currency": "USD",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-10-02T07:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 21.67
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 21.67
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 21.66
+            }
+          ]
+        },
+        "category": "custom:gym-passes",
+        "createdAt": "2026-10-02T07:00:00.000Z",
+        "updatedAt": "2026-10-02T07:00:00.000Z"
+      },
+      {
+        "id": "47dc82cf-01ea-471d-beed-46c4cbe894a8:2026-11-02",
+        "description": "Gym membership",
+        "amount": 65,
+        "currency": "USD",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-11-02T07:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 21.67
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 21.67
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 21.66
+            }
+          ]
+        },
+        "category": "custom:gym-passes",
+        "createdAt": "2026-11-02T07:00:00.000Z",
+        "updatedAt": "2026-11-02T07:00:00.000Z"
+      },
+      {
+        "id": "06d2ecba-9f2d-4b27-8dc0-a2807e8b195e",
+        "description": "Chalk and tape",
+        "amount": 16.8,
+        "currency": "USD",
+        "paidBy": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-10-14T09:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 5.6
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 5.6
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 5.6
+            }
+          ]
+        },
+        "category": "shopping",
+        "createdAt": "2026-10-14T09:00:00.000Z",
+        "updatedAt": "2026-10-14T09:00:00.000Z"
+      },
+      {
+        "id": "094c3300-34ea-4939-baf1-c42ccf2ce5f4",
+        "description": "Birthday dinner at Tacos Chilango",
+        "amount": 186,
+        "currency": "USD",
+        "paidBy": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-24T19:30:00.000Z",
+        "split": {
+          "type": "exact",
+          "entries": [
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 42.72
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 60.86
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 39.7
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 42.72
+            }
+          ]
+        },
+        "category": "food",
+        "createdAt": "2026-10-24T21:00:00.000Z",
+        "updatedAt": "2026-10-24T21:00:00.000Z",
+        "notes": "Dana picked the place.",
+        "items": [
+          {
+            "description": "Tacos al pastor, six",
+            "amount": 58,
+            "assigned": [
+              "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "334c81ef-1302-4060-a6c2-a50bea1127fc"
+            ]
+          },
+          {
+            "description": "Mezcal flight",
+            "amount": 32,
+            "assigned": [
+              "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "c016e04a-c9d4-49a1-bd99-e13ab17fed0d"
+            ]
+          },
+          {
+            "description": "Margaritas, four",
+            "amount": 56,
+            "assigned": [
+              "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "ff7416ef-1d40-4ad5-8a72-ee60ba15d831"
+            ]
+          },
+          {
+            "description": "Churros and horchata",
+            "amount": 18,
+            "assigned": [
+              "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "ff7416ef-1d40-4ad5-8a72-ee60ba15d831"
+            ]
+          }
+        ],
+        "receipt": {
+          "bytes": 1571
+        }
+      },
+      {
+        "id": "09b82c4b-5fda-4555-80d0-5044df744e46",
+        "description": "Cake and balloons",
+        "amount": 42,
+        "currency": "USD",
+        "paidBy": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-24T16:30:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 10.5
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 10.5
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 10.5
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 10.5
+            }
+          ]
+        },
+        "category": "gifts",
+        "createdAt": "2026-10-24T16:30:00.000Z",
+        "updatedAt": "2026-10-24T16:30:00.000Z"
+      },
+      {
+        "id": "99718825-a426-46d7-a207-71513ab94710",
+        "description": "Uber home",
+        "amount": 37.4,
+        "currency": "USD",
+        "paidBy": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-24T23:10:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 9.35
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 9.35
+            },
+            {
+              "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+              "amount": 9.35
+            },
+            {
+              "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+              "amount": 9.35
+            }
+          ]
+        },
+        "category": "transport",
+        "createdAt": "2026-10-24T23:10:00.000Z",
+        "updatedAt": "2026-10-24T23:10:00.000Z"
+      }
+    ],
+    "settlements": [
+      {
+        "id": "b4fc6ce2-a6db-4b8e-9a1b-3fb53b0b0d7d",
+        "fromUserId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "toUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "amount": 120,
+        "currency": "EUR",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-14T10:00:00.000Z",
+        "createdAt": "2026-10-14T10:00:00.000Z",
+        "paymentMethod": "cash",
+        "note": "Cash for the Airbnb"
+      },
+      {
+        "id": "88fe4bdc-d934-4cd6-8776-6bf6dbea774b",
+        "fromUserId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "toUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "amount": 50,
+        "currency": "EUR",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-15T09:00:00.000Z",
+        "createdAt": "2026-10-15T09:00:00.000Z",
+        "paymentMethod": "venmo",
+        "note": "Pastéis and the taxi"
+      },
+      {
+        "id": "5f97fe24-464a-4577-8e59-ff273a2a7834",
+        "fromUserId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "toUserId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "amount": 40,
+        "currency": "USD",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-10-20T20:00:00.000Z",
+        "createdAt": "2026-10-20T20:00:00.000Z",
+        "paymentMethod": "venmo",
+        "note": "Rope"
+      },
+      {
+        "id": "f2319126-db08-46a8-bae4-3b6ec9ded327",
+        "fromUserId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "toUserId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "amount": 40,
+        "currency": "USD",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-27T18:00:00.000Z",
+        "createdAt": "2026-10-27T18:00:00.000Z",
+        "paymentMethod": "venmo",
+        "note": "Mezcal"
+      }
+    ],
+    "activities": [
+      {
+        "type": "expense_updated",
+        "actorId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-13T21:05:00.000Z",
+        "expenseId": "3b726612-f760-4d9a-b4e9-b463e378d052",
+        "before": {
+          "description": "Dinner at Time Out",
+          "amount": 100,
+          "paidBy": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+          "split": {
+            "type": "equal",
+            "entries": [
+              {
+                "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+                "amount": 25
+              },
+              {
+                "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+                "amount": 25
+              },
+              {
+                "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+                "amount": 25
+              },
+              {
+                "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+                "amount": 25
+              }
+            ]
+          }
+        },
+        "after": {
+          "description": "Dinner at Time Out",
+          "amount": 110,
+          "paidBy": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+          "split": {
+            "type": "exact",
+            "entries": [
+              {
+                "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+                "amount": 20.35
+              },
+              {
+                "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+                "amount": 20.35
+              },
+              {
+                "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+                "amount": 33
+              },
+              {
+                "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+                "amount": 36.3
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-08T13:10:00.000Z",
+        "expenseId": "2e075476-f07d-4243-8cf8-ba1a8bd84645"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-08T15:00:00.000Z",
+        "expenseId": "58bddef6-2d95-4c48-97c2-6456b57c8778"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-09T18:20:00.000Z",
+        "expenseId": "4b364fc3-cbfd-4524-b0a3-2a271b4648d0"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-09T09:30:00.000Z",
+        "expenseId": "05ba8103-2647-4332-a5aa-b3750f98ba70"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-10T11:00:00.000Z",
+        "expenseId": "2cb5319e-b51a-4911-b794-8c686f68b2c6"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-11T21:40:00.000Z",
+        "expenseId": "144ed4ef-1013-40c7-9857-92b7b18f53b7"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-12T10:15:00.000Z",
+        "expenseId": "b966b4d1-ae21-43fb-8971-eafb92d67163"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-12T08:50:00.000Z",
+        "expenseId": "04758a5a-02a6-491d-9d53-f26994d38577"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-12T20:30:00.000Z",
+        "expenseId": "40f9f0e0-f54f-4802-a2c7-03ccba29746f"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-13T20:50:00.000Z",
+        "expenseId": "3b726612-f760-4d9a-b4e9-b463e378d052"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-13T12:00:00.000Z",
+        "expenseId": "5010d2e5-89c4-4dec-b8e9-c633f198942e"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-08-16T18:00:00.000Z",
+        "expenseId": "81ece2ed-7044-4fa6-9d71-527ff5607382"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-09-06T17:00:00.000Z",
+        "expenseId": "1684c1ea-9bc7-4c0e-b1ce-6e146f20c732"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-09-02T07:00:00.000Z",
+        "expenseId": "47dc82cf-01ea-471d-beed-46c4cbe894a8:2026-09-02"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-10-02T07:00:00.000Z",
+        "expenseId": "47dc82cf-01ea-471d-beed-46c4cbe894a8:2026-10-02"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-11-02T07:00:00.000Z",
+        "expenseId": "47dc82cf-01ea-471d-beed-46c4cbe894a8:2026-11-02"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-10-14T09:00:00.000Z",
+        "expenseId": "06d2ecba-9f2d-4b27-8dc0-a2807e8b195e"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-24T21:00:00.000Z",
+        "expenseId": "094c3300-34ea-4939-baf1-c42ccf2ce5f4"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-24T16:30:00.000Z",
+        "expenseId": "09b82c4b-5fda-4555-80d0-5044df744e46"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-24T23:10:00.000Z",
+        "expenseId": "99718825-a426-46d7-a207-71513ab94710"
+      },
+      {
+        "type": "payment",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-14T10:00:00.000Z",
+        "settlementId": "b4fc6ce2-a6db-4b8e-9a1b-3fb53b0b0d7d",
+        "fromUserId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "toUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "amount": 120
+      },
+      {
+        "type": "payment",
+        "actorId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-15T09:00:00.000Z",
+        "settlementId": "88fe4bdc-d934-4cd6-8776-6bf6dbea774b",
+        "fromUserId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "toUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "amount": 50
+      },
+      {
+        "type": "payment",
+        "actorId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-10-20T20:00:00.000Z",
+        "settlementId": "5f97fe24-464a-4577-8e59-ff273a2a7834",
+        "fromUserId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "toUserId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "amount": 40
+      },
+      {
+        "type": "payment",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "b23b9322-6edd-4ff2-8887-3861f006f710",
+        "date": "2026-10-27T18:00:00.000Z",
+        "settlementId": "f2319126-db08-46a8-bae4-3b6ec9ded327",
+        "fromUserId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "toUserId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+        "amount": 40
+      },
+      {
+        "type": "expense_deleted",
+        "actorId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-10T09:00:00.000Z",
+        "expenseDescription": "Second taxi (duplicate)"
+      },
+      {
+        "type": "reminder_sent",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "date": "2026-10-28T19:00:00.000Z",
+        "toUserId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+        "amount": 45.6,
+        "currency": "USD",
+        "via": "share"
+      }
+    ],
+    "friendBalances": {
+      "b7818d43-75fe-4a6a-80a3-a52c481cd333": -63.15,
+      "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a": -4.8,
+      "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc": 22.12,
+      "c016e04a-c9d4-49a1-bd99-e13ab17fed0d": 19.15,
+      "334c81ef-1302-4060-a6c2-a50bea1127fc": 90.03
+    },
+    "tombstones": [
+      {
+        "id": "4eb4ebe6-d979-4bef-b619-0b715c43c2d2",
+        "kind": "settlement",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "deletedAt": "2026-10-14T11:05:00.000Z"
+      },
+      {
+        "id": "f495d9b0-57a2-4606-b282-d94e55fa6ec2",
+        "kind": "expense",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "deletedAt": "2026-10-10T09:00:00.000Z"
+      },
+      {
+        "id": "custom:taxi-tips",
+        "kind": "category",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "deletedAt": "2026-10-09T18:00:00.000Z"
+      }
+    ],
+    "userAliases": {},
+    "groupSyncedAt": {},
+    "recurring": [
+      {
+        "id": "47dc82cf-01ea-471d-beed-46c4cbe894a8",
+        "groupId": "7885f425-d448-4f6c-9410-ccf997af632d",
+        "frequency": "monthly",
+        "startDate": "2026-09-02T07:00:00.000Z",
+        "template": {
+          "description": "Gym membership",
+          "amount": 65,
+          "currency": "USD",
+          "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+          "split": {
+            "type": "equal",
+            "entries": [
+              {
+                "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+                "amount": 21.67
+              },
+              {
+                "userId": "c016e04a-c9d4-49a1-bd99-e13ab17fed0d",
+                "amount": 21.67
+              },
+              {
+                "userId": "334c81ef-1302-4060-a6c2-a50bea1127fc",
+                "amount": 21.66
+              }
+            ]
+          },
+          "category": "custom:gym-passes"
+        },
+        "createdAt": "2026-09-02T07:00:00.000Z",
+        "updatedAt": "2026-09-02T07:00:00.000Z"
+      }
+    ],
+    "receipts": {
+      "3b726612-f760-4d9a-b4e9-b463e378d052": "data:image/png;base64,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",
+      "094c3300-34ea-4939-baf1-c42ccf2ce5f4": "data:image/png;base64,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"
+    }
+  }
+}

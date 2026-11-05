@@ -1,0 +1,1732 @@
+{
+  "schema": "opensplit-export",
+  "version": 1,
+  "exportType": "full",
+  "exportedAt": "2026-11-04T09:00:00.000Z",
+  "meta": {
+    "userCount": 7,
+    "groupCount": 3,
+    "expenseCount": 29,
+    "settlementCount": 6,
+    "activityCount": 40
+  },
+  "data": {
+    "currentUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+    "users": [
+      {
+        "id": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "name": "Ana Ferreira",
+        "initials": "AF",
+        "email": "ana.ferreira@example.com",
+        "phone": "+1 415 555 0142",
+        "payHandles": {
+          "venmo": "ana-ferreira",
+          "cashapp": "$anaf"
+        },
+        "avatarColor": "#7c3aed",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      },
+      {
+        "id": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "name": "Ben Carter",
+        "initials": "BC",
+        "email": "ben.carter@example.com",
+        "phone": "+1 415 555 0187",
+        "avatarColor": "#0ea5e9",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      },
+      {
+        "id": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "name": "Carla Mendes",
+        "initials": "CM",
+        "email": "carla.mendes@example.com",
+        "phone": "+351 912 555 019",
+        "avatarColor": "#10b981",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      },
+      {
+        "id": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "name": "Dana Okafor",
+        "initials": "DO",
+        "email": "dana.okafor@example.com",
+        "phone": "+1 312 555 0163",
+        "avatarColor": "#f59e0b",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      },
+      {
+        "id": "957ae782-219e-40b2-992e-327a494e7576",
+        "name": "Eddie Lim",
+        "initials": "EL",
+        "email": "eddie.lim@example.com",
+        "phone": "+1 206 555 0129",
+        "avatarColor": "#ec4899",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      },
+      {
+        "id": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+        "name": "Farah Haddad",
+        "initials": "FH",
+        "email": "farah.haddad@example.com",
+        "phone": "+44 7700 900214",
+        "avatarColor": "#ef4444",
+        "createdAt": "2026-06-02T09:00:00.000Z"
+      },
+      {
+        "id": "a637bad6-b51d-497c-92ea-93393557b514",
+        "name": "Sam Ortiz",
+        "initials": "SO",
+        "email": "sam.ortiz@example.com",
+        "phone": "+1 415 555 0111",
+        "avatarColor": "#84cc16",
+        "createdAt": "2026-08-20T10:00:00.000Z"
+      }
+    ],
+    "groups": [
+      {
+        "id": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "name": "Lisbon trip",
+        "emoji": "✈️",
+        "color": "#7c3aed",
+        "type": "trip",
+        "members": [
+          {
+            "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+            "role": "owner",
+            "joinedAt": "2026-09-28T10:00:00.000Z"
+          },
+          {
+            "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+            "role": "member",
+            "joinedAt": "2026-09-28T10:00:00.000Z"
+          },
+          {
+            "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+            "role": "member",
+            "joinedAt": "2026-09-28T10:05:00.000Z"
+          },
+          {
+            "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+            "role": "member",
+            "joinedAt": "2026-09-28T10:05:00.000Z"
+          }
+        ],
+        "currency": "EUR",
+        "simplifyDebts": true,
+        "categories": [
+          {
+            "id": "custom:tram-passes",
+            "name": "Tram passes"
+          }
+        ],
+        "lastActivity": "2026-10-15T09:00:00.000Z",
+        "createdAt": "2026-09-28T10:00:00.000Z",
+        "updatedAt": "2026-10-09T18:00:00.000Z"
+      },
+      {
+        "id": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "name": "Flat",
+        "emoji": "🏠",
+        "color": "#0ea5e9",
+        "type": "home",
+        "members": [
+          {
+            "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+            "role": "owner",
+            "joinedAt": "2026-07-01T09:00:00.000Z"
+          },
+          {
+            "userId": "957ae782-219e-40b2-992e-327a494e7576",
+            "role": "member",
+            "joinedAt": "2026-07-01T09:30:00.000Z"
+          },
+          {
+            "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+            "role": "member",
+            "joinedAt": "2026-07-02T18:00:00.000Z"
+          }
+        ],
+        "currency": "USD",
+        "simplifyDebts": true,
+        "categories": [],
+        "defaultSplit": {
+          "type": "shares",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "value": 2
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "value": 1
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "value": 1
+            }
+          ]
+        },
+        "lastActivity": "2026-11-01T07:00:00.000Z",
+        "createdAt": "2026-07-01T09:00:00.000Z",
+        "updatedAt": "2026-08-06T10:00:00.000Z"
+      },
+      {
+        "id": "b309c3a0-b396-4b94-bdf9-32b632a1d5b0",
+        "name": "Ana & Dana",
+        "emoji": "🤝",
+        "color": "#f59e0b",
+        "type": "friends",
+        "members": [
+          {
+            "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+            "role": "owner",
+            "joinedAt": "2026-10-20T20:00:00.000Z"
+          },
+          {
+            "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+            "role": "member",
+            "joinedAt": "2026-10-20T20:00:00.000Z"
+          }
+        ],
+        "currency": "USD",
+        "simplifyDebts": true,
+        "categories": [],
+        "direct": true,
+        "lastActivity": "2026-10-31T16:00:00.000Z",
+        "createdAt": "2026-10-20T20:00:00.000Z",
+        "updatedAt": "2026-10-20T20:00:00.000Z"
+      }
+    ],
+    "expenses": [
+      {
+        "id": "2e075476-f07d-4243-8cf8-ba1a8bd84645",
+        "description": "Airport taxi",
+        "amount": 42,
+        "currency": "EUR",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-08T13:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 10.5
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 10.5
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 10.5
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 10.5
+            }
+          ]
+        },
+        "category": "transport",
+        "createdAt": "2026-10-08T13:10:00.000Z",
+        "updatedAt": "2026-10-08T13:10:00.000Z"
+      },
+      {
+        "id": "58bddef6-2d95-4c48-97c2-6456b57c8778",
+        "description": "Airbnb, Alfama",
+        "amount": 840,
+        "currency": "EUR",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-08T15:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 210
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 210
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 210
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 210
+            }
+          ]
+        },
+        "category": "accommodation",
+        "createdAt": "2026-10-08T15:00:00.000Z",
+        "updatedAt": "2026-10-08T15:00:00.000Z",
+        "notes": "Check-in code is on the fridge door."
+      },
+      {
+        "id": "4b364fc3-cbfd-4524-b0a3-2a271b4648d0",
+        "description": "Pingo Doce groceries",
+        "amount": 146.3,
+        "currency": "EUR",
+        "paidBy": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-09T18:20:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 36.58
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 36.58
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 36.57
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 36.57
+            }
+          ]
+        },
+        "category": "groceries",
+        "createdAt": "2026-10-09T18:20:00.000Z",
+        "updatedAt": "2026-10-09T18:20:00.000Z"
+      },
+      {
+        "id": "05ba8103-2647-4332-a5aa-b3750f98ba70",
+        "description": "Tram passes",
+        "amount": 9,
+        "currency": "EUR",
+        "paidBy": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-09T09:30:00.000Z",
+        "split": {
+          "type": "exact",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 2.25
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 2.25
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 2.25
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 2.25
+            }
+          ]
+        },
+        "category": "custom:tram-passes",
+        "createdAt": "2026-10-09T09:30:00.000Z",
+        "updatedAt": "2026-10-09T09:30:00.000Z"
+      },
+      {
+        "id": "2cb5319e-b51a-4911-b794-8c686f68b2c6",
+        "description": "Museum of Art tickets",
+        "amount": 48,
+        "currency": "EUR",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-10T11:00:00.000Z",
+        "split": {
+          "type": "percentage",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 19.2
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 14.4
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 9.6
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 4.8
+            }
+          ]
+        },
+        "category": "entertainment",
+        "createdAt": "2026-10-10T11:00:00.000Z",
+        "updatedAt": "2026-10-10T11:00:00.000Z",
+        "notes": "Ben wanted the audio guide."
+      },
+      {
+        "id": "144ed4ef-1013-40c7-9857-92b7b18f53b7",
+        "description": "Fado night",
+        "amount": 96,
+        "currency": "EUR",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-11T21:40:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 24
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 24
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 24
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 24
+            }
+          ]
+        },
+        "category": "entertainment",
+        "createdAt": "2026-10-11T21:40:00.000Z",
+        "updatedAt": "2026-10-11T21:40:00.000Z"
+      },
+      {
+        "id": "b966b4d1-ae21-43fb-8971-eafb92d67163",
+        "description": "Pastéis de Belém",
+        "amount": 34.5,
+        "currency": "EUR",
+        "paidBy": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-12T10:15:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 8.63
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 8.63
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 8.62
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 8.62
+            }
+          ]
+        },
+        "category": "food",
+        "createdAt": "2026-10-12T10:15:00.000Z",
+        "updatedAt": "2026-10-12T10:15:00.000Z",
+        "location": {
+          "lat": 38.6975,
+          "lng": -9.2033,
+          "accuracy": 18,
+          "place": {
+            "name": "Pastéis de Belém",
+            "kind": "bakery",
+            "address": "Rua de Belém 84, 1300-085 Lisboa"
+          }
+        }
+      },
+      {
+        "id": "04758a5a-02a6-491d-9d53-f26994d38577",
+        "description": "Sintra train",
+        "amount": 27,
+        "currency": "EUR",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-12T08:50:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 6.75
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 6.75
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 6.75
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 6.75
+            }
+          ]
+        },
+        "category": "transport",
+        "createdAt": "2026-10-12T08:50:00.000Z",
+        "updatedAt": "2026-10-12T08:50:00.000Z"
+      },
+      {
+        "id": "40f9f0e0-f54f-4802-a2c7-03ccba29746f",
+        "description": "Vinho verde",
+        "amount": 24,
+        "currency": "EUR",
+        "paidBy": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-12T20:30:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 12
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 12
+            }
+          ]
+        },
+        "category": "food",
+        "createdAt": "2026-10-12T20:30:00.000Z",
+        "updatedAt": "2026-10-12T20:30:00.000Z"
+      },
+      {
+        "id": "3b726612-f760-4d9a-b4e9-b463e378d052",
+        "description": "Dinner at Time Out",
+        "amount": 110,
+        "currency": "EUR",
+        "paidBy": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-13T20:45:00.000Z",
+        "split": {
+          "type": "exact",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 20.35
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 20.35
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 33
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 36.3
+            }
+          ]
+        },
+        "category": "food",
+        "createdAt": "2026-10-13T20:50:00.000Z",
+        "updatedAt": "2026-10-13T21:05:00.000Z",
+        "notes": "Tip was added after the bill came back.",
+        "items": [
+          {
+            "description": "Octopus rice",
+            "amount": 24,
+            "assigned": [
+              "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "ff7416ef-1d40-4ad5-8a72-ee60ba15d831"
+            ]
+          },
+          {
+            "description": "Bacalhau à Brás",
+            "amount": 19,
+            "assigned": [
+              "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a"
+            ]
+          },
+          {
+            "description": "Sea bass",
+            "amount": 22,
+            "assigned": [
+              "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc"
+            ]
+          },
+          {
+            "description": "Tiramisu",
+            "amount": 9,
+            "assigned": [
+              "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc"
+            ]
+          },
+          {
+            "description": "Wine, two bottles",
+            "amount": 26,
+            "assigned": [
+              "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc"
+            ]
+          }
+        ],
+        "receipt": {
+          "bytes": 1563
+        }
+      },
+      {
+        "id": "5010d2e5-89c4-4dec-b8e9-c633f198942e",
+        "description": "Refund: tram passes",
+        "amount": 4.5,
+        "currency": "EUR",
+        "paidBy": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-13T12:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 1.13
+            },
+            {
+              "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+              "amount": 1.13
+            },
+            {
+              "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+              "amount": 1.12
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 1.12
+            }
+          ]
+        },
+        "category": "custom:tram-passes",
+        "createdAt": "2026-10-13T12:00:00.000Z",
+        "updatedAt": "2026-10-13T12:00:00.000Z",
+        "refund": {
+          "of": "05ba8103-2647-4332-a5aa-b3750f98ba70"
+        }
+      },
+      {
+        "id": "1ed78e5c-ff33-4b5a-a71d-51cd3a618e01:2026-08-01",
+        "description": "Rent, Flat 4B",
+        "amount": 3600,
+        "currency": "USD",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-08-01T07:00:00.000Z",
+        "split": {
+          "type": "shares",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 1800,
+              "shares": 2
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 900,
+              "shares": 1
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 900,
+              "shares": 1
+            }
+          ]
+        },
+        "category": "rent",
+        "createdAt": "2026-08-01T07:00:00.000Z",
+        "updatedAt": "2026-08-01T07:00:00.000Z"
+      },
+      {
+        "id": "1ed78e5c-ff33-4b5a-a71d-51cd3a618e01:2026-09-01",
+        "description": "Rent, Flat 4B",
+        "amount": 3600,
+        "currency": "USD",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-09-01T07:00:00.000Z",
+        "split": {
+          "type": "shares",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 1800,
+              "shares": 2
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 900,
+              "shares": 1
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 900,
+              "shares": 1
+            }
+          ]
+        },
+        "category": "rent",
+        "createdAt": "2026-09-01T07:00:00.000Z",
+        "updatedAt": "2026-09-01T07:00:00.000Z"
+      },
+      {
+        "id": "1ed78e5c-ff33-4b5a-a71d-51cd3a618e01:2026-10-01",
+        "description": "Rent, Flat 4B",
+        "amount": 3600,
+        "currency": "USD",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-10-01T07:00:00.000Z",
+        "split": {
+          "type": "shares",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 1800,
+              "shares": 2
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 900,
+              "shares": 1
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 900,
+              "shares": 1
+            }
+          ]
+        },
+        "category": "rent",
+        "createdAt": "2026-10-01T07:00:00.000Z",
+        "updatedAt": "2026-10-01T07:00:00.000Z"
+      },
+      {
+        "id": "1ed78e5c-ff33-4b5a-a71d-51cd3a618e01:2026-11-01",
+        "description": "Rent, Flat 4B",
+        "amount": 3600,
+        "currency": "USD",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-11-01T07:00:00.000Z",
+        "split": {
+          "type": "shares",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 1800,
+              "shares": 2
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 900,
+              "shares": 1
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 900,
+              "shares": 1
+            }
+          ]
+        },
+        "category": "rent",
+        "createdAt": "2026-11-01T07:00:00.000Z",
+        "updatedAt": "2026-11-01T07:00:00.000Z"
+      },
+      {
+        "id": "71de8863-19a4-464f-bfb7-cf575d1766c5:2026-08-05",
+        "description": "Internet",
+        "amount": 79.99,
+        "currency": "USD",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-08-05T07:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 26.67
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 26.66
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 26.66
+            }
+          ]
+        },
+        "category": "utilities",
+        "createdAt": "2026-08-05T07:00:00.000Z",
+        "updatedAt": "2026-08-05T07:00:00.000Z"
+      },
+      {
+        "id": "71de8863-19a4-464f-bfb7-cf575d1766c5:2026-09-05",
+        "description": "Internet",
+        "amount": 79.99,
+        "currency": "USD",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-09-05T07:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 26.67
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 26.66
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 26.66
+            }
+          ]
+        },
+        "category": "utilities",
+        "createdAt": "2026-09-05T07:00:00.000Z",
+        "updatedAt": "2026-09-05T07:00:00.000Z"
+      },
+      {
+        "id": "71de8863-19a4-464f-bfb7-cf575d1766c5:2026-10-05",
+        "description": "Internet",
+        "amount": 79.99,
+        "currency": "USD",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-10-05T07:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 26.67
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 26.66
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 26.66
+            }
+          ]
+        },
+        "category": "utilities",
+        "createdAt": "2026-10-05T07:00:00.000Z",
+        "updatedAt": "2026-10-05T07:00:00.000Z"
+      },
+      {
+        "id": "69f773d8-11b3-4eca-bd47-267fd4b41e11:2026-07-10",
+        "description": "Netflix",
+        "amount": 22.99,
+        "currency": "USD",
+        "paidBy": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-07-10T07:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 7.67
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 7.66
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 7.66
+            }
+          ]
+        },
+        "category": "subscriptions",
+        "createdAt": "2026-07-10T07:00:00.000Z",
+        "updatedAt": "2026-07-10T07:00:00.000Z"
+      },
+      {
+        "id": "69f773d8-11b3-4eca-bd47-267fd4b41e11:2026-08-10",
+        "description": "Netflix",
+        "amount": 22.99,
+        "currency": "USD",
+        "paidBy": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-08-10T07:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 7.67
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 7.66
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 7.66
+            }
+          ]
+        },
+        "category": "subscriptions",
+        "createdAt": "2026-08-10T07:00:00.000Z",
+        "updatedAt": "2026-08-10T07:00:00.000Z"
+      },
+      {
+        "id": "597d98f1-0aff-4261-ab1b-2385a3f9ad04",
+        "description": "Broadband setup fee",
+        "amount": 60,
+        "currency": "USD",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-08-06T18:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 20
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 20
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 20
+            }
+          ]
+        },
+        "category": "utilities",
+        "createdAt": "2026-08-06T18:00:00.000Z",
+        "updatedAt": "2026-08-06T18:00:00.000Z"
+      },
+      {
+        "id": "1ff273f5-1a7b-48f9-9f8a-0679f7832c0b",
+        "description": "Refund: broadband setup fee",
+        "amount": 30,
+        "currency": "USD",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-09-12T12:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 10
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 10
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 10
+            }
+          ]
+        },
+        "category": "utilities",
+        "createdAt": "2026-09-12T12:00:00.000Z",
+        "updatedAt": "2026-09-12T12:00:00.000Z",
+        "refund": {
+          "of": "597d98f1-0aff-4261-ab1b-2385a3f9ad04"
+        }
+      },
+      {
+        "id": "98e81c9b-d502-409b-8d63-0fa7e16549b1",
+        "description": "IKEA shelves and screws",
+        "amount": 218.4,
+        "currency": "USD",
+        "paidBy": "957ae782-219e-40b2-992e-327a494e7576",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-09-20T17:30:00.000Z",
+        "split": {
+          "type": "shares",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 109.2,
+              "shares": 2
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 54.6,
+              "shares": 1
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 54.6,
+              "shares": 1
+            }
+          ]
+        },
+        "category": "household",
+        "createdAt": "2026-09-20T17:30:00.000Z",
+        "updatedAt": "2026-09-20T17:30:00.000Z"
+      },
+      {
+        "id": "d5aca067-4d03-429b-8c93-c120095320c8",
+        "description": "Grocery run",
+        "amount": 64.18,
+        "currency": "USD",
+        "paidBy": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-10-26T19:10:00.000Z",
+        "split": {
+          "type": "exact",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 20
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 22.09
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 22.09
+            }
+          ]
+        },
+        "category": "groceries",
+        "createdAt": "2026-10-26T19:10:00.000Z",
+        "updatedAt": "2026-10-26T19:10:00.000Z"
+      },
+      {
+        "id": "106d31da-2687-4868-a33f-d2cc5dd0a16c",
+        "description": "Electric bill, October",
+        "amount": 96.5,
+        "currency": "USD",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-10-28T09:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 32.17
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 32.17
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 32.16
+            }
+          ]
+        },
+        "category": "utilities",
+        "createdAt": "2026-10-28T09:00:00.000Z",
+        "updatedAt": "2026-10-28T11:00:00.000Z"
+      },
+      {
+        "id": "2fc3bfa7-a120-4bd3-af81-8f0b326aacb1",
+        "description": "Thai delivery",
+        "amount": 47.85,
+        "currency": "USD",
+        "paidBy": "957ae782-219e-40b2-992e-327a494e7576",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-10-31T20:40:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 15.95
+            },
+            {
+              "userId": "957ae782-219e-40b2-992e-327a494e7576",
+              "amount": 15.95
+            },
+            {
+              "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+              "amount": 15.95
+            }
+          ]
+        },
+        "category": "food",
+        "createdAt": "2026-10-31T20:40:00.000Z",
+        "updatedAt": "2026-10-31T20:40:00.000Z"
+      },
+      {
+        "id": "1b930e2f-f076-4081-b3a6-fffdd7f4ef83",
+        "description": "Dinner at Nopa",
+        "amount": 86.4,
+        "currency": "USD",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "b309c3a0-b396-4b94-bdf9-32b632a1d5b0",
+        "date": "2026-10-21T19:30:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 43.2
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 43.2
+            }
+          ]
+        },
+        "category": "food",
+        "createdAt": "2026-10-21T19:30:00.000Z",
+        "updatedAt": "2026-10-21T19:30:00.000Z"
+      },
+      {
+        "id": "52b31f41-291a-406c-9be9-19e3c9eae0cf",
+        "description": "Concert tickets",
+        "amount": 140,
+        "currency": "USD",
+        "paidBy": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "groupId": "b309c3a0-b396-4b94-bdf9-32b632a1d5b0",
+        "date": "2026-10-25T14:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 70
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 70
+            }
+          ]
+        },
+        "category": "entertainment",
+        "createdAt": "2026-10-25T14:00:00.000Z",
+        "updatedAt": "2026-10-25T14:00:00.000Z"
+      },
+      {
+        "id": "388afc06-5333-4a27-b3a5-542d9160d045",
+        "description": "Coffee beans",
+        "amount": 18,
+        "currency": "USD",
+        "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "b309c3a0-b396-4b94-bdf9-32b632a1d5b0",
+        "date": "2026-10-29T10:00:00.000Z",
+        "split": {
+          "type": "equal",
+          "entries": [
+            {
+              "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+              "amount": 9
+            },
+            {
+              "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+              "amount": 9
+            }
+          ]
+        },
+        "category": "groceries",
+        "createdAt": "2026-10-29T10:00:00.000Z",
+        "updatedAt": "2026-10-29T10:00:00.000Z"
+      }
+    ],
+    "settlements": [
+      {
+        "id": "b4fc6ce2-a6db-4b8e-9a1b-3fb53b0b0d7d",
+        "fromUserId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "toUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "amount": 120,
+        "currency": "EUR",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-14T10:00:00.000Z",
+        "createdAt": "2026-10-14T10:00:00.000Z",
+        "paymentMethod": "cash",
+        "note": "Cash for the Airbnb"
+      },
+      {
+        "id": "88fe4bdc-d934-4cd6-8776-6bf6dbea774b",
+        "fromUserId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "toUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "amount": 50,
+        "currency": "EUR",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-15T09:00:00.000Z",
+        "createdAt": "2026-10-15T09:00:00.000Z",
+        "paymentMethod": "venmo",
+        "note": "Pastéis and the taxi"
+      },
+      {
+        "id": "b11ed9d5-5389-4b09-bc79-020a52cbbd20",
+        "fromUserId": "957ae782-219e-40b2-992e-327a494e7576",
+        "toUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "amount": 800,
+        "currency": "USD",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-09-03T12:00:00.000Z",
+        "createdAt": "2026-09-03T12:00:00.000Z",
+        "paymentMethod": "zelle",
+        "note": "August rent"
+      },
+      {
+        "id": "2799949c-0b16-47f3-be83-d37d7c7005d3",
+        "fromUserId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+        "toUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "amount": 900,
+        "currency": "USD",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-09-04T12:00:00.000Z",
+        "createdAt": "2026-09-04T12:00:00.000Z",
+        "paymentMethod": "venmo",
+        "note": "August rent"
+      },
+      {
+        "id": "b715f1be-24a1-433d-a82f-da7cffca99ec",
+        "fromUserId": "957ae782-219e-40b2-992e-327a494e7576",
+        "toUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "amount": 300,
+        "currency": "USD",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-10-04T12:00:00.000Z",
+        "createdAt": "2026-10-04T12:00:00.000Z",
+        "paymentMethod": "zelle",
+        "note": "September"
+      },
+      {
+        "id": "cac591e1-0355-40f1-b9ac-6951ae7e595f",
+        "fromUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "toUserId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "amount": 17.8,
+        "currency": "USD",
+        "groupId": "b309c3a0-b396-4b94-bdf9-32b632a1d5b0",
+        "date": "2026-10-31T16:00:00.000Z",
+        "createdAt": "2026-10-31T16:00:00.000Z",
+        "paymentMethod": "venmo",
+        "note": "All square"
+      }
+    ],
+    "activities": [
+      {
+        "type": "expense_updated",
+        "actorId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-13T21:05:00.000Z",
+        "expenseId": "3b726612-f760-4d9a-b4e9-b463e378d052",
+        "before": {
+          "description": "Dinner at Time Out",
+          "amount": 100,
+          "paidBy": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+          "split": {
+            "type": "equal",
+            "entries": [
+              {
+                "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+                "amount": 25
+              },
+              {
+                "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+                "amount": 25
+              },
+              {
+                "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+                "amount": 25
+              },
+              {
+                "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+                "amount": 25
+              }
+            ]
+          }
+        },
+        "after": {
+          "description": "Dinner at Time Out",
+          "amount": 110,
+          "paidBy": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+          "split": {
+            "type": "exact",
+            "entries": [
+              {
+                "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+                "amount": 20.35
+              },
+              {
+                "userId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+                "amount": 20.35
+              },
+              {
+                "userId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+                "amount": 33
+              },
+              {
+                "userId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+                "amount": 36.3
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "expense_updated",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-10-28T11:00:00.000Z",
+        "expenseId": "106d31da-2687-4868-a33f-d2cc5dd0a16c",
+        "before": {
+          "description": "Electric bill",
+          "amount": 96,
+          "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+          "split": {
+            "type": "equal",
+            "entries": [
+              {
+                "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+                "amount": 32
+              },
+              {
+                "userId": "957ae782-219e-40b2-992e-327a494e7576",
+                "amount": 32
+              },
+              {
+                "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+                "amount": 32
+              }
+            ]
+          }
+        },
+        "after": {
+          "description": "Electric bill, October",
+          "amount": 96.5,
+          "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+          "split": {
+            "type": "equal",
+            "entries": [
+              {
+                "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+                "amount": 32.17
+              },
+              {
+                "userId": "957ae782-219e-40b2-992e-327a494e7576",
+                "amount": 32.17
+              },
+              {
+                "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+                "amount": 32.16
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-08T13:10:00.000Z",
+        "expenseId": "2e075476-f07d-4243-8cf8-ba1a8bd84645"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-08T15:00:00.000Z",
+        "expenseId": "58bddef6-2d95-4c48-97c2-6456b57c8778"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-09T18:20:00.000Z",
+        "expenseId": "4b364fc3-cbfd-4524-b0a3-2a271b4648d0"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-09T09:30:00.000Z",
+        "expenseId": "05ba8103-2647-4332-a5aa-b3750f98ba70"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-10T11:00:00.000Z",
+        "expenseId": "2cb5319e-b51a-4911-b794-8c686f68b2c6"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-11T21:40:00.000Z",
+        "expenseId": "144ed4ef-1013-40c7-9857-92b7b18f53b7"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-12T10:15:00.000Z",
+        "expenseId": "b966b4d1-ae21-43fb-8971-eafb92d67163"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-12T08:50:00.000Z",
+        "expenseId": "04758a5a-02a6-491d-9d53-f26994d38577"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-12T20:30:00.000Z",
+        "expenseId": "40f9f0e0-f54f-4802-a2c7-03ccba29746f"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-13T20:50:00.000Z",
+        "expenseId": "3b726612-f760-4d9a-b4e9-b463e378d052"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-13T12:00:00.000Z",
+        "expenseId": "5010d2e5-89c4-4dec-b8e9-c633f198942e"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-08-01T07:00:00.000Z",
+        "expenseId": "1ed78e5c-ff33-4b5a-a71d-51cd3a618e01:2026-08-01"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-09-01T07:00:00.000Z",
+        "expenseId": "1ed78e5c-ff33-4b5a-a71d-51cd3a618e01:2026-09-01"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-10-01T07:00:00.000Z",
+        "expenseId": "1ed78e5c-ff33-4b5a-a71d-51cd3a618e01:2026-10-01"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-11-01T07:00:00.000Z",
+        "expenseId": "1ed78e5c-ff33-4b5a-a71d-51cd3a618e01:2026-11-01"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-08-05T07:00:00.000Z",
+        "expenseId": "71de8863-19a4-464f-bfb7-cf575d1766c5:2026-08-05"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-09-05T07:00:00.000Z",
+        "expenseId": "71de8863-19a4-464f-bfb7-cf575d1766c5:2026-09-05"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-10-05T07:00:00.000Z",
+        "expenseId": "71de8863-19a4-464f-bfb7-cf575d1766c5:2026-10-05"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-07-10T07:00:00.000Z",
+        "expenseId": "69f773d8-11b3-4eca-bd47-267fd4b41e11:2026-07-10"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-08-10T07:00:00.000Z",
+        "expenseId": "69f773d8-11b3-4eca-bd47-267fd4b41e11:2026-08-10"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-08-06T18:00:00.000Z",
+        "expenseId": "597d98f1-0aff-4261-ab1b-2385a3f9ad04"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-09-12T12:00:00.000Z",
+        "expenseId": "1ff273f5-1a7b-48f9-9f8a-0679f7832c0b"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "957ae782-219e-40b2-992e-327a494e7576",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-09-20T17:30:00.000Z",
+        "expenseId": "98e81c9b-d502-409b-8d63-0fa7e16549b1"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-10-26T19:10:00.000Z",
+        "expenseId": "d5aca067-4d03-429b-8c93-c120095320c8"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-10-28T09:00:00.000Z",
+        "expenseId": "106d31da-2687-4868-a33f-d2cc5dd0a16c"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "957ae782-219e-40b2-992e-327a494e7576",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-10-31T20:40:00.000Z",
+        "expenseId": "2fc3bfa7-a120-4bd3-af81-8f0b326aacb1"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "b309c3a0-b396-4b94-bdf9-32b632a1d5b0",
+        "date": "2026-10-21T19:30:00.000Z",
+        "expenseId": "1b930e2f-f076-4081-b3a6-fffdd7f4ef83"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "groupId": "b309c3a0-b396-4b94-bdf9-32b632a1d5b0",
+        "date": "2026-10-25T14:00:00.000Z",
+        "expenseId": "52b31f41-291a-406c-9be9-19e3c9eae0cf"
+      },
+      {
+        "type": "expense_added",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "b309c3a0-b396-4b94-bdf9-32b632a1d5b0",
+        "date": "2026-10-29T10:00:00.000Z",
+        "expenseId": "388afc06-5333-4a27-b3a5-542d9160d045"
+      },
+      {
+        "type": "payment",
+        "actorId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-14T10:00:00.000Z",
+        "settlementId": "b4fc6ce2-a6db-4b8e-9a1b-3fb53b0b0d7d",
+        "fromUserId": "ff7416ef-1d40-4ad5-8a72-ee60ba15d831",
+        "toUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "amount": 120
+      },
+      {
+        "type": "payment",
+        "actorId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-15T09:00:00.000Z",
+        "settlementId": "88fe4bdc-d934-4cd6-8776-6bf6dbea774b",
+        "fromUserId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "toUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "amount": 50
+      },
+      {
+        "type": "payment",
+        "actorId": "957ae782-219e-40b2-992e-327a494e7576",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-09-03T12:00:00.000Z",
+        "settlementId": "b11ed9d5-5389-4b09-bc79-020a52cbbd20",
+        "fromUserId": "957ae782-219e-40b2-992e-327a494e7576",
+        "toUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "amount": 800
+      },
+      {
+        "type": "payment",
+        "actorId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-09-04T12:00:00.000Z",
+        "settlementId": "2799949c-0b16-47f3-be83-d37d7c7005d3",
+        "fromUserId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+        "toUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "amount": 900
+      },
+      {
+        "type": "payment",
+        "actorId": "957ae782-219e-40b2-992e-327a494e7576",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-10-04T12:00:00.000Z",
+        "settlementId": "b715f1be-24a1-433d-a82f-da7cffca99ec",
+        "fromUserId": "957ae782-219e-40b2-992e-327a494e7576",
+        "toUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "amount": 300
+      },
+      {
+        "type": "payment",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "b309c3a0-b396-4b94-bdf9-32b632a1d5b0",
+        "date": "2026-10-31T16:00:00.000Z",
+        "settlementId": "cac591e1-0355-40f1-b9ac-6951ae7e595f",
+        "fromUserId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "toUserId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "amount": 17.8
+      },
+      {
+        "type": "expense_deleted",
+        "actorId": "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-10T09:00:00.000Z",
+        "expenseDescription": "Second taxi (duplicate)"
+      },
+      {
+        "type": "reminder_sent",
+        "actorId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "date": "2026-10-30T18:00:00.000Z",
+        "toUserId": "957ae782-219e-40b2-992e-327a494e7576",
+        "amount": 312,
+        "currency": "USD",
+        "via": "text"
+      },
+      {
+        "type": "group_synced",
+        "actorId": "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "date": "2026-10-15T18:00:00.000Z",
+        "fromName": "Dana Okafor",
+        "added": 3,
+        "updated": 1,
+        "deleted": 0
+      }
+    ],
+    "friendBalances": {
+      "ff7416ef-1d40-4ad5-8a72-ee60ba15d831": 63.15,
+      "bd2b3a07-2f8f-4ac6-b685-b181a4c7f95a": 111.55,
+      "15c3f3ad-f4e8-4100-9ae6-1375fc5fe4dc": 206.17,
+      "957ae782-219e-40b2-992e-327a494e7576": 2497,
+      "88ffc339-08c6-4183-9f0b-4adfab2cc0e6": 2786.8,
+      "a637bad6-b51d-497c-92ea-93393557b514": 0
+    },
+    "tombstones": [
+      {
+        "id": "4eb4ebe6-d979-4bef-b619-0b715c43c2d2",
+        "kind": "settlement",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "deletedAt": "2026-10-14T11:05:00.000Z"
+      },
+      {
+        "id": "f495d9b0-57a2-4606-b282-d94e55fa6ec2",
+        "kind": "expense",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "deletedAt": "2026-10-10T09:00:00.000Z"
+      },
+      {
+        "id": "custom:taxi-tips",
+        "kind": "category",
+        "groupId": "65cf1364-ca88-4080-a835-f1e9c8a9c6bb",
+        "deletedAt": "2026-10-09T18:00:00.000Z"
+      },
+      {
+        "id": "69f773d8-11b3-4eca-bd47-267fd4b41e11",
+        "kind": "recurring",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "deletedAt": "2026-08-20T10:00:00.000Z"
+      }
+    ],
+    "userAliases": {},
+    "groupSyncedAt": {
+      "65cf1364-ca88-4080-a835-f1e9c8a9c6bb": "2026-10-15T18:00:00.000Z"
+    },
+    "recurring": [
+      {
+        "id": "1ed78e5c-ff33-4b5a-a71d-51cd3a618e01",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "frequency": "monthly",
+        "startDate": "2026-08-01T07:00:00.000Z",
+        "template": {
+          "description": "Rent, Flat 4B",
+          "amount": 3600,
+          "currency": "USD",
+          "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+          "split": {
+            "type": "shares",
+            "entries": [
+              {
+                "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+                "amount": 1800,
+                "shares": 2
+              },
+              {
+                "userId": "957ae782-219e-40b2-992e-327a494e7576",
+                "amount": 900,
+                "shares": 1
+              },
+              {
+                "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+                "amount": 900,
+                "shares": 1
+              }
+            ]
+          },
+          "category": "rent"
+        },
+        "createdAt": "2026-08-01T07:00:00.000Z",
+        "updatedAt": "2026-08-01T07:00:00.000Z"
+      },
+      {
+        "id": "71de8863-19a4-464f-bfb7-cf575d1766c5",
+        "groupId": "73b9ac5f-8787-4bec-a700-ee2b4c92a96b",
+        "frequency": "monthly",
+        "startDate": "2026-08-05T07:00:00.000Z",
+        "template": {
+          "description": "Internet",
+          "amount": 79.99,
+          "currency": "USD",
+          "paidBy": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+          "split": {
+            "type": "equal",
+            "entries": [
+              {
+                "userId": "b7818d43-75fe-4a6a-80a3-a52c481cd333",
+                "amount": 26.67
+              },
+              {
+                "userId": "957ae782-219e-40b2-992e-327a494e7576",
+                "amount": 26.66
+              },
+              {
+                "userId": "88ffc339-08c6-4183-9f0b-4adfab2cc0e6",
+                "amount": 26.66
+              }
+            ]
+          },
+          "category": "utilities"
+        },
+        "createdAt": "2026-08-05T07:00:00.000Z",
+        "updatedAt": "2026-08-05T07:00:00.000Z"
+      }
+    ],
+    "receipts": {
+      "3b726612-f760-4d9a-b4e9-b463e378d052": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQQAAAGkCAYAAADXFFvkAAAF4klEQVR4Ae3BwY1lyWEEwOzEt2ctKZt4WJvKkjHnXVotMK+EIPLPbM8yIj6e5/kMwJcGYBqAaQCmAZgGYBqAaQCmAZgGYBqAaQCmAZgGYBqAaQCmAZgGYF55sz/++CPAr/Hjx4+8UwMwDcA0ANMATAMwDcA0ANMATAMwDcA0ANMATAMwr7zZjx8/AvyeGoBpAKYBmAZgGoBpAKYBmAZgGoBpAKYBmAZgGoBpAKYBmAZgGoBpAKYBmFfe7JwT/rV7b/j1zjn5zu69+Q4agGkApgGYBmAagPl4nuczAF8agGkApgGYBmAagGkApgGYBmBeebNzTuA/de/NX+2ck+/s3pt3awCmAZgGYBqAaQDm43mezwB8aQCmAZgGYBqAaQCmAZgGYBqAeeXNzjnh/+feG36uc06+s3tvvoMGYBqAaQCmAZgGYD6e5/kMwJcGYBqAaQCmAZgGYF55s3NO+O9z7813c87Jd3bvzXfTAEwDMA3ANADTAMzH8zyfAfjSAEwDMA3ANADTAMwrb3bOCb+Pe2/4p3NOvrN7b362BmAagGkApgGYBmA+nuf5DMCXBmAagGkApgGYBmBeebNzTvh17r3h33fOyXd2782v1ABMAzANwDQA0wDMx/M8nwH40gBMAzANwDQA0wBMAzANwLzyZuec8Ne594bknJPv7N6b76gBmAZgGoBpAKYBmI/neT4D8KUBmAZgGoBpAKYBmAZgGoBpAOaVNzvnhL+ve2/+m5xz8p3de/NODcA0ANMATAMwDcB8PM/zGYAvDcA0ANMATAMwDcA0APPKm51zwv/t3hu+n3NOvrN7b36mBmAagGkApgGYBmA+nuf5DMCXBmAagGkApgGYBmAagHnlzc454fdx7w3/2jkn39m9N+/UAEwDMA3ANADTAMzH8zyfAfjSAEwDMA3ANADTAEwDMK+82Tkn/Fz33vCfO+fkO7v35ldrAKYBmAZgGoBpAObjeZ7PAHxpAKYBmAZgGoBpAOaVNzvnBP4d9978lc45+c7uvfnZGoBpAKYBmAZgGoD5eJ7nMwBfGoBpAKYBmAZgGoBpAKYBmAZgXnmzc07473bvDb+nBmAagGkApgGYBmBeebN7b4DfUwMwDcA0ANMATAMwDcC88mbnnPDXuvcG/h0NwDQA0wBMAzANwLzyZvfeAL+nBmAagGkApgGYBmAagHnlzc45gf/UvTc/2zkn39m9N79aAzANwDQA0wBMAzAfz/N8BuBLAzANwDQA0wBMAzANwDQA0wDMK292zgl/T/fe8PfWAEwDMA3ANADTAMwrb3bvDfB7agCmAZgGYBqAaQCmAZgGYF55s3NO+Hu79+a/wTkn39m9N+/WAEwDMA3ANADTAMzH8zyfAfjSAEwDMA3ANADTAEwDMA3ANADzypudc8Lv4d4b/umck+/s3ptfoQGYBmAagGkApgGYj+d5PgPwpQGYBmAagGkApgGYBmAagHnlzc45gf91783v4pyT7+zem1+hAZgGYBqAaQCmAZiP53k+A/ClAZgGYBqAaQCmAZgGYBqAeeXNzjnh57r3hvc45+Q7u/fmV2oApgGYBmAagGkA5uN5ns8AfGkApgGYBmAagGkApgGYV97snBP+M/fe8H7nnHxn99781RqAaQCmAZgGYBqA+Xie5zMAXxqAaQCmAZgGYBqAaQDmlTc754S/p3tv/s7OOfnO7r352RqAaQCmAZgGYBqA+Xie5zMAXxqAaQCmAZgGYBqAaQDmlTf7xz/+EeDX+PPPP/NODcC88mZ//vlngN9TAzANwDQA0wBMAzANwDQA0wBMAzANwDQA0wBMAzANwDQA0wBMAzCvvNkff/wRfr4fP34E3q0BmAZgGoBpAKYBmAZgGoBpAKYBmFfe7MePHwF+Tw3ANADTAEwDMA3ANADTAEwDMA3ANADTAEwDMA3ANADTAEwDMA3ANADTAEwDMA3ANADTAEwDMA3ANADTAEwDMA3ANADTAEwDMA3ANADTAEwDMA3ANADTAMz/AJNT4r3B0W8oAAAAAElFTkSuQmCC"
+    }
+  }
+}
